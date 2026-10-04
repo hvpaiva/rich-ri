@@ -7,7 +7,7 @@ _rich_ri() {
     [[ -n $value ]] || continue
     values+=("$value")
     descriptions+=("$value${description:+ -- $description}")
-  done < <(command rich-ri --complete "${words[@]:1:$((CURRENT - 1))}" 2>/dev/null)
+  done < <(command rich-ri --complete --shell=zsh "${words[@]:1:$((CURRENT - 1))}" 2>/dev/null)
   if (( ${#values} == 1 )) && [[ ${values[1]} == *[:.#/=] ]]; then
     compadd -S '' -d descriptions -- "${values[@]}"
   else

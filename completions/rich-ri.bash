@@ -9,7 +9,7 @@ _rich_ri() {
   _init_completion -n ':=' || return
   while IFS=$'\t' read -r value _description; do
     [[ -n $value ]] && COMPREPLY+=("$value")
-  done < <(command rich-ri --complete "${words[@]:1:cword}" 2>/dev/null)
+  done < <(command rich-ri --complete --shell=bash "${words[@]:1:cword}" 2>/dev/null)
   if ((${#COMPREPLY[@]} == 1)) && [[ ${COMPREPLY[0]} == *[:.#/=] ]]; then
     compopt -o nospace 2>/dev/null || :
   fi

@@ -10,8 +10,9 @@ module RichRI
     def write(words, io)
       # Bound discovery even when a documentation store is unusually large.
       Timeout.timeout(4) do
+        words = words.drop(1).map { |word| shell_word(word) } if %w[--shell=bash --shell=zsh].include?(words.first)
         candidates(words).each do |value, description|
-          next if [value, description].any? { |text| text.match?(/[\x00-\x1f\x7f]/) }
+          next if [value, description].any? { |text| text.match?(/[\t\r\n]/) || RichRI.sanitize(text) != text }
 
           io.puts "#{value}\t#{description}"
         end
@@ -22,12 +23,14 @@ module RichRI
     end
 
     def candidates(words)
+      return [] if words[0...-1].include?("--install-man")
+
       current, previous, prefix = context(words)
       values = case previous
                when "--color" then %w[auto always never].map { |v| [v, "Color mode"] }
                when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
                when "--completion" then %w[bash zsh fish].map { |v| [v, "Shell completion script"] }
-               when "--doc-dir", "-d" then directories(current)
+               when "--doc-dir", "-d", "--install-man" then directories(current)
                when *VALUES then []
                else
                  if current.start_with?("-") && !words[0...-1].include?("--")
@@ -42,6 +45,18 @@ module RichRI
 
     private
 
+    def shell_word(word)
+      # Bash and Zsh retain quotes in their words. Shellwords removes them without
+      # evaluating substitutions; the current word may have an unclosed quote.
+      ["", "'", '"'].each do |suffix|
+        parts = Shellwords.split(word + suffix)
+        return parts.first.to_s if parts.length <= 1
+      rescue ArgumentError
+        next
+      end
+      word
+    end
+
     def context(words)
       current = words.last || ""
       previous = words[-2]
@@ -50,7 +65,7 @@ module RichRI
         previous, current = current.split("=", 2)
         prefix = "#{previous}="
       elsif previous == "--color"
-        # The bare switch forces color; it does not consume the next name.
+        # Optional values require '='; a bare switch does not consume a name.
         previous = nil
       end
       [current, previous, prefix]
@@ -64,6 +79,13 @@ module RichRI
     end
 
     def names(words, prefix)
+      defaults = Shellwords.split(ENV.fetch("RI", ""))
+      args = source_arguments(defaults + words)
+      options = Options.new.parse(args, defaults: "").driver_options
+      Driver.new(options.merge(use_stdout: true, interactive: false)).complete(prefix)
+    end
+
+    def source_arguments(words)
       args = []
       index = 0
       while index < words.length
@@ -78,8 +100,7 @@ module RichRI
         end
         index += 1
       end
-      options = Options.new.parse(args, defaults: "").driver_options
-      Driver.new(options.merge(use_stdout: true, interactive: false)).complete(prefix)
+      args
     end
   end
 end

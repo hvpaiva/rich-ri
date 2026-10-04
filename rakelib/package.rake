@@ -43,9 +43,13 @@ namespace :package do
         sources = ["--no-standard-docs", "--doc-dir", store]
         {
           [*sources, "RichRIExample#map"] => "Return transformed values.",
-          ["--complete", *sources, "RichRIExample#ma"] => "RichRIExample#map\t\n"
+          ["--complete", *sources, "RichRIExample#ma"] => "RichRIExample#map\t\n",
+          ["--no-standard-docs", "--interactive"] => "You can use tab to autocomplete.",
+          ["--man"] => "DOCUMENTATION SOURCES"
         }.each do |args, expected|
-          out, err, status = Open3.capture3(env, command, *args, chdir: dir)
+          out, err, status = Open3.capture3(env.merge("MANPAGER" => "cat"), command, *args,
+                                            chdir: dir, stdin_data: args.include?("--interactive") ? "\n" : "")
+          out = out.gsub(/.\x08/, "")
           unless status.success? && out.include?(expected)
             abort "Installed lookup failed: #{args.inspect}\n#{err}\n#{out}"
           end

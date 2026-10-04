@@ -2,6 +2,21 @@
 
 module RichRI
   class Driver < RDoc::RI::Driver
+    # RDoc's class listing writes directly to its pager, outside the formatter.
+    class ListOutput
+      def initialize(io)
+        @io = io
+      end
+
+      def puts(*values)
+        @io.puts(*values.map { |value| RichRI.sanitize(value.to_s) })
+      end
+
+      def tty?
+        @io.tty?
+      end
+    end
+
     def self.default_options
       columns = $stdout.tty? ? $stdout.winsize.last : 80
       columns = 80 unless columns.positive?
@@ -19,6 +34,16 @@ module RichRI
       return super if @formatter_klass
 
       Formatter.new(color: @rich_ri_color, classes: classes)
+    end
+
+    def run
+      return super unless @list_doc_dirs && !@formatter_klass
+
+      puts(@doc_dirs.map { |path| RichRI.sanitize(path) })
+    end
+
+    def page
+      super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
     end
 
     def complete(name)

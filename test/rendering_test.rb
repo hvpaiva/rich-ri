@@ -85,6 +85,37 @@ class RenderingTest < Minitest::Test
     assert(colored.lines.all? { |line| line.end_with?("\e[0m\n") })
   end
 
+  def test_markdown_raw_controls_are_escaped_through_the_executable
+    Dir.mktmpdir("rich-ri-markdown-") do |dir|
+      source = File.join(dir, "example.rb")
+      store = File.join(dir, "ri")
+      controls = "\e]52;c;AAAA\a\rhidden\u202e"
+      File.write(source, "# :markup: markdown\n# <div>#{controls}</div>\nclass RichRIControls\nend\n")
+      RDoc::RDoc.new.document(["--ri", "--quiet", "--op", store, source])
+      %w[always never].each do |mode|
+        out, err, status = cli("--no-standard-docs", "--doc-dir", store, "--color=#{mode}",
+                               "RichRIControls", docs: false)
+
+        assert_predicate status, :success?, err
+        refute_match(/[\e\a\r\u202e]/, RichRI.plain(out))
+        assert_includes out, "<div>\\u001b]52;c;AAAA\\u0007\\u000dhidden\\u202e</div>"
+      end
+    end
+  end
+
+  def test_inline_controls_are_escaped_in_headings_lists_tables_and_links
+    controls = "\e]8;;https://example.org\a\u009b\u202e"
+    source = "= #{controls}\n\n#{controls}:: Value\n\n{#{controls}}[https://example.org/#{controls}]\n"
+    table = RDoc::Markup::Table.new([controls], [:left], [[controls]])
+    [true, false].each do |color|
+      output = render(source, color: color)
+      output << RDoc::Markup::Document.new(table).accept(RichRI::Formatter.new(color: color))
+
+      refute_match(/[\e\a\u009b\u202e]/, RichRI.plain(output))
+      assert_includes output, "\\u001b"
+    end
+  end
+
   def test_shell_transcripts_distinguish_commands_from_output
     source = <<~'SESSION'
       $ echo "Open the pod bay doors, Hal." | ruby t.rb

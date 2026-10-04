@@ -36,6 +36,44 @@ class CompletionTest < Minitest::Test
     assert_includes values(*args, "--color", "RichRIExample#ma"), "RichRIExample#map"
   end
 
+  def test_ri_source_defaults_match_lookup_and_ignore_actions_during_completion
+    defaults = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].shelljoin
+    lookup, err, status = cli("RichRIExample#map", docs: false, env: { "RI" => defaults })
+
+    assert_predicate status, :success?, err
+    assert_includes lookup, "Return transformed values."
+    environment = { "RI" => "#{defaults} --server --dump=/missing --profile" }
+    out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+
+    assert_predicate status, :success?, err
+    assert_empty err
+    assert_equal "RichRIExample#map\t\n", out
+  end
+
+  def test_explicit_sources_follow_ri_defaults
+    with_environment("RI" => "--no-standard-docs --no-gems") do
+      completion = RichRI::Completion.new
+      args = completion.send(:source_arguments, Shellwords.split(ENV.fetch("RI")) + ["--gems"])
+      options = RichRI::Options.new.parse(args, defaults: "").driver_options
+
+      assert options[:use_gems]
+      refute options[:use_system]
+      assert_includes values("--doc-dir", TestSupport::STORE, "RichRIExample#ma"), "RichRIExample#map"
+    end
+  end
+
+  def test_protocol_discards_terminal_controls_in_values_and_descriptions
+    completion_class = Class.new(RichRI::Completion) do
+      def candidates(_words)
+        [["Valid", "Description"], ["Bad\u009bName", ""], ["Bad\u202eName", ""], ["Other", "bad\ttext"]]
+      end
+    end
+    output = StringIO.new
+    completion_class.new.write([], output)
+
+    assert_equal "Valid\tDescription\n", output.string
+  end
+
   def test_page_completion_and_missing_sources
     instance = driver
     store = instance.stores.first
@@ -52,6 +90,27 @@ class CompletionTest < Minitest::Test
 
       assert_equal ["#{dir}/docs [one]/"], values("-d", "#{dir}/docs [")
       assert_equal ["--doc-dir=#{dir}/docs [one]/"], values("--doc-dir=#{dir}/do")
+      assert_equal ["--install-man=#{dir}/docs [one]/"], values("--install-man=#{dir}/do")
+      assert_empty values("--no-standard-docs", "--install-man", "#{dir}/do")
+      assert_empty values("--doc-dir", TestSupport::STORE, "--install-man", "RichRIExample")
+    end
+  end
+
+  def test_bash_dequoting_handles_unclosed_quotes_without_evaluating_substitutions
+    completion_class = Class.new(RichRI::Completion) do
+      def candidates(words)
+        words.map { |word| [word, ""] }
+      end
+    end
+    Dir.mktmpdir do |dir|
+      marker = File.join(dir, "executed")
+      output = StringIO.new
+      words = ["--shell=bash", "'open quote", '"double quote"', "path\\ with\\ spaces", "$(touch #{marker})"]
+      completion_class.new.write(words, output)
+
+      assert_equal(["open quote", "double quote", "path with spaces", "$(touch #{marker})"],
+                   output.string.lines.map { |line| line.split("\t").first })
+      refute_path_exists marker
     end
   end
 
