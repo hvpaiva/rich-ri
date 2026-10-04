@@ -118,9 +118,28 @@ class CLITest < Minitest::Test
   end
 
   def test_interactive_lookup_can_exit_cleanly
-    _out, err, status = cli("--interactive", stdin: "RichRIExample#map\nexit\n")
+    out, err, status = cli("--interactive", stdin: "RichRIExample#map\n\n")
 
     assert_predicate status, :success?, err
     assert_empty err
+    refute_includes out, "Nothing known about"
+  end
+
+  def test_dump_rejects_directories_missing_files_and_unreadable_files
+    Dir.mktmpdir do |directory|
+      unreadable = File.join(directory, "unreadable.ri")
+      File.write(unreadable, "cache")
+      File.chmod(0o000, unreadable)
+      paths = [directory, File.join(directory, "missing.ri")]
+      paths << unreadable unless File.readable?(unreadable)
+      paths.each do |path|
+        out, err, status = cli("--dump=#{path}", docs: false)
+
+        assert_equal 1, status.exitstatus
+        assert_empty out
+        assert_includes err, "RI cache must be a readable regular file"
+        refute_match(/from .*\.rb:\d+/, err)
+      end
+    end
   end
 end

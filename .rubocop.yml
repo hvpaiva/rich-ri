@@ -54,6 +54,11 @@ Naming/MethodName:
 Metrics/ClassLength:
   Max: 180
 
+Metrics/ModuleLength:
+  # Manual prose in heredocs is data, not executable module complexity.
+  CountAsOne:
+    - heredoc
+
 Minitest/MultipleAssertions:
   # Rendering tests compare status, text preservation, layout and styles together.
   Max: 12

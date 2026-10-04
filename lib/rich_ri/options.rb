@@ -119,6 +119,9 @@ module RichRI
       end
       @parser.on("--man", "Open the bundled manual with man.") { @action = [:man] }
       @parser.on("--man-path", "Print the path to the bundled manual.") { @action = [:man_path] }
+      @parser.on("--install-man[=DIR]", "Install or update the manual in a user man1 directory.") do |directory|
+        @action = [:install_man, directory]
+      end
       @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") { |path| @driver_options[:dump_path] = path }
       @parser.on("--[no-]profile", "Run with Ruby's optional profile library.") do |value|
         @driver_options[:profile] = value

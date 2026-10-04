@@ -4,3 +4,7 @@ extend-exclude = ["Gemfile.lock", "man/man1/*", "test/fixtures/*", "coverage/*",
 [default.extend-words]
 rdoc = "rdoc"
 RDoc = "RDoc"
+
+[default.extend-identifiers]
+# less uses the termcap code ue for the end of underlining.
+LESS_TERMCAP_ue = "LESS_TERMCAP_ue"
