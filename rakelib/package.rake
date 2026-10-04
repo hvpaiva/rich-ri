@@ -57,7 +57,11 @@ namespace :package do
           abort "Wrong package version" if args == ["--version"] && out != "rich-ri #{RichRI::VERSION}\n"
           next unless args == ["--man-path"]
 
-          abort "Manual missing from installed gem" unless out.strip.start_with?(home) && File.file?(out.strip)
+          manual = out.strip
+          # macOS exposes /private/var through /var; __dir__ resolves symlinks.
+          unless File.file?(manual) && File.realpath(manual).start_with?("#{File.realpath(home)}/")
+            abort "Manual missing from installed gem: #{manual}"
+          end
         end
         puts "Installed gem: version, help, lookup, completion and manual passed."
       end
