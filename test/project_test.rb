@@ -56,7 +56,7 @@ class ProjectTest < Minitest::Test
     source = story[/```ruby\n(.*?)```/m, 1]
     commands = story[/```sh\n(.*?)```/m, 1].lines
     expected = story[/```text\n(.*?)```/m, 1]
-    Dir.mktmpdir("rich-ri-readme-") do |root|
+    Dir.mktmpdir("rich-ri-readme-with-a-path-longer-than-sixty-columns-") do |root|
       File.write(File.join(root, "greeter.rb"), source)
       output = nil
       commands.each do |line|
@@ -68,7 +68,13 @@ class ProjectTest < Minitest::Test
         assert_predicate status, :success?, "#{line.strip}: #{err}"
       end
 
-      assert_equal expected.rstrip, output.gsub(File.realpath(root), ".").gsub(root, ".").rstrip
+      # RDoc reports an absolute path, which wraps at the example's width.
+      # Verify its provenance before abbreviating it as the README does.
+      source = output.match(/\(from\s+(.*?)\)\n/m)
+
+      refute_nil source
+      assert_includes [File.realpath(root), root].map { |path| "#{path}/doc/ri" }, source[1].delete("\n")
+      assert_equal expected.rstrip, output.sub(source[0], "(from ./doc/ri)\n").rstrip
     end
   end
 end

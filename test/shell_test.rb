@@ -183,7 +183,9 @@ class ShellTest < Minitest::Test
     return [name, "--noprofile", "--rcfile", setup, "-i"] if name == "bash"
 
     environment["ZDOTDIR"] = @bin
-    [name, "-i"]
+    # Ubuntu's global zshrc runs compinit before this fixture and may prompt
+    # about system directory permissions. Load only our controlled user rc.
+    [name, "-d", "-i"]
   end
 
   def bash_completion

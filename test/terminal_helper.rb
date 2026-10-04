@@ -26,6 +26,8 @@ module TerminalTestSupport
       end
     end
     [output, status]
+  rescue Timeout::Error
+    flunk "Terminal timed out: #{command.inspect}\nCaptured output: #{output.inspect}"
   ensure
     if pid
       begin
