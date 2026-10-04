@@ -138,6 +138,20 @@ class ShellTest < Minitest::Test
     result = inserted_arguments(name, "ri --no-standard-docs --doc-dir '#{directory}' RichRIExample#rea")
 
     assert_equal ["--no-standard-docs", "--doc-dir", directory, "RichRIExample#ready?"], result, @terminal_output
+    config = File.join(@bin, "settings spaced.yml")
+    File.write(config, "theme: terminal\n")
+    result = inserted_arguments(name, "rich-ri --config '#{@bin}/settings s'")
+
+    assert_equal ["--config", config], result, @terminal_output
+    result = inserted_arguments(name, "rich-ri --theme=da")
+
+    assert_equal ["--theme=dark"], result, @terminal_output
+    result = inserted_arguments(name, "rich-ri --style met")
+
+    assert_equal ["--style", "method="], result, @terminal_output
+    result = inserted_arguments(name, "rich-ri --style=met")
+
+    assert_equal ["--style=method="], result, @terminal_output
   end
 
   def inserted_arguments(name, line)

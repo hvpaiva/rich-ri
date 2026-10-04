@@ -13,7 +13,7 @@ class ProjectTest < Minitest::Test
     assert_includes spec.files, "completions/rich-ri.bash"
     assert_includes spec.files, "man/man1/rich-ri.1"
     assert(spec.files.all? do |file|
-      file.match?(%r{\A(?:lib/|exe/|completions/|man/|README.md|CHANGELOG.md|LICENSE.txt|SECURITY.md)})
+      file.match?(%r{\A(?:lib/|exe/|completions/|man/|docs/|README.md|CHANGELOG.md|LICENSE.txt|SECURITY.md)})
     end)
     refute(spec.files.any? { |file| file.include?("/home/") || file.start_with?("test/", "tmp/", ".") })
   end

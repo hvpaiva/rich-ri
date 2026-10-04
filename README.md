@@ -4,7 +4,8 @@ Read Ruby documentation with clear headings, colored references and highlighted
 examples, using the RI documentation already installed for your Ruby and gems.
 
 rich-ri wraps Ruby's original RI reader, provided by RDoc. RDoc handles lookup
-and documentation stores; rich-ri adds presentation and discovery features.
+and documentation stores; rich-ri adds semantic colors, syntax highlighting and
+shell completion for classes, methods, documentation pages and options.
 It requires the RDoc library, which RubyGems installs as a dependency. Many Ruby
 installations already include RDoc and `ri`. rich-ri uses that library directly,
 so the separate `ri` executable does not need to be on your `PATH`.
@@ -23,7 +24,8 @@ rich-ri ruby:syntax/pattern_matching
 Ruby examples are highlighted with Prism. When bat is installed, rich-ri also
 highlights explicitly tagged languages and recognizes shell transcripts such as
 `$ echo "hello" | ruby example.rb`. Command output stays plain. Colors follow
-your terminal's palette, including light themes.
+your terminal's palette by default. You can choose a light or dark preset and
+customize each semantic style in a [configuration file](docs/configuration.md).
 
 ## Install
 
@@ -57,9 +59,10 @@ Names follow RI conventions. Use `Class#method` for instance methods,
 `Class::method` for class methods, and `Class.method` to search both.
 Quote names containing shell punctuation, such as `rich-ri 'Array.[]'`.
 
-Run `rich-ri` without arguments for interactive lookup. Press Tab to discover
-classes, methods and documentation pages; submit an empty line to leave. With shell
-completion installed, the same discovery is available before running a command:
+Run `rich-ri` without arguments for RI's interactive lookup. Its Tab completion
+is extended with documentation pages and method prefixes such as `String#`,
+`String.` and `String::`; submit an empty line to leave. With shell completion
+installed, you can also find classes, methods, pages and options before running a command:
 
 ```text
 rich-ri Str<Tab>
@@ -86,9 +89,12 @@ prose wraps by visible terminal width, including wide Unicode characters.
 
 ## Shell completion
 
-Completion reads the active Ruby's RI stores, including `--doc-dir`. It makes no
-network requests. It can suggest installed classes, methods, pages, options and
-option values. Invalid or unavailable stores produce no suggestions.
+Completion reads the active Ruby's RI stores, including sources selected in your
+configuration file, `RI` or `--doc-dir`. It makes no network requests. It suggests
+installed classes, methods, pages, options, theme names and style roles, with
+descriptions where available. Invalid configuration or unavailable stores prevent
+documentation-name suggestions; options and theme values remain available. Run
+`rich-ri --show-config` to diagnose configuration errors.
 
 ### Bash
 
@@ -193,22 +199,80 @@ Only open RI stores you trust. RI caches use Ruby Marshal serialization; see
 
 ## Configuration
 
+rich-ri accepts RI's default options from the `RI` environment variable and uses
+RDoc's installed documentation stores. It also has its own optional YAML file:
+`$XDG_CONFIG_HOME/rich-ri/config.yml`, or `~/.config/rich-ri/config.yml` when
+`XDG_CONFIG_HOME` is unset, empty or relative. No project file is loaded automatically.
+
+```yaml
+# ~/.config/rich-ri/config.yml
+theme: terminal          # terminal, dark or light
+color: auto              # auto, always or never
+color_depth: auto        # auto, basic, "256" or truecolor
+pager: true
+styles:
+  heading: "blue:bold"
+  method: "cyan"
+  comment: "bright_black"
+```
+
+Settings take precedence in this order, from highest to lowest: command-line
+options, dedicated environment variables, the selected YAML file, `RI` default
+options, then built-in defaults. Individual style roles merge across these layers.
+`doc_dirs` adds directories instead of replacing previous entries; relative paths
+in the YAML file are resolved from that file's directory.
+
+```sh
+rich-ri --config-path
+rich-ri --show-config
+rich-ri --theme=light --style='comment=#6b7280' Regexp
+rich-ri --config "$HOME/my-rich-ri.yml" Array#map
+rich-ri --no-config --show-config
+```
+
+`--config` or `RICH_RI_CONFIG` selects another file; an explicitly selected file
+must exist. `--no-config` skips the file but keeps environment and command-line
+settings. If both selectors appear on the command line, the last one wins.
+`--help`, `--version`, `--config-path` and `--completion=SHELL` remain available
+when a configuration file is broken.
+
+The `terminal` theme follows your terminal's ANSI palette. `dark` and `light`
+provide foreground colors for those backgrounds; they do not change or detect
+your terminal background. Override any of the 19 style roles with named ANSI
+colors, palette indices, RGB hex colors, foreground/background colors and text
+attributes. `none` removes a role's styling. See the
+[complete configuration reference](docs/configuration.md) and
+[annotated example](docs/config.example.yml) for every key, role and environment
+variable, including `RICH_RI_STYLE_<ROLE>` overrides.
+
 | Setting | Behavior |
 | --- | --- |
-| `--color=auto` | Default: colors only on a TTY, unless `NO_COLOR` is nonempty or `TERM=dumb`. |
-| `--color`, `--color=always` | Force colors, including in pipes. |
-| `--no-color`, `--color=never` | Disable colors. |
-| `RI` | Default options, parsed as shell words. Explicit arguments take precedence. |
-| `RI_PAGER`, `PAGER` | Select the pager, in that order. These are trusted shell commands. |
-| `LESS` | Pager preferences; rich-ri adds `-R` for its child pager. |
-| `BAT_THEME` | bat theme for tagged languages; shell commands use `ansi`. |
-| `GEM_HOME`, `GEM_PATH` | Select the active RubyGems documentation stores. |
-| `HOME`, `PATH` | Locate home documentation and external programs. |
+| `RICH_RI_THEME`, `RICH_RI_COLOR`, `RICH_RI_COLOR_DEPTH` | Select the theme, color policy and terminal color depth. |
+| `RICH_RI_WIDTH` | Prose width; accepts 20 columns or more. |
+| `RICH_RI_CONFIG`, `XDG_CONFIG_HOME` | Select the configuration file or its default parent directory. |
+| `RICH_RI_STYLE_<ROLE>` | Override one style, for example `RICH_RI_STYLE_COMMENT=bright_black`. |
+| `RICH_RI_BAT_THEME`, `BAT_THEME` | bat theme for tagged non-Ruby, non-shell examples, in that order; default `base16`. |
+| `RICH_RI_SHELL_THEME` | bat theme for shell examples and transcript commands; default `ansi`. |
+| `RI` | Default options, parsed as shell words; no shell evaluation occurs. |
+| `RI_PAGER`, `PAGER` | Trusted pager commands. `RI_PAGER` overrides file settings; `PAGER` is a fallback. |
+| `LESS` | Pager preferences; rich-ri adds `-R` for its child documentation pager. |
+| `NO_COLOR`, `TERM` | Nonempty `NO_COLOR` or `TERM=dumb` disables automatic colors. |
+| `COLORTERM`, `TERM` | Detect truecolor or 256-color capability for `color_depth: auto`. |
+| `GEM_HOME`, `GEM_PATH`, `HOME`, `PATH` | Locate RubyGems/home documentation, home configuration and external programs. |
+| `MANPAGER`, `MANROFFOPT`, `GROFF_NO_SGR`, `LESS_TERMCAP_*` | Existing manual pager and palette settings take precedence over rich-ri's manual palette. |
+| `MANPATH`, `XDG_DATA_HOME` | Locate manuals and select the default manual installation directory. |
 
-The default prose width follows the terminal up to 96 columns. `--width` accepts
-20 columns or more. Shell detection is intentionally conservative: ambiguous
-prompts, unclosed quotes and shell heredocs remain plain. Explicit language tags
-take precedence over detection. A missing or failing bat leaves the code readable.
+Colors default to `auto`: enabled only on a terminal. `--color` or
+`--color=always` forces them, including in pipes and when `NO_COLOR` or `TERM=dumb`
+is set. `--no-color` disables them while preserving the rich page layout.
+`--format` selects an original RDoc formatter, whose output does not use these
+semantic styles. The default prose width follows the terminal up to 96 columns.
+
+Ruby syntax highlighting and every page style work without bat. bat uses its own
+separately selected themes for other languages; `bat --list-themes` lists those
+installed on your machine. Shell detection is conservative: ambiguous prompts,
+unclosed quotes and shell heredocs remain plain. Explicit language tags take
+precedence. A missing or failing bat leaves the original code readable.
 
 ## Manual, development and support
 

@@ -27,13 +27,17 @@ module RichRI
 
     def initialize(options)
       @rich_ri_color = options.delete(:rich_ri_color)
+      @rich_ri_theme = options.delete(:rich_ri_theme) || Theme.new
+      @rich_ri_bat_theme = options.delete(:rich_ri_bat_theme) || ENV.fetch("BAT_THEME", "base16")
+      @rich_ri_shell_theme = options.delete(:rich_ri_shell_theme) || "ansi"
       super
     end
 
     def formatter(io)
       return super if @formatter_klass
 
-      Formatter.new(color: @rich_ri_color, classes: classes)
+      Formatter.new(color: @rich_ri_color, classes: classes, theme: @rich_ri_theme,
+                    bat_theme: @rich_ri_bat_theme, shell_theme: @rich_ri_shell_theme)
     end
 
     def run
