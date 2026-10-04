@@ -8,6 +8,7 @@ require "tmpdir"
 class ReadmeComparison
   ROOT = File.expand_path("../..", __dir__)
   OUTPUT = File.join(__dir__, "ri-vs-rich-ri.png")
+  QUERY = "Object#then"
   COLUMNS = 58
   SGR = /\e\[([\d;]*)m/
   BACKGROUND = "#11111b"
@@ -34,17 +35,15 @@ class ReadmeComparison
   end
 
   def run
-    # Require bat because shell highlighting is part of this example.
-    bat = command("bat", "--version").lines.first.split(" (").first.strip
     ruby = command("bundle", "exec", "ruby", "-rrdoc", "-e",
                    'print ["Ruby", RUBY_VERSION, "/ RDoc", RDoc::VERSION].join(" ")')
     commands = {
-      "ri -f ansi" => ["bundle", "exec", "ri", "--no-pager", "-f", "ansi", "--width=#{COLUMNS}", "ARGF"],
+      "ri -f ansi" => ["bundle", "exec", "ri", "--no-pager", "-f", "ansi", "--width=#{COLUMNS}", QUERY],
       "rich-ri" => ["bundle", "exec", "ruby", "-Ilib", "exe/rich-ri", "--no-config", "--no-pager",
-                    "--color=always", "--width=#{COLUMNS}", "ARGF"]
+                    "--color=always", "--width=#{COLUMNS}", QUERY]
     }
     captures = commands.to_h { |name, args| [name, terminal_rows(capture(name, args))] }
-    render(captures, "#{ruby} · #{bat}")
+    render(captures, ruby)
     puts "Raw captures and SVG: #{@directory}"
     puts "#{OUTPUT}: #{File.size(OUTPUT)} bytes"
   end
@@ -58,18 +57,10 @@ class ReadmeComparison
 
   def capture(name, args)
     raw = command(*args)
-    File.write(File.join(@directory, "#{name}.full.ansi"), raw)
-    lines = raw.lines
-    headings = lines.map { |line| line.gsub(SGR, "").sub(/^={1,6} /, "").chomp }
-    start = headings.index("Reading")
-    finish = headings.index("About the Examples")
-    raise "ARGF excerpt headings changed" unless start && finish && start < finish
+    raise "Missing colors in #{name}" unless raw.match?(SGR)
 
-    excerpt = "#{lines[start...finish].join.rstrip}\n"
-    raise "Missing colors in #{name}" unless excerpt.match?(SGR)
-
-    File.write(File.join(@directory, "#{name}.ansi"), excerpt)
-    excerpt
+    File.write(File.join(@directory, "#{name}.ansi"), raw)
+    raw
   end
 
   def default_style
@@ -99,7 +90,7 @@ class ReadmeComparison
           codes = match[1].empty? ? [0] : match[1].split(";", -1).map(&:to_i)
           codes.each { |code| style = apply_sgr(style, code) }
         else
-          # This excerpt is ASCII; fail if future documentation needs wide cells.
+          # This page is ASCII; fail if future documentation needs wide cells.
           raise "Unexpected character: #{token.inspect}" unless token.match?(/\A[ -~]\z/)
 
           cells << [token, style.dup]
@@ -136,12 +127,11 @@ class ReadmeComparison
     left = 30 + (index * (PANEL_WIDTH + 24))
     rectangle(left, 24, PANEL_WIDTH, height - 88, fill: PANEL, rx: 15, stroke: "#313244")
     text(left + 26, 68, name, size: 28, "font-family" => "sans-serif", "font-weight" => "bold")
-    detail = index.zero? ? "Built-in ANSI formatter" : "Ruby + shell syntax highlighting"
+    detail = index.zero? ? "Built-in ANSI formatter" : "Ruby syntax highlighting"
     text(left + PANEL_WIDTH - 26, 64, detail, size: 21, fill: MUTED,
                                               "font-family" => "sans-serif", "text-anchor" => "end")
     rectangle(left, 88, PANEL_WIDTH, 1, fill: "#313244")
-    options = index.zero? ? "" : " --color=always"
-    text(left + 26, 136, "$ #{name} --no-pager#{options} --width=#{COLUMNS} ARGF")
+    text(left + 26, 136, "$ #{name} #{QUERY}")
     rows.each_with_index do |row, row_index|
       row.each_with_index do |(char, style), column|
         draw_cell(left + 26 + (column * CELL), 164 + (row_index * LINE_HEIGHT), char, style)
@@ -154,7 +144,7 @@ class ReadmeComparison
     height = 254 + (captures.values.map(&:length).max * LINE_HEIGHT)
     rectangle(0, 0, width, height, fill: BACKGROUND)
     captures.each_with_index { |(name, rows), index| panel(name, rows, index, height) }
-    caption = "Same ARGF excerpt, #{COLUMNS} columns and terminal palette · #{versions}"
+    caption = "Complete #{QUERY} page · #{COLUMNS} columns · Same terminal palette · #{versions}"
     text(30, height - 20, caption, size: 21, fill: MUTED, "font-family" => "sans-serif")
     source = File.join(@directory, "comparison.svg")
     File.write(source, element("svg", { xmlns: "http://www.w3.org/2000/svg", width:, height: }, @svg.join("\n")))
