@@ -4,8 +4,9 @@ require "test_helper"
 
 class CommitPolicyTest < Minitest::Test
   def git(root, *)
-    out, err, status = Open3.capture3("git", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", *,
-                                      chdir: root)
+    # Keep background Git maintenance out of disposable test repositories.
+    out, err, status = Open3.capture3("git", "-c", "maintenance.auto=false", "-c", "commit.gpgsign=false",
+                                      "-c", "core.hooksPath=/dev/null", *, chdir: root)
 
     assert_predicate status, :success?, err
     out

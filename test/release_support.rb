@@ -17,7 +17,8 @@ module ReleaseFixtures
       [%w[init -q], %w[add .], ["-c", "user.name=Test", "-c", "user.email=test@example.org",
                                 "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
                                 "commit", "-qm", "chore: initialize"]].each do |args|
-        _out, err, status = Open3.capture3("git", *args, chdir: dir)
+        # Detached maintenance can race with the temporary directory cleanup.
+        _out, err, status = Open3.capture3("git", "-c", "maintenance.auto=false", *args, chdir: dir)
 
         assert_predicate status, :success?, err
       end
