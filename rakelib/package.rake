@@ -29,12 +29,27 @@ namespace :package do
       end
       Bundler.with_unbundled_env do
         sh(*gem_command, "build", "rich-ri.gemspec", "--output", package)
-        env = { "GEM_HOME" => home, "GEM_PATH" => home, "RUBYOPT" => nil, "RUBYLIB" => nil, "RI" => nil }
+        env = { "GEM_HOME" => home, "GEM_PATH" => home, "RUBYOPT" => nil, "RUBYLIB" => nil,
+                "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1" }
         Dir.chdir(dir) do
           sh(env, *gem_command, "install", "--local", "--no-document",
              "--bindir", File.join(home, "bin"), package)
         end
         command = File.join(home, "bin", "rich-ri")
+        store = File.join(dir, "ri")
+        fixtures = File.expand_path("../test/fixtures", __dir__)
+        sh(env, RbConfig.ruby, "-rrdoc/rdoc", "-e", "RDoc::RDoc.new.document(ARGV)", "--",
+           "--ri", "--quiet", "--op", store, "example.rb", "GUIDE.rdoc", chdir: fixtures)
+        sources = ["--no-standard-docs", "--doc-dir", store]
+        {
+          [*sources, "RichRIExample#map"] => "Return transformed values.",
+          ["--complete", *sources, "RichRIExample#ma"] => "RichRIExample#map\t\n"
+        }.each do |args, expected|
+          out, err, status = Open3.capture3(env, command, *args, chdir: dir)
+          unless status.success? && out.include?(expected)
+            abort "Installed lookup failed: #{args.inspect}\n#{err}\n#{out}"
+          end
+        end
         [%w[--version], %w[--help], %w[--no-standard-docs --list], %w[--complete --no-all],
          %w[--completion=bash], %w[--completion=zsh], %w[--completion=fish], %w[--man-path]].each do |args|
           out, err, status = Open3.capture3(env, command, *args, chdir: dir)

@@ -16,6 +16,7 @@ if [[ ! -r /usr/share/bash-completion/bash_completion ]] &&
   [[ ! -r /opt/homebrew/etc/profile.d/bash_completion.sh ]] &&
   [[ ! -r /usr/local/etc/profile.d/bash_completion.sh ]]; then
   printf 'Install bash-completion 2.x for the Bash integration tests.\n'
+  missing=1
 fi
 printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'
 exit "$missing"
