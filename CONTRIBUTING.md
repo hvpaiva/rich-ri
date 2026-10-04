@@ -85,6 +85,8 @@ changes that have no user-visible effect.
 
 Describe the problem, resulting behavior and validation in the pull request.
 Update README, help and the manual where users will look for the changed feature.
+When page rendering changes, [refresh the README comparison](docs/images/README.md)
+against `ri -f ansi` and inspect the resulting image.
 The generated manual and completion descriptions share the option parser to
 prevent drift. A test runs the README's project example as written and compares
 its output. Package checks install the built gem in isolation and exercise it.
