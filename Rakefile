@@ -46,6 +46,16 @@ namespace :generate do
 end
 
 namespace :lint do
+  desc "Check branch commits and optional PR_TITLE/PR_BODY (range defaults to origin/main..HEAD)"
+  task :commits, [:range] do |_task, args|
+    range = args[:range]
+    unless range
+      has_base = system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL)
+      range = has_base ? "origin/main..HEAD" : "HEAD"
+    end
+    sh RbConfig.ruby, "bin/lint-commits", range
+  end
+
   desc "Check Bash scripts with ShellCheck"
   task :shell do
     sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
@@ -87,7 +97,7 @@ namespace :audit do
 end
 
 desc "Run local CI checks (all three shells and security database required)"
-task check: %w[rubocop lint:shell lint:spelling lint:workflows lint:links lint:man generate:check test:cov test:shells
-               package:check audit]
+task check: %w[rubocop lint:commits lint:shell lint:spelling lint:workflows lint:links lint:man generate:check
+               test:cov test:shells package:check audit]
 
 task default: %w[rubocop test]

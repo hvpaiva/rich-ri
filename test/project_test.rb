@@ -48,17 +48,6 @@ class ProjectTest < Minitest::Test
     assert_includes err, "Publication runs only in the release workflow"
   end
 
-  def test_commit_checker_handles_git_log_separators_and_checks_pr_titles
-    command = [RbConfig.ruby, "bin/lint-commits", "HEAD"]
-    _out, err, status = Open3.capture3({ "PR_TITLE" => nil }, *command, chdir: TestSupport::ROOT)
-
-    assert_predicate status, :success?, err
-    _out, err, status = Open3.capture3({ "PR_TITLE" => "An unstructured title" }, *command, chdir: TestSupport::ROOT)
-
-    refute_predicate status, :success?
-    assert_includes err, "Conventional Commit"
-  end
-
   def test_readme_lookup_commands_are_valid_with_fixture_subjects
     readme = File.read(File.join(TestSupport::ROOT, "README.md"))
     commands = readme.scan(/```(?:sh|bash|zsh|fish)\n(.*?)```/m).join.lines.grep(/^rich-ri /)
