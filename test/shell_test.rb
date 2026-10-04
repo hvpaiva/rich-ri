@@ -31,12 +31,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_bash_queries_instance_methods
-    paths = %w[/usr/share/bash-completion/bash_completion /opt/homebrew/etc/profile.d/bash_completion.sh
-               /usr/local/etc/profile.d/bash_completion.sh]
-    completion = paths.find { |path| File.file?(path) }
-
-    refute_nil completion, "Install bash-completion 2.x"
-    result = shell("bash", <<~'BASH', completion, TestSupport::ROOT, TestSupport::STORE)
+    result = shell("bash", <<~'BASH', bash_completion, TestSupport::ROOT, TestSupport::STORE)
       source "$1"
       source "$2/completions/rich-ri.bash"
       COMP_WORDS=(rich-ri --no-standard-docs --doc-dir "$3" RichRIExample#ma)
@@ -49,12 +44,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_bash_preserves_page_prefixes_split_by_wordbreaks
-    paths = %w[/usr/share/bash-completion/bash_completion /opt/homebrew/etc/profile.d/bash_completion.sh
-               /usr/local/etc/profile.d/bash_completion.sh]
-    completion = paths.find { |path| File.file?(path) }
-
-    refute_nil completion
-    result = shell("bash", <<~'BASH', completion, TestSupport::ROOT, TestSupport::STORE)
+    result = shell("bash", <<~'BASH', bash_completion, TestSupport::ROOT, TestSupport::STORE)
       source "$1"
       source "$2/completions/rich-ri.bash"
       COMP_WORDS=(rich-ri --no-standard-docs --doc-dir "$3" "$3" : G)
@@ -67,11 +57,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_bash_supports_equals_values_and_aliases
-    completion = %w[/usr/share/bash-completion/bash_completion /opt/homebrew/etc/profile.d/bash_completion.sh
-                    /usr/local/etc/profile.d/bash_completion.sh].find { |path| File.file?(path) }
-
-    refute_nil completion
-    result = shell("bash", <<~'BASH', completion, TestSupport::ROOT)
+    result = shell("bash", <<~'BASH', bash_completion, TestSupport::ROOT)
       source "$1"
       source "$2/completions/rich-ri.bash"
       alias ri=rich-ri
@@ -102,5 +88,17 @@ class ShellTest < Minitest::Test
       complete -C 'rich-ri --color=a'
     FISH
     assert_equal ["--color=always\tColor mode", "--color=auto\tColor mode"], result
+  end
+
+  private
+
+  def bash_completion
+    # Homebrew's profile.d wrapper returns early in noninteractive shells.
+    paths = %w[/usr/share/bash-completion/bash_completion /opt/homebrew/share/bash-completion/bash_completion
+               /usr/local/share/bash-completion/bash_completion]
+    completion = paths.find { |path| File.file?(path) }
+
+    refute_nil completion, "Install bash-completion 2.x"
+    completion
   end
 end

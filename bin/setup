@@ -13,8 +13,8 @@ for tool in shellcheck typos zizmor lychee groff bash zsh fish; do
   fi
 done
 if [[ ! -r /usr/share/bash-completion/bash_completion ]] &&
-  [[ ! -r /opt/homebrew/etc/profile.d/bash_completion.sh ]] &&
-  [[ ! -r /usr/local/etc/profile.d/bash_completion.sh ]]; then
+  [[ ! -r /opt/homebrew/share/bash-completion/bash_completion ]] &&
+  [[ ! -r /usr/local/share/bash-completion/bash_completion ]]; then
   printf 'Install bash-completion 2.x for the Bash integration tests.\n'
   missing=1
 fi
