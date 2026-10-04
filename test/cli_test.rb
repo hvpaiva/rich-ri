@@ -25,6 +25,8 @@ class CLITest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_includes plain, "RichRIExample#map"
+    assert_equal "= RichRIExample#map\n", plain.lines.first
+    assert_equal 2, plain.lines.grep(/\A-{78}\n\z/).length
     refute_includes plain, "\e"
     colored, err, status = cli("--color=always", "RichRIExample#map")
 

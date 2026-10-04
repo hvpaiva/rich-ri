@@ -132,6 +132,7 @@ class ThemeIntegrationTest < Minitest::Test
 
     assert_equal plain, RichRI.plain(output)
     assert_includes output, "\e[31mTitle\e[0m"
+    assert_includes output, "\e[31m=\e[0m"
     assert_includes output, "\e[34mcode\e[0m"
     assert_includes output, "\e[32mmatch?\e[0m"
     assert_includes output, "# comment"

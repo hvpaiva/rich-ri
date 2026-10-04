@@ -75,6 +75,12 @@ rich-ri --<Tab>
 In less, use `/` to search, `n` for the next match, Space for the next page and
 `q` to return. `--no-pager` writes directly to stdout.
 
+Headings keep their RDoc level markers (`=`, `==`, through `======`), in the
+same style as the heading text. Horizontal separators use plain hyphens in a
+muted style. Search for `^=== ` to find level-three headings or `^---` to find
+separators, then use `n` and `N` to move between matches. These markers remain
+available with colors disabled.
+
 ```sh
 rich-ri --all Array
 rich-ri --width=72 String#scan
@@ -173,13 +179,13 @@ rich-ri --no-standard-docs --doc-dir doc/ri --no-color --no-pager --width=60 Gre
 The output below abbreviates the current directory as `.`:
 
 ```text
-Greeter#greet
+= Greeter#greet
 
 (from ./doc/ri)
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
   greet(name)
 
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
 
 Returns a greeting for the given name.
 

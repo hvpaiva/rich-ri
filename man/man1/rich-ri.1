@@ -18,6 +18,11 @@ and Class.method to search both. Quote shell punctuation such as 'Array.[]'.
 .PP
 In less, use / to search, n for the next match, Space for the next page,
 and q to return. Use --no-pager to write directly to stdout.
+Headings retain their level markers (= through ======) in the heading style.
+Horizontal separators use hyphens in a muted style.
+Search for ^=== followed by a space to find level-three headings,
+or ^--- to find separators. These markers also appear without colors.
+.PP
 Ruby highlighting works without external programs.
 The optional bat program highlights shell transcripts and tagged languages;
 without it, their original text is preserved. less is an optional pager.
