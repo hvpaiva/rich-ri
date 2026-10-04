@@ -107,7 +107,9 @@ module RichRI
     end
 
     def ruby(text, signature: false)
-      tokens = Prism.lex(text).value.map(&:first).reject { |token| token.type == :EOF }
+      root, tokens = Prism.parse_lex(text).value
+      roles = ruby_roles(root)
+      tokens = tokens.map(&:first).reject { |token| token.type == :EOF }
       # Heredoc tokens need source order. Byte offsets preserve Unicode and all
       # un-tokenized whitespace, including deliberately incomplete examples.
       tokens.sort_by! { |token| token.location.start_offset }
@@ -120,7 +122,9 @@ module RichRI
         next if start < offset
 
         output << text.byteslice(offset...start)
-        role = token_role(token, previous, tokens[index + 1], signature)
+        location, role = roles.bsearch { |candidate, _role| candidate.end_offset > start }
+        role = nil unless location && location.start_offset <= start && finish <= location.end_offset
+        role ||= token_role(token, previous, tokens[index + 1], signature)
         output << (role ? RichRI.paint(token.value, role) : token.value)
         offset = finish
         previous = token unless %i[NEWLINE IGNORED_NEWLINE COMMENT].include?(token.type)
@@ -130,23 +134,53 @@ module RichRI
       text
     end
 
+    def ruby_roles(root)
+      roles = []
+      pending = [root]
+      until pending.empty?
+        node = pending.pop
+        case node
+        when Prism::DefNode
+          roles << [node.name_loc, :method]
+        when Prism::CallNode
+          # Infix operators and indexing are also calls in Ruby's AST. Only
+          # named calls and explicit receivers such as obj.+ use method colors.
+          if node.message_loc && (node.call_operator_loc || node.name.to_s.match?(/\A[[:alpha:]_]/))
+            roles << [node.message_loc, :method]
+          end
+        when Prism::SymbolNode
+          roles << [node.location, :symbol]
+        end
+        pending.concat(node.compact_child_nodes)
+      end
+      roles.sort_by { |location, _role| location.start_offset }
+    end
+
     def token_role(token, previous, following, signature)
       type = token.type.to_s
       return :comment if type.start_with?("COMMENT", "EMBDOC")
+      return :symbol if type.start_with?("SYMBOL", "LABEL") || previous&.type == :SYMBOL_BEGIN
       return :code if %w[KEYWORD_NIL KEYWORD_TRUE KEYWORD_FALSE KEYWORD_SELF].include?(type)
       return :keyword if type.start_with?("KEYWORD_")
       return :number if type.match?(/INTEGER|FLOAT|RATIONAL|IMAGINARY/)
       return :constant if type == "CONSTANT"
-      return :symbol if type.start_with?("SYMBOL", "LABEL") || previous&.type == :SYMBOL_BEGIN
-      return :string if type.match?(/STRING|HEREDOC|REGEXP|PERCENT|CHARACTER_LITERAL|BACKTICK/)
+      return :string if type.match?(/STRING|HEREDOC|REGEXP|PERCENT_(?:LOWER|UPPER)_|CHARACTER_LITERAL|BACKTICK/)
       return :code if type.match?(/VARIABLE|REFERENCE|EMBEXPR|EMBVAR/)
+      return :method if type == "METHOD_NAME"
 
-      if (type == "IDENTIFIER") && (signature || %i[DOT AMPERSAND_DOT
+      # Signatures and incomplete examples can lack a complete syntax tree.
+      if (type == "IDENTIFIER") && (signature || %i[DOT AMPERSAND_DOT COLON_COLON
                                                     KEYWORD_DEF].include?(previous&.type) || following&.value == "(")
         return :method
       end
 
-      :operator if %w[= => -> + - * / ** == != =~ !~ < > <= >= <=> && ||].include?(token.value)
+      :operator if ruby_operator?(token)
+    end
+
+    def ruby_operator?(token)
+      %i[PERCENT PERCENT_EQUAL].include?(token.type) ||
+        %w[= => -> + - * / ** == === != =~ !~ < > <= >= <=> && || ! ~ & | ^
+           << >> += -= *= /= **= &= |= ^= <<= >>= &&= ||= .. ... ? :].include?(token.value)
     end
 
     def other_language(text, format, theme: ENV.fetch("BAT_THEME", "base16"))

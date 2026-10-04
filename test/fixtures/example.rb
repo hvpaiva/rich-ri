@@ -40,6 +40,13 @@ class RichRIExample
   end
 
   # Report whether this example is ready.
+  #
+  #   re = /foo/
+  #   re.match('food')
+  #   re.match?('food')
+  #   [].empty?
+  #   values = ['hello']
+  #   values.map!(&:upcase)
   def ready?
     true
   end

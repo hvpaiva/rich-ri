@@ -18,6 +18,10 @@ User-visible changes are recorded here. This project follows
 
 ### Fixed
 
+- Ruby highlighting recognizes predicate, bang, setter and operator methods,
+  including definitions and calls without parentheses. Symbols retain their
+  style, and modulo operators are distinct from percent literals.
+
 - Shell completion uses documentation sources configured in `RI`.
 - Interactive Tab completion includes its required Readline adapter.
 - Raw Markdown content cannot send terminal controls through rich rendering.
