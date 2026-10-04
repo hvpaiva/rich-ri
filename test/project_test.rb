@@ -33,6 +33,8 @@ class ProjectTest < Minitest::Test
     changelog = <<~TEXT
       ## [Unreleased]
       ## [#{RichRI::VERSION}] - 2026-10-04
+      - Add the documentation reader.
+      [Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v#{RichRI::VERSION}...HEAD
       [#{RichRI::VERSION}]: https://github.com/hvpaiva/rich-ri/releases/tag/v#{RichRI::VERSION}
     TEXT
     assert_equal RichRI::VERSION, Release.verify(tag: "v#{RichRI::VERSION}", changelog: changelog)

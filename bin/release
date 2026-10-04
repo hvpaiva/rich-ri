@@ -7,7 +7,9 @@ require_relative "../rakelib/release_workflow"
 options = { push: false, dry_run: false }
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: bin/release X.Y.Z [--push | --dry-run]"
-  opts.on("--push", "Wait for checks, merge, sign the tag and publish through GitHub Actions") { options[:push] = true }
+  opts.on("--push", "Prepare or resume, wait for checks, merge and publish through GitHub Actions") do
+    options[:push] = true
+  end
   opts.on("--dry-run", "Validate and preview the changelog without writing files or publishing") do
     options[:dry_run] = true
   end
