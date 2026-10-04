@@ -13,7 +13,7 @@ desc "Publish the tagged gem (GitHub Actions release environment only)"
 task :release do
   unless ENV["GITHUB_ACTIONS"] == "true" && ENV["GITHUB_REPOSITORY"] == "hvpaiva/rich-ri" &&
          ENV.fetch("GITHUB_REF", "").start_with?("refs/tags/v")
-    abort "Publication runs only in the release workflow. See docs/releasing.md."
+    abort "Publication runs only in the release workflow. Use bin/release X.Y.Z --push."
   end
   Release.verify
   Rake::Task[:build].invoke

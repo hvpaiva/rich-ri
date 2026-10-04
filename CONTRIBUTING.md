@@ -87,6 +87,22 @@ Dependabot proposes gem and action updates. Review the diff and run the full
 checks; a passing update is not automatically merged. Actions are pinned by SHA,
 and the weekly dependency audit can detect advisories between code changes.
 
-See [docs/releasing.md](docs/releasing.md) for preparation, repository settings,
-trusted publishing and recovery. Release publication runs only in GitHub Actions,
-after the complete CI workflow succeeds for the release commit.
+From a clean, up-to-date `main`, with `gh` authenticated and Git signing configured:
+
+```sh
+bin/release X.Y.Z --push
+```
+
+The command prepares the version, changelog and manual, runs the full checks,
+opens a release pull request with a signed commit, waits for CI, merges, signs
+and pushes the tag, and watches publication. Without `--push` it stops at the pull request;
+`--dry-run` validates and previews the changelog without writing or pushing.
+
+The tag workflow reruns CI and publishes through RubyGems trusted publishing.
+The publisher uses repository `hvpaiva/rich-ri`, workflow `release.yml` and
+environment `release`. `rake release` is the CI publish step and refuses to run
+locally. Configure the publisher before the first release.
+
+If a release fails, inspect the last completed step before retrying. Keep
+published tags immutable. If only GitHub release creation failed after RubyGems
+accepted the gem, rerun only the `github-release` job.

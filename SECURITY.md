@@ -36,5 +36,5 @@ GitHub Actions use pinned commits and minimal job permissions. Releases verify
 the tag, version, changelog and main-branch ancestry, then use RubyGems trusted
 publishing. Publication credentials are short-lived and scoped to this gem.
 
-Repository settings and RubyGems trust must be configured before the first release;
-the required setup is documented in [docs/releasing.md](docs/releasing.md).
+Configure repository protections and RubyGems trust before the first release;
+see [Maintenance and releases](CONTRIBUTING.md#maintenance-and-releases).

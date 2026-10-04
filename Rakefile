@@ -63,7 +63,7 @@ namespace :lint do
 
   desc "Check local documentation links"
   task :links do
-    sh "lychee", "--offline", "--include-fragments", "--no-progress", "*.md", "docs/*.md"
+    sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md"]
   end
 
   desc "Check the manual with groff"

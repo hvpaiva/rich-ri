@@ -23,6 +23,11 @@ module Release
   end
 
   def self.prepare(target, root: ROOT)
+    changes(target, root: root).each { |path, content| File.write(File.join(root, path), content) }
+    target
+  end
+
+  def self.changes(target, root: ROOT)
     raise "Use a stable X.Y.Z version" unless target&.match?(VERSION_PATTERN)
     raise "Version cannot go backwards" if Gem::Version.new(target) < Gem::Version.new(version(root: root))
 
@@ -34,12 +39,17 @@ module Release
     raise "Version already appears in the changelog" if changelog.include?("## [#{target}]")
     raise "Missing Unreleased section" unless changelog.include?("## [Unreleased]\n")
 
-    updated = changelog.sub("## [Unreleased]\n", "## [Unreleased]\n\n## [#{target}] - #{Date.today.iso8601}\n")
+    notes = changelog.split("## [Unreleased]\n", 2).last.split(/^## |^\[Unreleased\]:/, 2).first
+    raise "Add release notes under Unreleased first" unless notes.match?(/^[-*] \S/)
+
+    updated = changelog.sub("## [Unreleased]\n",
+                            "## [Unreleased]\n\n## [#{target}] - #{Time.now.utc.to_date.iso8601}\n")
     updated = updated.sub(/^\[Unreleased\]:.*$/, "[Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v#{target}...HEAD")
     updated << "[#{target}]: https://github.com/hvpaiva/rich-ri/releases/tag/v#{target}\n"
-    File.write(changelog_path, updated)
-    path = File.join(root, "lib/rich_ri/version.rb")
-    File.write(path, File.read(path).sub(/VERSION = "[^"]+"/, "VERSION = \"#{target}\""))
-    target
+    version_file = "lib/rich_ri/version.rb"
+    {
+      "CHANGELOG.md" => updated,
+      version_file => File.read(File.join(root, version_file)).sub(/VERSION = "[^"]+"/, "VERSION = \"#{target}\"")
+    }
   end
 end
