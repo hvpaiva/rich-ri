@@ -3,6 +3,8 @@
 rich-ri keeps RDoc responsible for documentation storage and lookup. It supplies
 a terminal formatter, highlighting and completion discovery around RDoc's RI
 driver. It does not index project source, execute examples or fetch documentation.
+RDoc is a required gem dependency. The `ri` executable is not invoked; `rich-ri`
+loads the same reader library directly.
 
 ## Boundaries
 
@@ -17,7 +19,10 @@ driver. It does not index project source, execute examples or fetch documentatio
   Other languages go to bat with an argument array and source through stdin.
 - `Completion` exposes a tab-separated candidate/description protocol consumed
   by the three shell scripts. Only documentation-source arguments reach lookup;
-  completion cannot start a pager, server or cache dump.
+  source options from `RI` apply before explicit arguments. Completion cannot
+  start a pager, server or cache dump.
+- `Manual` opens the bundled page and installs an explicit copy on request.
+  Its pager palette preserves existing user configuration.
 
 The runtime files under `lib/` form one small library. The supported public
 interface is the executable, its flags and the installed completion scripts;

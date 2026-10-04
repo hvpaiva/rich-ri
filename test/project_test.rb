@@ -50,23 +50,25 @@ class ProjectTest < Minitest::Test
     assert_includes err, "Publication runs only in the release workflow"
   end
 
-  def test_readme_lookup_commands_are_valid_with_fixture_subjects
+  def test_readme_project_example_runs_as_written_and_matches_its_output
     readme = File.read(File.join(TestSupport::ROOT, "README.md"))
-    commands = readme.scan(/```(?:sh|bash|zsh|fish)\n(.*?)```/m).join.lines.grep(/^rich-ri /)
-    commands.each do |line|
-      args = Shellwords.split(line).drop(1).take_while { |arg| !%w[| >].include?(arg) }
-      args.map! do |arg|
-        if arg == "doc/ri"
-          TestSupport::STORE
-        elsif arg.match?(/\A(?:Array|Hash|String|MyClass|ruby:)/)
-          "RichRIExample#map"
-        else
-          arg
-        end
-      end
-      _out, err, status = cli(*args)
+    story = readme.split("### Read your project's documentation\n", 2).last.split("## Configuration", 2).first
+    source = story[/```ruby\n(.*?)```/m, 1]
+    commands = story[/```sh\n(.*?)```/m, 1].lines
+    expected = story[/```text\n(.*?)```/m, 1]
+    Dir.mktmpdir("rich-ri-readme-") do |root|
+      File.write(File.join(root, "greeter.rb"), source)
+      output = nil
+      commands.each do |line|
+        program, *args = Shellwords.split(line)
+        entrypoint = program == "rdoc" ? Gem.bin_path("rdoc", "rdoc") : File.join(TestSupport::ROOT, "exe/rich-ri")
+        output, err, status = Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby,
+                                             "-I#{TestSupport::ROOT}/lib", entrypoint, *args, chdir: root)
 
-      assert_predicate status, :success?, "#{line.strip}: #{err}"
+        assert_predicate status, :success?, "#{line.strip}: #{err}"
+      end
+
+      assert_equal expected.rstrip, output.gsub(File.realpath(root), ".").gsub(root, ".").rstrip
     end
   end
 end

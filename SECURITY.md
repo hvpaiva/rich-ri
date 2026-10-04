@@ -2,7 +2,8 @@
 
 ## Report a vulnerability
 
-Email [contact@hvpaiva.dev](mailto:contact@hvpaiva.dev) with affected versions,
+Use [private vulnerability reporting](https://github.com/hvpaiva/rich-ri/security/advisories/new)
+or email [contact@hvpaiva.dev](mailto:contact@hvpaiva.dev) with affected versions,
 reproduction steps and impact. Please do not put exploit details or secrets in
 a public issue. The maintainer will coordinate a fix and disclosure with you;
 response time depends on availability.
@@ -36,5 +37,8 @@ GitHub Actions use pinned commits and minimal job permissions. Releases verify
 the tag, version, changelog and main-branch ancestry, then use RubyGems trusted
 publishing. Publication credentials are short-lived and scoped to this gem.
 
-Configure repository protections and RubyGems trust before the first release;
-see [Maintenance and releases](CONTRIBUTING.md#maintenance-and-releases).
+Changes to protected branches go through pull requests with signed commits and
+passing checks. Release tags and the publication environment are restricted,
+and published GitHub releases are immutable. Maintainers verify these settings
+before release. RubyGems trust must be configured for the repository, workflow
+and environment described in [Maintenance and releases](CONTRIBUTING.md#maintenance-and-releases).
