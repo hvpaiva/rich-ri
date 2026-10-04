@@ -24,9 +24,17 @@ Its configuration file is disabled, and output that alters source is discarded.
 Terminal controls in rich rendering are escaped; original RDoc formatters retain
 upstream behavior when explicitly selected with `--format`.
 
-`RI_PAGER` and `PAGER` are trusted command settings interpreted by RDoc. `PATH`
-selects bat and other external programs. Do not accept these environment values
-from untrusted input. `--server` deliberately enables RDoc's HTTP server; consult
+Configuration files use safe YAML parsing: aliases, object tags, unknown keys and
+invalid values are rejected. There is no Ruby evaluation, shell interpolation or
+automatic project configuration search. Style strings use a restricted grammar;
+raw terminal escapes are not accepted. A custom file selected with `--config` or
+`RICH_RI_CONFIG` is still trusted input: it may select RI stores and a pager command.
+
+`pager` command strings, `--pager-command`, `RI_PAGER` and `PAGER` are trusted
+command settings interpreted by RDoc. `PATH` selects bat and other external
+programs. Do not accept these settings from untrusted input. `--show-config` may
+include command arguments and paths from your environment; review it before
+sharing its output. `--server` deliberately enables RDoc's HTTP server; consult
 RDoc before exposing it on a network.
 
 ## Supply chain

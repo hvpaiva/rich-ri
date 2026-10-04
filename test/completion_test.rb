@@ -3,6 +3,16 @@
 require "test_helper"
 
 class CompletionTest < Minitest::Test
+  def test_ri_option_terminator_does_not_hide_explicit_sources
+    with_environment("RI" => "--no-standard-docs --") do
+      out, err, status = cli("--complete", "--no-config", "--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                             "RichRIExample#ma", docs: false, env: { "RI" => "--no-standard-docs --" })
+
+      assert_predicate status, :success?, err
+      assert_includes out, "RichRIExample#map"
+    end
+  end
+
   def values(*words)
     RichRI::Completion.new.candidates(words).map(&:first)
   end
@@ -11,7 +21,9 @@ class CompletionTest < Minitest::Test
     candidates = RichRI::Completion.new.candidates(["--"])
 
     assert(candidates.all? { |_value, desc| !desc.empty? })
-    %w[--all --no-all --interactive --no-interactive --color= --completion --man].each do |flag|
+    %w[--all --no-all --interactive --no-interactive --color= --completion --man
+       --config --no-config --config-path --show-config --theme --color-depth --style --bat-theme --shell-theme
+       --pager-command].each do |flag|
       assert_includes candidates.map(&:first), flag
     end
   end
@@ -132,5 +144,109 @@ class CompletionTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_equal "--no-all\tInclude all methods in a class page.\n", out
+  end
+end
+
+class ConfigurationCompletionTest < Minitest::Test
+  def values(*words)
+    RichRI::Completion.new.candidates(words).map(&:first)
+  end
+
+  def test_themes_depths_and_style_roles_are_discoverable
+    assert_equal %w[dark light terminal], values("--theme", "")
+    assert_equal ["--theme=dark"], values("--theme=d")
+    assert_equal %w[256 auto basic truecolor], values("--color-depth", "")
+    assert_equal ["--color-depth=truecolor"], values("--color-depth=t")
+    assert_equal ["method="], values("--style", "met")
+    assert_equal ["--style=heading="], values("--style=hea")
+    assert_empty values("--style=method=")
+    %w[--bat-theme --shell-theme --pager-command].each do |flag|
+      assert_empty values(flag, "RichRIExample")
+      assert_empty values("#{flag}=RichRIExample")
+    end
+  end
+
+  def test_config_completion_keeps_spaces_and_handles_glob_characters
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "config [one]"))
+      config = File.join(dir, "config [one]", "settings spaced.yml")
+      File.write(config, "theme: terminal\n")
+
+      assert_equal ["#{dir}/config [one]/"], values("--config", "#{dir}/config [")
+      assert_equal [config], values("--config", "#{dir}/config [one]/settings s")
+      assert_equal ["--config=#{config}"], values("--config=#{dir}/config [one]/settings s")
+      assert_empty values("--doc-dir", "#{dir}/config [one]/settings s")
+    end
+  end
+
+  def test_config_sources_match_lookup_and_completion_never_runs_actions
+    Dir.mktmpdir do |dir|
+      FileUtils.cp_r(TestSupport::STORE, File.join(dir, "docs spaced"))
+      marker = File.join(dir, "pager-ran")
+      config = File.join(dir, "settings.yml")
+      File.write(config, { "sources" => disabled_sources, "doc_dirs" => ["docs spaced"],
+                           "pager" => ["touch", marker].shelljoin }.to_yaml)
+      environment = { "RICH_RI_CONFIG" => config }
+      lookup, err, status = cli("RichRIExample#map", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_includes lookup, "Return transformed values."
+      environment["RI"] = "--server --dump=/missing --profile"
+      out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_equal "RichRIExample#map\t\n", out
+      refute_path_exists marker
+    end
+  end
+
+  def test_config_sources_override_ri_defaults_and_cli_overrides_config
+    Dir.mktmpdir do |dir|
+      FileUtils.cp_r(TestSupport::STORE, File.join(dir, ".rdoc"))
+      config = File.join(dir, "settings.yml")
+      File.write(config, { "sources" => disabled_sources.merge("home" => true) }.to_yaml)
+      environment = { "HOME" => dir, "RI" => "--no-home", "RICH_RI_CONFIG" => config }
+      out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_equal "RichRIExample#map\t\n", out
+      out, err, status = cli("--complete", "--pager-command", "--no-home", "RichRIExample#ma",
+                             docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_equal "RichRIExample#map\t\n", out
+      out, err, status = cli("--complete", "--no-home", "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_empty out
+    end
+  end
+
+  def test_invalid_configuration_is_quiet_and_no_config_bypasses_it
+    Dir.mktmpdir do |dir|
+      config = File.join(dir, "broken.yml")
+      File.write(config, "theme: [\n")
+      environment = { "RICH_RI_CONFIG" => config }
+      out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty out
+      assert_empty err
+      out, err, status = cli("--complete", "--no-config", "--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                             "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_equal "RichRIExample#map\t\n", out
+    end
+  end
+
+  private
+
+  def disabled_sources
+    %w[system site home gems].to_h { |source| [source, false] }
   end
 end

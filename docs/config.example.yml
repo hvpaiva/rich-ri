@@ -1,0 +1,49 @@
+# rich-ri configuration. Copy to ~/.config/rich-ri/config.yml,
+# or $XDG_CONFIG_HOME/rich-ri/config.yml when that variable is absolute.
+# Every key is optional. The active defaults follow your terminal and RI options.
+# CLI > dedicated environment > this file > RI > built-in defaults.
+# See configuration.md for all flags, environment variables and style grammar.
+
+theme: terminal          # terminal, dark or light
+color: auto              # auto, always or never
+color_depth: auto        # auto, basic, "256" or truecolor
+width: 80                # Integer >= 20; omit this key to follow terminal width.
+pager: true              # true, false, or a trusted command such as "less -R"
+bat_theme: base16         # Non-Ruby, non-shell examples; requires optional bat.
+shell_theme: ansi        # Shell examples and commands; requires optional bat.
+all: false               # Include all methods on class and module pages.
+expand_refs: true        # Expand references at the end of a page.
+
+doc_dirs: []             # Extra existing RI stores, added to RI/CLI directories.
+# doc_dirs:
+#   - ./ri               # Relative to this file's directory, not the shell's cwd.
+sources:
+  system: true
+  site: true
+  home: true
+  gems: true
+
+# This table reproduces the terminal preset. Delete entries to inherit the
+# selected preset; each entry replaces that role's complete style.
+# Values must be strings: quote "208" and "#7aa2f7". Use "none" to disable a role.
+# Example custom value: "fg=#7aa2f7:bg=#1a1b26:bold:underline"
+styles:
+  title: "cyan:bold"
+  heading: "blue:bold"
+  subheading: "magenta:bold"
+  code: "cyan"
+  reference: "cyan"
+  link: "cyan:underline"
+  label: "yellow:bold"
+  muted: "bright_black"
+  emphasis: "italic"
+  bold: "bold"
+  strike: "strike"
+  keyword: "magenta"
+  string: "green"
+  number: "yellow"
+  constant: "yellow"
+  symbol: "yellow"
+  method: "cyan"
+  comment: "bright_black"
+  operator: "magenta"

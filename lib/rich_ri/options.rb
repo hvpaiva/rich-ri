@@ -3,6 +3,8 @@
 module RichRI
   # One option parser supplies both the CLI and completion descriptions.
   class Options
+    include ConfigurationOptions
+
     attr_reader :parser, :driver_options, :color, :action
 
     def initialize
@@ -11,6 +13,7 @@ module RichRI
       @action = nil
       @parser = OptionParser.new
       @parser.banner = "Usage: rich-ri [options] [Class | Class#method | Class.method | gem:page ...]"
+      configuration_options
       presentation_options
       lookup_options
       source_options
@@ -19,15 +22,29 @@ module RichRI
       @parser.separator "Run without a name for interactive lookup and Tab completion."
       @parser.separator "Examples: rich-ri Array#map; rich-ri ruby:syntax/pattern_matching"
       @parser.separator "Pager keys: / search, n next match, Space next page, q quit."
-      @parser.separator "RI supplies default options; RI_PAGER/PAGER choose the pager."
+      @parser.separator "Defaults: RI options < config file < environment < explicit arguments."
+      @parser.separator "File: $XDG_CONFIG_HOME/rich-ri/config.yml or ~/.config/rich-ri/config.yml."
+      @parser.separator "RICH_RI_CONFIG selects another file; --no-config skips it."
+      @parser.separator "Environment overrides: RICH_RI_THEME, RICH_RI_COLOR, RICH_RI_COLOR_DEPTH,"
+      @parser.separator "  RICH_RI_WIDTH, RICH_RI_BAT_THEME, RICH_RI_SHELL_THEME."
+      @parser.separator "RICH_RI_STYLE_<ROLE> overrides one style; --style takes precedence."
+      @parser.separator "RI_PAGER/PAGER choose the pager; LESS sets its preferences."
+      @parser.separator "NO_COLOR and TERM=dumb disable automatic color; COLORTERM helps detect RGB."
+      @parser.separator "Styles: ANSI name, 0-255, #RRGGBB or fg=COLOR:bg=COLOR:bold:italic."
+      @parser.separator "Also supported: dim, underline, strike, reverse; none disables a role."
+      @parser.separator "Style roles:"
+      Theme::ROLES.each_slice(6) { |roles| @parser.separator "  #{roles.join(', ')}" }
+      @parser.separator "See rich-ri --man or docs/configuration.md for all settings and examples."
       @parser.separator "Ruby highlighting is built in; bat optionally highlights other languages."
     end
 
-    def parse(argv, defaults: ENV.fetch("RI", ""))
-      args = Shellwords.split(defaults) + argv
+    def parse(argv, defaults: ENV.fetch("RI", ""), configuration: true)
+      names = configured_defaults(argv, defaults, configuration)
+      args = argv.dup
       @parser.parse!(args)
-      @driver_options[:names] = args
+      @driver_options[:names] = names + args
       @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
+      @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
     end
 
@@ -58,9 +75,13 @@ module RichRI
       end
       @parser.on("--no-color", "Plain text with the same page layout.") { @color = "never" }
       @parser.on("--[no-]pager", "Display through a pager (automatically disabled in pipes).") do |value|
+        @pager_enabled = value
         @driver_options[:use_stdout] = !value
       end
-      @parser.on("-T", "Write directly to stdout.") { @driver_options[:use_stdout] = true }
+      @parser.on("-T", "Write directly to stdout.") do
+        @pager_enabled = false
+        @driver_options[:use_stdout] = true
+      end
       @parser.on("-w", "--width=WIDTH", Integer, "Text width in terminal columns (at least 20).") do |width|
         raise OptionParser::InvalidArgument, "width must be at least 20" if width < 20
 
@@ -91,8 +112,10 @@ module RichRI
     def source_options
       @parser.separator ""
       @parser.separator "Documentation sources:"
-      @parser.on("-d", "--doc-dir=DIRS", Array, "Read RI stores from these directories; repeatable.") do |dirs|
-        dirs.each do |dir|
+      @parser.on("-d", "--doc-dir=DIRS", "Read RI stores from these directories; repeatable.") do |value|
+        # Prefer an existing literal path, including commas, over RI's list form.
+        directories = File.directory?(value) ? [value] : value.split(",")
+        directories.each do |dir|
           raise OptionParser::InvalidArgument, "#{dir} is not a directory" unless File.directory?(dir)
 
           @driver_options[:extra_doc_dirs] << File.expand_path(dir)

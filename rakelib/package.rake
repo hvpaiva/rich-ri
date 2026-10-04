@@ -29,8 +29,11 @@ namespace :package do
       end
       Bundler.with_unbundled_env do
         sh(*gem_command, "build", "rich-ri.gemspec", "--output", package)
-        env = { "GEM_HOME" => home, "GEM_PATH" => home, "RUBYOPT" => nil, "RUBYLIB" => nil,
-                "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1" }
+        env = ENV.keys.grep(/\ARICH_RI_/).to_h { |key| [key, nil] }.merge(
+          "GEM_HOME" => home, "GEM_PATH" => home, "RUBYOPT" => nil, "RUBYLIB" => nil,
+          "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1", "BAT_THEME" => nil,
+          "RICH_RI_CONFIG" => nil, "XDG_CONFIG_HOME" => File.join(dir, "config")
+        )
         Dir.chdir(dir) do
           sh(env, *gem_command, "install", "--local", "--no-document",
              "--bindir", File.join(home, "bin"), package)
@@ -41,7 +44,11 @@ namespace :package do
         sh(env, RbConfig.ruby, "-rrdoc/rdoc", "-e", "RDoc::RDoc.new.document(ARGV)", "--",
            "--ri", "--quiet", "--op", store, "example.rb", "GUIDE.rdoc", chdir: fixtures)
         sources = ["--no-standard-docs", "--doc-dir", store]
+        config = File.join(dir, "theme.yml")
+        File.write(config, "theme: light\ncolor: always\nstyles:\n  method: red:bold\n")
         {
+          ["--config", config, "--show-config"] => "theme: light",
+          ["--config", config, *sources, "RichRIExample#map"] => "\e[31;1mmap\e[0m",
           [*sources, "RichRIExample#map"] => "Return transformed values.",
           ["--complete", *sources, "RichRIExample#ma"] => "RichRIExample#map\t\n",
           ["--no-standard-docs", "--interactive"] => "You can use tab to autocomplete.",
@@ -67,7 +74,7 @@ namespace :package do
             abort "Manual missing from installed gem: #{manual}"
           end
         end
-        puts "Installed gem: version, help, lookup, completion and manual passed."
+        puts "Installed gem: version, help, lookup, configuration, themes, completion and manual passed."
       end
     end
   end

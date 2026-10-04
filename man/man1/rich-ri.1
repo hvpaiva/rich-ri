@@ -6,9 +6,11 @@ rich-ri - readable, colorful Ruby documentation
 [options] [name ...]
 .SH DESCRIPTION
 Read the RI documentation installed for the active Ruby and its gems.
-rich-ri wraps RDoc's RI library, adding a terminal formatter and discovery.
+rich-ri wraps RDoc's RI library, adding colors, syntax highlighting,
+documentation-page completion and shell completion for names and options.
 It does not invoke the ri executable, which need not be on PATH.
-Headings, references, signatures and Ruby examples use the terminal palette.
+Headings, references, signatures and Ruby examples use the selected theme.
+The default theme follows the terminal palette.
 With no name, start interactive lookup with Tab completion.
 Submit an empty line to leave interactive lookup.
 Use Class#method for instance methods, Class::method for class methods,
@@ -21,6 +23,37 @@ The optional bat program highlights shell transcripts and tagged languages;
 without it, their original text is preserved. less is an optional pager.
 man(1) is needed only for --man; --man-path and --install-man work without it.
 .SH OPTIONS
+.SS Configuration and themes
+.TP
+.B \-\-config=FILE
+Read a YAML configuration file instead of the user default.
+.TP
+.B \-\-no\-config
+Skip the configuration file; environment options still apply.
+.TP
+.B \-\-config\-path
+Print the selected configuration path; blank when disabled.
+.TP
+.B \-\-show\-config
+Print effective preferences as YAML without opening documentation.
+.TP
+.B \-\-theme=NAME
+Palette: terminal (default), dark or light.
+.TP
+.B \-\-color\-depth=DEPTH
+Color depth: auto (default), basic, 256 or truecolor.
+.TP
+.B \-\-style=ROLE=STYLE
+Override a style role; repeat for several roles. Example: method=green:bold.
+.TP
+.B \-\-bat\-theme=NAME
+bat theme for tagged non\-Ruby, non\-shell code (default: base16).
+.TP
+.B \-\-shell\-theme=NAME
+bat theme for shell input (default: ansi).
+.TP
+.B \-\-pager\-command=COMMAND
+Choose a trusted pager command, overriding RI_PAGER/PAGER.
 .SS Presentation
 .TP
 .B \-\-color[=MODE]
@@ -103,6 +136,7 @@ Show this help.
 .TP
 .B \-v, \-\-version
 Show the rich\-ri version.
+.SS Style roles
 .SH EXAMPLES
 .nf
 rich\-ri Array#map
@@ -111,15 +145,154 @@ rich\-ri ruby:syntax/pattern_matching
 rich\-ri \-\-color=always Hash | less \-R
 rich\-ri \-\-no\-standard\-docs \-\-doc\-dir ./doc/ri MyClass
 .fi
+.SH CONFIGURATION
+The optional user file is $XDG_CONFIG_HOME/rich-ri/config.yml when
+XDG_CONFIG_HOME is absolute and nonempty; otherwise use
+~/.config/rich-ri/config.yml. No project file is loaded automatically.
+The file is specific to rich-ri; the original ri does not read it.
+.PP
+RICH_RI_CONFIG or --config FILE selects another file, which must exist.
+--no-config disables file loading. The last command-line file selector wins.
+--config-path prints the selected path without reading it.
+--show-config prints the effective settings as YAML without editing a file.
+Review its paths and command arguments before sharing the output.
+.PP
+Precedence, from lowest to highest: built-in defaults, RI default options,
+the selected YAML file, dedicated environment variables, command-line flags.
+Styles merge by role; each override replaces that role's complete style.
+Documentation directories accumulate from RI, the file and the command line.
+Relative doc_dirs in YAML resolve from the file's own directory.
+.PP
+Use a single YAML mapping; an empty file means no overrides. Files over
+64 KiB, nesting over 20 levels, duplicate or unknown keys, wrong types,
+invalid values, aliases and object tags are errors. No Ruby or shell evaluation occurs.
+--help, --version, --config-path and --completion=SHELL still work with a
+broken file. Use --no-config to bypass it for other commands.
+.SS File keys
+.TP
+.B theme
+terminal (default), dark or light. Presets change foreground colors;
+they do not detect or set the terminal background.
+.TP
+.B color
+auto (default), always or never. Auto colors only terminal output, unless
+NO_COLOR is nonempty or TERM is dumb. --color means always.
+--color=always overrides NO_COLOR and TERM=dumb, including in pipes.
+.TP
+.B color_depth
+auto (default), basic, "256" or truecolor. Auto uses COLORTERM=truecolor
+or 24bit first, then TERM containing 256color, then basic ANSI colors.
+Colors are approximated when the selected depth cannot represent them.
+This setting applies to built-in styles; bat handles its own color depth.
+.TP
+.B width
+Integer of at least 20 terminal columns. The default follows terminal width
+minus two, bounded between 30 and 96. Redirected output normally uses 78.
+Code blocks preserve their original content and indentation.
+.TP
+.B pager
+true (default), false, or a trusted command string such as "less -R".
+RI_PAGER overrides a file command; --pager-command overrides both.
+PAGER is a fallback. --no-pager disables paging; redirected output is not paged.
+.TP
+.B bat_theme, shell_theme
+bat themes for non-Ruby, non-shell examples (default base16) and shell examples or
+transcript commands (default ansi). Run bat --list-themes for installed themes.
+Role overrides do not recolor bat output. Missing or failing bat leaves plain code.
+.TP
+.B all, expand_refs
+Booleans: all defaults to false; expand_refs defaults to true. Include all
+methods on class pages, or ask RDoc to expand references at the end of a page.
+.TP
+.B doc_dirs
+List of additional existing, trusted RI directories. Default: empty list.
+.TP
+.B sources
+Mapping of system, site, home and gems to booleans. All default to true.
+These select standard RI stores; --no-standard-docs disables all four.
+.TP
+.B styles
+Mapping of semantic role names to style strings. See STYLES below.
+.SS Example
+.nf
+theme: terminal
+color: auto
+color_depth: auto
+pager: true
+styles:
+  heading: "blue:bold"
+  comment: "bright_black"
+.fi
+.PP
+Original RDoc formatters selected with --format do not use rich-ri themes,
+semantic styles or page layout. Ruby highlighting needs no external program.
+The repository includes docs/configuration.md and an annotated
+docs/config.example.yml with every key and role.
+.SH STYLES
+Set styles in YAML, with RICH_RI_STYLE_<ROLE> environment variables,
+or repeatable --style=ROLE=STYLE flags. Example:
+.nf
+rich\-ri \-\-style=\(aqcomment=#9ca3af\(aq Regexp
+.fi
+.PP
+Separate components with colons. A bare color sets the foreground.
+Use fg=COLOR and bg=COLOR for explicit foreground and background.
+Colors are black, red, green, yellow, blue, magenta, cyan, white,
+their bright_ variants, an index from 0 through 255, or #RRGGBB.
+Use default, fg=default or bg=default to restore the terminal's
+default foreground or background color.
+Attributes are bold, italic, underline, dim, strike and reverse.
+Names are lowercase. Use none by itself to disable a role.
+Raw ANSI escapes and unknown values are rejected.
+Quote numeric and hex styles in YAML so they remain strings.
+.nf
+heading: "fg=#7aa2f7:bold"
+method: "cyan"
+link: "blue:underline"
+muted: "none"
+.fi
+.SS Semantic roles
+title: page title and help usage heading; heading: main sections;
+subheading: nested sections; code: inline code, Ruby variables and literals,
+interpolation and shell prompts; reference: names and method lists;
+link: labeled documentation and external links; label: labeled content;
+muted: secondary metadata and separators; emphasis: emphasized prose;
+bold: strong prose; strike: struck-through prose.
+.PP
+Ruby roles: keyword, string (including regular expressions), number,
+constant, symbol, method (definitions, calls and signatures), comment and operator.
+All 19 roles accept the same style grammar. Theme presets can be
+overridden one role at a time. Terminal support determines attribute appearance.
 .SH ENVIRONMENT
+Empty dedicated RICH_RI_* variables are ignored.
+.TP
+.B RICH_RI_CONFIG, XDG_CONFIG_HOME
+Explicit file path and default configuration parent. See CONFIGURATION.
+.TP
+.B RICH_RI_THEME, RICH_RI_COLOR, RICH_RI_COLOR_DEPTH
+Override the corresponding file keys. Explicit flags take precedence.
+.TP
+.B RICH_RI_WIDTH
+Override prose width; an integer of at least 20.
+.TP
+.B RICH_RI_STYLE_<ROLE>
+Override one style, using its uppercase role name, for example
+RICH_RI_STYLE_COMMENT=cyan. Explicit --style flags take precedence.
+.TP
+.B RICH_RI_BAT_THEME, BAT_THEME
+Override bat_theme in that order, below --bat-theme. Default: base16.
+.TP
+.B RICH_RI_SHELL_THEME
+Override shell_theme, below --shell-theme. Default: ansi.
 .TP
 .B RI
-Default options, parsed as shell words. Command-line options take precedence.
-Completion uses its documentation-source options but never its actions.
+Default options, parsed as shell words without shell evaluation.
+File settings, dedicated environment variables and explicit flags override them.
+Completion uses documentation-source options but never utility actions.
 .TP
 .B RI_PAGER, PAGER
-Choose the documentation pager; RI_PAGER takes precedence.
-These are trusted shell commands.
+Trusted documentation pager commands. RI_PAGER overrides a file command;
+PAGER is the fallback. --pager-command takes precedence over both.
 .TP
 .B LESS
 Options for less. rich-ri adds -R for its documentation pager only.
@@ -128,26 +301,32 @@ Options for less. rich-ri adds -R for its documentation pager only.
 A nonempty NO_COLOR or TERM=dumb disables automatic colors.
 --color=always overrides them; --no-color disables rich-ri's colors.
 .TP
+.B COLORTERM, TERM
+Automatic color depth: truecolor or 24bit in COLORTERM, then 256color
+in TERM, then the basic ANSI palette.
+.TP
 .B MANPAGER, PAGER
 Select the manual viewer's pager, as supported by man(1).
 .TP
 .B MANROFFOPT, GROFF_NO_SGR, LESS_TERMCAP_*
 Existing man formatting and pager settings are respected.
 When colors are enabled and no pager settings exist, rich-ri supplies
-a default less palette for the manual without changing the parent environment.
+a less palette using the selected heading and link styles.
+Parent environment settings are not changed.
 .TP
 .B MANPATH, XDG_DATA_HOME
 Manual search paths and the user data directory used by --install-man.
 .TP
-.B BAT_THEME
-Optional bat theme for tagged non-Ruby examples. Shell commands use ansi.
-.TP
 .B GEM_HOME, GEM_PATH, HOME, PATH
 RubyGems documentation locations, home RI store and external program lookup.
+HOME also supplies the fallback user configuration location.
 .SH COMPLETION
 Completion suggests installed classes, methods, pages, options and values.
-It follows documentation-source options from RI and the command line,
-makes no network requests and leaves broken stores without suggestions.
+It follows documentation sources from RI, the configuration file and explicit
+arguments. It suggests theme names and semantic style roles as well as RI names.
+It makes no network requests. Invalid configuration or broken stores prevent
+documentation-name suggestions; options and theme values remain available.
+Use --show-config and --list-doc-dirs to diagnose missing names.
 .SS Bash
 Load bash-completion 2.x, then run these commands:
 .nf
@@ -208,7 +387,10 @@ rich-ri does not download or generate documentation while browsing.
 .SH SECURITY
 RI stores are Ruby Marshal data. Read only documentation you trust,
 including when using completion or --dump.
-Examples are never executed. Pager commands and bat come from your environment.
+Examples are never executed. Configuration uses safe YAML parsing, with no
+object tags, aliases or code evaluation. No project configuration is loaded
+automatically. Pager commands and selected RI stores must still be trusted.
+bat comes from PATH; its configuration file is disabled.
 .SH EXIT STATUS
 0: success (including a closed output pipe); 1: lookup or usage failure;
 130: interrupted.

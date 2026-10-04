@@ -10,15 +10,17 @@ module RichRI
   class Formatter < RDoc::Markup::ToAnsi
     REFERENCES = /(?<!\w)(?:[A-Z]\w*(?:::\w+)*(?:[#.]\w+[!?=]?)?|\#\w+[!?=]?)/
 
-    def initialize(color: true, classes: {})
+    def initialize(color: true, classes: {}, theme: Theme.new, bat_theme: ENV.fetch("BAT_THEME", "base16"),
+                   shell_theme: "ansi")
       super()
       @color = color
       @classes = classes
-      @highlighter = Highlighter.new(color)
+      @theme = theme
+      @highlighter = Highlighter.new(color, theme:, bat_theme:, shell_theme:)
     end
 
     def paint(text, *roles)
-      RichRI.paint(text, *roles, enabled: @color)
+      @theme.paint(text, *roles, enabled: @color)
     end
 
     def start_accepting

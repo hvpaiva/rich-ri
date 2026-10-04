@@ -30,9 +30,6 @@ module RichRI
   # Each word has balanced SGRs: less resets colors at newlines, and wrapping
   # must never make a style bleed into the next paragraph or the shell prompt.
   def self.paint(text, *roles, enabled: true)
-    return text unless enabled && !roles.empty?
-
-    codes = roles.map { |role| COLORS.fetch(role) }.join(";")
-    text.gsub(/\S+/) { |word| "\e[#{codes}m#{word}#{RESET}" }
+    Theme.new.paint(text, *roles, enabled:)
   end
 end

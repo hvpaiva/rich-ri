@@ -5,8 +5,11 @@ module RichRI
     SHELL_FORMATS = %i[sh bash zsh shell].freeze
     SESSION_FORMATS = %i[console shell-session shell_session sh-session].freeze
 
-    def initialize(enabled)
+    def initialize(enabled, theme: Theme.new, bat_theme: ENV.fetch("BAT_THEME", "base16"), shell_theme: "ansi")
       @enabled = enabled
+      @theme = theme
+      @bat_theme = bat_theme
+      @shell_theme = shell_theme
       @cache = {}
     end
 
@@ -19,7 +22,7 @@ module RichRI
                                  elsif format.nil?
                                    shell_session(text) || (ruby?(text) ? ruby(text) : text)
                                  elsif SHELL_FORMATS.include?(format)
-                                   shell_session(text) || other_language(text, format)
+                                   shell_session(text) || other_language(text, format, theme: @shell_theme)
                                  elsif SESSION_FORMATS.include?(format)
                                    shell_session(text) || text
                                  elsif %i[c cpp javascript js json yaml yml diff sql rbs].include?(format)
@@ -80,7 +83,7 @@ module RichRI
     end
 
     def shell_command(lines, index, prompt)
-      prefixes = [prompt[:indent] + RichRI.paint(prompt[:prompt], :code)]
+      prefixes = [prompt[:indent] + @theme.paint(prompt[:prompt], :code)]
       commands = [prompt[:command] + prompt[:ending].to_s]
       index += 1
       # Secondary prompts belong to input only after an explicit continuation.
@@ -88,12 +91,12 @@ module RichRI
         continuation = /\A(#{Regexp.escape(prompt[:indent])})(>[ \t]+)?(.*?)(\r?\n)?\z/.match(lines[index])
         break unless continuation && !continuation[3].empty?
 
-        prefixes << (continuation[1] + RichRI.paint(continuation[2].to_s, :code))
+        prefixes << (continuation[1] + @theme.paint(continuation[2].to_s, :code))
         commands << (continuation[3] + continuation[4].to_s)
         index += 1
       end
       source = commands.join
-      highlighted = (@cache[[source, :shell_command]] ||= other_language(source, :bash, theme: "ansi"))
+      highlighted = (@cache[[source, :shell_command]] ||= other_language(source, :bash, theme: @shell_theme))
       colored_lines = highlighted.lines
       colored_lines = commands unless colored_lines.length == commands.length
       [prefixes.zip(colored_lines).map(&:join).join, index]
@@ -125,7 +128,7 @@ module RichRI
         location, role = roles.bsearch { |candidate, _role| candidate.end_offset > start }
         role = nil unless location && location.start_offset <= start && finish <= location.end_offset
         role ||= token_role(token, previous, tokens[index + 1], signature)
-        output << (role ? RichRI.paint(token.value, role) : token.value)
+        output << (role ? @theme.paint(token.value, role) : token.value)
         offset = finish
         previous = token unless %i[NEWLINE IGNORED_NEWLINE COMMENT].include?(token.type)
       end
@@ -183,7 +186,7 @@ module RichRI
            << >> += -= *= /= **= &= |= ^= <<= >>= &&= ||= .. ... ? :].include?(token.value)
     end
 
-    def other_language(text, format, theme: ENV.fetch("BAT_THEME", "base16"))
+    def other_language(text, format, theme: @bat_theme)
       language = { sh: "bash", shell: "bash", js: "javascript", yml: "yaml" }.fetch(format, format.to_s)
       output, status = Open3.capture2(
         "bat", "--no-config", "--language=#{language}", "--style=plain",

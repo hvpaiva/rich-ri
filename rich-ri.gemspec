@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   }
   # An allowlist also builds from a source archive without shipping local files.
   spec.files = Dir.chdir(__dir__) do
-    Dir.glob("lib/**/*.rb") +
+    Dir.glob("lib/**/*.rb") + Dir.glob("docs/**/*.{md,yml}") +
       %w[exe/rich-ri completions/rich-ri.bash completions/rich-ri.zsh completions/rich-ri.fish
          man/man1/rich-ri.1 README.md CHANGELOG.md LICENSE.txt SECURITY.md]
   end
@@ -33,6 +33,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "io-console", "~> 0.8"
   spec.add_dependency "open3", "~> 0.2"
   spec.add_dependency "prism", "~> 1.0"
+  spec.add_dependency "psych", "~> 5.2"
   spec.add_dependency "rdoc", "~> 8.1"
   spec.add_dependency "readline", "~> 0.0.4"
   spec.add_dependency "reline", "~> 0.6"

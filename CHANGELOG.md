@@ -8,6 +8,12 @@ User-visible changes are recorded here. This project follows
 
 ### Added
 
+- Optional user YAML configuration with RI, environment and command-line
+  precedence, effective-settings inspection and safe recovery from invalid files.
+- Terminal, dark and light themes, per-role style overrides, configurable color
+  depth and independent bat themes for shell commands and other languages.
+- Theme and style completion, an annotated configuration example and a full
+  configuration reference covering behavior, environment variables and trust.
 - A terminal reader for installed Ruby and gem documentation, with semantic
   colors, Ruby syntax highlighting, Unicode-aware wrapping and plain output.
 - Conservative recognition of shell transcripts with optional bat highlighting.

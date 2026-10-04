@@ -12,8 +12,8 @@ module RichRI
       File.expand_path("../../man/man1/rich-ri.1", __dir__)
     end
 
-    def show(color:)
-      result = system(pager_environment(color:), "man", path)
+    def show(color:, theme: Theme.new)
+      result = system(pager_environment(color:, theme:), "man", path)
       raise ArgumentError, "man(1) not found; install it or run rich-ri --help" if result.nil?
 
       result ? 0 : 1
@@ -60,14 +60,14 @@ module RichRI
       directory
     end
 
-    def pager_environment(color:)
+    def pager_environment(color:, theme:)
       return {} unless color
       return {} if ENV.any? do |key, value|
         !value.empty? && (PAGER_SETTINGS.include?(key) || key.start_with?("LESS_TERMCAP_"))
       end
 
-      { "GROFF_NO_SGR" => "1", "LESS_TERMCAP_md" => "\e[#{COLORS.fetch(:heading)}m",
-        "LESS_TERMCAP_me" => RESET, "LESS_TERMCAP_us" => "\e[4;36m", "LESS_TERMCAP_ue" => RESET,
+      { "GROFF_NO_SGR" => "1", "LESS_TERMCAP_md" => "\e[#{theme.sgr(:heading)}m",
+        "LESS_TERMCAP_me" => RESET, "LESS_TERMCAP_us" => "\e[#{theme.sgr(:link)}m", "LESS_TERMCAP_ue" => RESET,
         "LESS_TERMCAP_so" => "\e[7m", "LESS_TERMCAP_se" => RESET }
     end
   end

@@ -5,7 +5,7 @@ module RichRI
   # reach the driver: pressing Tab can never start a pager, server or cache dump.
   class Completion
     SOURCES = /\A--(?:no-)?(?:system|site|home|gems|standard-docs)\z/
-    VALUES = %w[-w --width --server --dump].freeze
+    VALUES = %w[-w --width --server --dump --bat-theme --shell-theme --pager-command].freeze
 
     def write(words, io)
       # Bound discovery even when a documentation store is unusually large.
@@ -26,24 +26,31 @@ module RichRI
       return [] if words[0...-1].include?("--install-man")
 
       current, previous, prefix = context(words)
-      values = case previous
-               when "--color" then %w[auto always never].map { |v| [v, "Color mode"] }
-               when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
-               when "--completion" then %w[bash zsh fish].map { |v| [v, "Shell completion script"] }
-               when "--doc-dir", "-d", "--install-man" then directories(current)
-               when *VALUES then []
-               else
-                 if current.start_with?("-") && !words[0...-1].include?("--")
+      values = option_values(previous, current)
+      values ||= if current.start_with?("-") && !words[0...-1].include?("--")
                    Options.new.entries
                  else
                    names(words[0...-1], current).map { |v| [v, ""] }
                  end
-               end
       values.select { |value, _| value.start_with?(current) }
             .map { |value, desc| [prefix + value, desc] }.uniq.sort
     end
 
     private
+
+    def option_values(previous, current)
+      case previous
+      when "--color" then %w[auto always never].map { |v| [v, "Color mode"] }
+      when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
+      when "--completion" then %w[bash zsh fish].map { |v| [v, "Shell completion script"] }
+      when "--theme" then Theme::NAMES.map { |v| [v, "Page theme"] }
+      when "--color-depth" then Theme::DEPTHS.map { |v| [v, "Terminal color depth"] }
+      when "--style" then styles(current)
+      when "--config" then paths(current)
+      when "--doc-dir", "-d", "--install-man" then directories(current)
+      when *VALUES then []
+      end
+    end
 
     def shell_word(word)
       # Bash and Zsh retain quotes in their words. Shellwords removes them without
@@ -71,17 +78,33 @@ module RichRI
       [current, previous, prefix]
     end
 
+    def styles(prefix)
+      return [] if prefix.include?("=")
+
+      RichRI::COLORS.keys.map { |role| ["#{role}=", "Override #{role} style"] }
+    end
+
     def directories(prefix)
+      paths(prefix, directories_only: true).map { |path, _description| [path, "Documentation directory"] }
+    end
+
+    def paths(prefix, directories_only: false)
       # Escape glob metacharacters typed by the user; do not interpret patterns.
       escaped = prefix.gsub(/[\[\]{}*?\\]/) { |char| "\\#{char}" }
-      paths = Dir.glob("#{escaped}*").select { |path| File.directory?(path) }
-      paths.map { |path| ["#{path}/", "Documentation directory"] }
+      Dir.glob("#{escaped}*").filter_map do |path|
+        directory = File.directory?(path)
+        next if directories_only && !directory
+        next unless directory || File.file?(path)
+
+        [directory ? "#{path}/" : path, directory ? "Directory" : "Configuration file"]
+      end
     end
 
     def names(words, prefix)
       defaults = Shellwords.split(ENV.fetch("RI", ""))
-      args = source_arguments(defaults + words)
-      options = Options.new.parse(args, defaults: "").driver_options
+      configured = Configuration.new(words).arguments
+      args = [defaults, configured, words].flat_map { |layer| source_arguments(layer) }
+      options = Options.new.parse(args, defaults: "", configuration: false).driver_options
       Driver.new(options.merge(use_stdout: true, interactive: false)).complete(prefix)
     end
 
@@ -96,6 +119,9 @@ module RichRI
           args << word
         elsif %w[--doc-dir -d].include?(word)
           args.concat(words[index, 2])
+          index += 1
+        elsif Configuration::VALUE_OPTIONS.include?(word) || word == "--config"
+          # An option value that resembles a source flag is still just data.
           index += 1
         end
         index += 1
