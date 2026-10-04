@@ -4,29 +4,10 @@ require "test_helper"
 require_relative "../rakelib/release"
 require_relative "../rakelib/release_workflow"
 
+require_relative "release_support"
+
 class ReleaseTest < Minitest::Test
-  def repository
-    Dir.mktmpdir do |dir|
-      FileUtils.mkdir_p(File.join(dir, "lib/rich_ri"))
-      File.write(File.join(dir, "lib/rich_ri/version.rb"), "VERSION = \"0.1.0\"\n")
-      File.write(File.join(dir, "CHANGELOG.md"), <<~TEXT)
-        # Changelog
-        ## [Unreleased]
-
-        ### Added
-        - Readable documentation.
-
-        [Unreleased]: https://github.com/hvpaiva/rich-ri/commits/main
-      TEXT
-      [%w[init -q], %w[add .], ["-c", "user.name=Test", "-c", "user.email=test@example.org",
-                                "-c", "commit.gpgsign=false", "commit", "-qm", "chore: initialize"]].each do |args|
-        _out, err, status = Open3.capture3("git", *args, chdir: dir)
-
-        assert_predicate status, :success?, err
-      end
-      yield dir
-    end
-  end
+  include ReleaseFixtures
 
   def test_preparation_updates_version_and_preserves_unreleased_for_next_changes
     repository do |root|
@@ -52,29 +33,12 @@ class ReleaseTest < Minitest::Test
     end
   end
 
-  def workflow_runner(commands, fail_at: nil, repository: "hvpaiva/rich-ri")
-    lambda do |argv, **_options|
-      commands << argv
-      output = case argv.first(3)
-               when %w[git branch --show-current] then "main\n"
-               when %w[git rev-parse HEAD], %w[git rev-parse origin/main] then "#{'a' * 40}\n"
-               when %w[git remote get-url] then "git@github.com:#{repository}.git\n"
-               when %w[gh pr create] then "https://github.com/hvpaiva/rich-ri/pull/1\n"
-               when %w[gh pr view] then argv.include?("mergeCommit") ? "#{'b' * 40}\n" : "1\n"
-               when %w[gh run list] then "123\n"
-               else ""
-               end
-      failed = fail_at && argv.first(fail_at.length) == fail_at
-      [output, Struct.new(:success?).new(!failed)]
-    end
-  end
-
   def test_dry_run_checks_remote_but_never_writes_or_pushes
     repository do |root|
       commands = []
       before = File.read(File.join(root, "CHANGELOG.md"))
-      Release::Workflow.new("0.2.0", root: root, dry_run: true, runner: workflow_runner(commands),
-                                     out: StringIO.new).run
+      workflow("0.2.0", root: root, dry_run: true, runner: workflow_runner(commands),
+                        out: StringIO.new).run
 
       assert_equal before, File.read(File.join(root, "CHANGELOG.md"))
       assert_equal "0.1.0", Release.version(root: root)
@@ -89,7 +53,7 @@ class ReleaseTest < Minitest::Test
       commands = []
       runner = workflow_runner(commands, repository: "someone/another-project")
       error = assert_raises(RuntimeError) do
-        Release::Workflow.new("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
+        workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
       assert_match(/origin repository/, error.message)
@@ -103,7 +67,7 @@ class ReleaseTest < Minitest::Test
       commands = []
       runner = workflow_runner(commands, fail_at: %w[bundle exec rake check])
       assert_raises(RuntimeError) do
-        Release::Workflow.new("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
+        workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
       assert_equal "0.2.0", Release.version(root: root)
@@ -116,7 +80,7 @@ class ReleaseTest < Minitest::Test
   def test_default_stops_at_pull_request_and_push_mode_tags_the_verified_merge
     repository do |root|
       commands = []
-      Release::Workflow.new("0.2.0", root: root, runner: workflow_runner(commands), out: StringIO.new).run
+      workflow("0.2.0", root: root, runner: workflow_runner(commands), out: StringIO.new).run
 
       assert_includes commands, ["git", "commit", "-S", "-m", "chore: release v0.2.0"]
       refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
@@ -124,14 +88,14 @@ class ReleaseTest < Minitest::Test
     end
     repository do |root|
       commands = []
-      Release::Workflow.new("0.2.0", root: root, push: true, runner: workflow_runner(commands), out: StringIO.new).run
+      workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands), out: StringIO.new).run
       checks = commands.index { |args| args.first(3) == %w[gh pr checks] }
       merge = commands.index { |args| args.first(3) == %w[gh pr merge] }
 
       assert_operator checks, :<, merge
       assert_includes commands, ["git", "tag", "-s", "v0.2.0", "-m", "Release 0.2.0", "b" * 40]
       assert_includes commands, %w[git push origin v0.2.0]
-      assert_includes commands, %w[gh run watch 123 --exit-status --repo hvpaiva/rich-ri]
+      assert_includes commands, %w[git verify-tag v0.2.0]
     end
   end
 
@@ -140,7 +104,7 @@ class ReleaseTest < Minitest::Test
       commands = []
       runner = workflow_runner(commands, fail_at: %w[gh pr checks])
       assert_raises(RuntimeError) do
-        Release::Workflow.new("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
+        workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
       refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
@@ -153,7 +117,7 @@ class ReleaseTest < Minitest::Test
       commands = []
       runner = workflow_runner(commands, fail_at: %w[git merge-base --is-ancestor])
       assert_raises(RuntimeError) do
-        Release::Workflow.new("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
+        workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
       merge = commands.find { |args| args.first(3) == %w[gh pr merge] }
 

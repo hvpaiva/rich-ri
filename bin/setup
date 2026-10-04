@@ -6,7 +6,7 @@ if command -v mise >/dev/null 2>&1; then
   mise install shellcheck typos zizmor lychee
 fi
 missing=0
-for tool in shellcheck typos zizmor lychee groff bash zsh fish; do
+for tool in shellcheck typos zizmor lychee groff man bash zsh fish; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf 'Missing: %s (required for the full check)\n' "$tool"
     missing=1

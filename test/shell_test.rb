@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "terminal_helper"
 
 class ShellTest < Minitest::Test
+  include TerminalTestSupport
+
   def setup
     @bin = Dir.mktmpdir("rich-ri-bin-")
     File.write(File.join(@bin, "rich-ri"), <<~RUBY)
@@ -90,7 +93,100 @@ class ShellTest < Minitest::Test
     assert_equal ["--color=always\tColor mode", "--color=auto\tColor mode"], result
   end
 
+  def test_fish_falls_back_when_expanded_tokens_are_unavailable
+    result = shell("fish", <<~FISH, TestSupport::ROOT, TestSupport::STORE)
+      function commandline
+        if contains -- -xpc $argv
+          return 2
+        end
+        builtin commandline $argv
+      end
+      source "$argv[2]/completions/rich-ri.fish"
+      complete -C "rich-ri --no-standard-docs --doc-dir '$argv[3]' 'RichRIExample#["
+    FISH
+    assert_equal ["RichRIExample#[]"], result
+  end
+
+  def test_bash_inserts_completed_alias_method_and_quoted_directory
+    check_insertion("bash")
+  end
+
+  def test_zsh_inserts_completed_alias_method_and_quoted_directory
+    check_insertion("zsh")
+  end
+
+  def test_fish_inserts_completed_alias_method_and_quoted_directory
+    check_insertion("fish")
+  end
+
   private
+
+  def check_insertion(name)
+    result = inserted_arguments(name, "ri RichRIExample#rea")
+
+    assert_equal ["RichRIExample#ready?"], result, @terminal_output
+    result = inserted_arguments(name, "ri 'RichRIExample#[")
+
+    assert_equal ["RichRIExample#[]"], result, @terminal_output
+    directory = File.join(@bin, "docs spaced")
+    FileUtils.mkdir_p(directory)
+
+    result = inserted_arguments(name, "rich-ri --doc-dir '#{@bin}/docs s'")
+
+    assert_equal ["--doc-dir", "#{directory}/"], result, @terminal_output
+    FileUtils.cp_r(Dir["#{TestSupport::STORE}/*"], directory)
+    result = inserted_arguments(name, "ri --no-standard-docs --doc-dir '#{directory}' RichRIExample#rea")
+
+    assert_equal ["--no-standard-docs", "--doc-dir", directory, "RichRIExample#ready?"], result, @terminal_output
+  end
+
+  def inserted_arguments(name, line)
+    environment = @env.merge("RI" => ["--no-standard-docs", "--doc-dir", TestSupport::STORE].shelljoin,
+                             "HOME" => @bin, "HISTFILE" => File::NULL,
+                             "XDG_CONFIG_HOME" => File.join(@bin, "config"),
+                             "XDG_DATA_HOME" => File.join(@bin, "data"))
+    command = interactive_command(name, environment)
+    input = "#{line}\t\nexit\n"
+    output, status = terminal(*command, env: environment, prompt: "RICH_READY> ", input: input)
+    @terminal_output = output
+
+    assert_equal 0, status, output
+    output.scan(/__RICH_ARG__([^\r\n]*)/).flatten
+  rescue Errno::ENOENT
+    flunk "#{name} is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
+    skip "#{name} is not installed; CI runs all shell tests"
+  end
+
+  def interactive_command(name, environment)
+    completion = File.join(TestSupport::ROOT, "completions", "rich-ri.#{name}").shellescape
+    setup = File.join(@bin, name == "zsh" ? ".zshrc" : "#{name}rc")
+    if name == "fish"
+      script = <<~FISH
+        function fish_prompt; printf 'RICH_READY> '; end
+        function fish_greeting; end
+        source #{completion}
+        function rich-ri; printf '__RICH_ARG__%s\\n' $argv; end
+        alias ri rich-ri
+      FISH
+      return [name, "--private", "--no-config", "--interactive", "--init-command", script]
+    end
+
+    script = +"PS1='RICH_READY> '\n"
+    script << if name == "bash"
+                "source #{bash_completion.shellescape}\n"
+              else
+                "autoload -Uz compinit\ncompinit -D -u\nbindkey '^I' complete-word\n"
+              end
+    script << "source #{completion}\nrich-ri() { printf '__RICH_ARG__%s\\n' \"$@\"; }\nalias ri=rich-ri\n"
+    script << "complete -o filenames -F _rich_ri ri\n" if name == "bash"
+    File.write(setup, script)
+    return [name, "--noprofile", "--rcfile", setup, "-i"] if name == "bash"
+
+    environment["ZDOTDIR"] = @bin
+    # Ubuntu's global zshrc runs compinit before this fixture and may prompt
+    # about system directory permissions. Load only our controlled user rc.
+    [name, "-d", "-i"]
+  end
 
   def bash_completion
     # Homebrew's profile.d wrapper returns early in noninteractive shells.

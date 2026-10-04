@@ -34,6 +34,16 @@ class RichRIExample
     new
   end
 
+  # Look up a value by index.
+  def [](index)
+    index
+  end
+
+  # Report whether this example is ready.
+  def ready?
+    true
+  end
+
   # A nested example for namespace discovery.
   class Nested
   end

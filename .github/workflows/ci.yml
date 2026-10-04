@@ -32,7 +32,7 @@ jobs:
         with:
           version: 2026.9.12
           install_args: shellcheck typos zizmor lychee
-      - run: sudo apt-get update && sudo apt-get install -y groff zsh fish bash-completion bat
+      - run: sudo apt-get update && sudo apt-get install -y groff man-db zsh fish bash-completion bat
       - name: Make the optional bat executable available
         run: |
           mkdir -p "$RUNNER_TEMP/rich-ri-tools"
@@ -65,9 +65,9 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y bash-completion zsh fish
+        run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
       - if: runner.os == 'macOS'
-        run: brew install bash bash-completion@2 fish
+        run: brew install groff bash bash-completion@2 fish
       - run: bundle exec rake test package:check
 
   audit:
@@ -91,7 +91,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
-      - run: sudo apt-get update && sudo apt-get install -y bash-completion zsh fish
+      - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
       - run: bundle update
       - run: bundle exec rake test package:check
 
@@ -110,6 +110,7 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
           SKIP_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
         run: |
           ruby bin/lint-commits "origin/$BASE_REF..HEAD"

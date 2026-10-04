@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "manual"
+
 module RichRI
   class CLI
     def self.run(argv)
@@ -19,17 +21,17 @@ module RichRI
       driver_options[:rich_ri_color] = color?(options.color)
       with_pager do
         if driver_options[:dump_path]
-          Driver.dump(driver_options[:dump_path])
+          dump(driver_options[:dump_path])
         else
           Driver.new(driver_options).run
         end
       end
       0
-    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, Errno::ENOENT, Errno::EACCES => e
-      warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
-      1
     rescue Errno::EPIPE
       0
+    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
+      warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
+      1
     rescue Interrupt
       130
     end
@@ -45,14 +47,24 @@ module RichRI
       when :help then help(options)
       when :version then puts "rich-ri #{VERSION}"
       when :completion then puts File.read(File.expand_path("../../completions/rich-ri.#{value}", __dir__))
-      when :man_path then puts man_path
-      when :man then return system("man", man_path) ? 0 : 1
+      when :man_path then puts Manual.new.path
+      when :man then return Manual.new.show(color: color?(options.color))
+      when :install_man
+        unless options.driver_options[:names].empty?
+          raise ArgumentError, "--install-man does not accept lookup names; use --install-man=DIR"
+        end
+
+        return Manual.new.install(value)
       end
       0
     end
 
-    def man_path
-      File.expand_path("../../man/man1/rich-ri.1", __dir__)
+    def dump(path)
+      unless File.file?(path) && File.readable?(path)
+        raise ArgumentError, "RI cache must be a readable regular file: #{path}"
+      end
+
+      Driver.dump(path)
     end
 
     def help(options)

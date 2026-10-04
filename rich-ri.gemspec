@@ -34,6 +34,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "open3", "~> 0.2"
   spec.add_dependency "prism", "~> 1.0"
   spec.add_dependency "rdoc", "~> 8.1"
+  spec.add_dependency "readline", "~> 0.0.4"
   spec.add_dependency "reline", "~> 0.6"
   spec.add_dependency "shellwords", "~> 0.2"
   spec.add_dependency "timeout", "~> 0.4"

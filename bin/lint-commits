@@ -1,15 +1,12 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "open3"
+require_relative "../rakelib/commits"
 
-range = ARGV.fetch(0, "HEAD")
-messages, status = Open3.capture2("git", "log", "--no-merges", "--format=%B%x00", range)
-abort "Cannot read commit range" unless status.success?
-messages = messages.split("\0").map(&:strip).reject(&:empty?)
-messages << ENV["PR_TITLE"] if ENV["PR_TITLE"]
-pattern = /\A(?:feat|fix|docs|test|refactor|perf|build|ci|chore|revert)(?:\([\w.-]+\))?!?: \S/
-messages.each do |message|
-  abort "Use a Conventional Commit subject: #{message.lines.first}" unless message.lines.first&.match?(pattern)
-  abort "Remove generated attribution trailers" if message.match?(/^Generated-by:/i)
+begin
+  errors = CommitPolicy.problems(ARGV.fetch(0, "HEAD"), title: ENV.fetch("PR_TITLE", nil),
+                                                        body: ENV.fetch("PR_BODY", nil))
+  abort errors.join("\n") unless errors.empty?
+rescue ArgumentError => e
+  abort e.message
 end

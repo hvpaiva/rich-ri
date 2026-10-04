@@ -1,39 +1,43 @@
 # frozen_string_literal: true
 
 require "tempfile"
-require "English"
 require_relative "release"
+require_relative "release_commands"
+require_relative "release_publication"
+require_relative "github_configuration"
 
 module Release
   class Workflow
-    FILES = %w[lib/rich_ri/version.rb CHANGELOG.md Gemfile.lock man/man1/rich-ri.1].freeze
-    REPOSITORY = "hvpaiva/rich-ri"
+    FILES = [Release::VERSION_FILE, "CHANGELOG.md", "Gemfile.lock", "man/man1/rich-ri.1"].freeze
 
     def initialize(version, root: ROOT, runner: nil, out: $stdout, **options)
       @version = version
       @root = root
       @push = options.fetch(:push, false)
       @dry_run = options.fetch(:dry_run, false)
-      @runner = runner || method(:execute)
       @out = out
       @sleeper = options.fetch(:sleeper, Kernel)
+      @commands = Commands.new(root: root, runner: runner, out: out)
+      @configuration = options.fetch(:configuration) { GitHub::Configuration.new(client: GitHub::Client.new(root: root), out: out) }
+      @publication = Publication.new(version, commands: @commands, out: out, sleeper: @sleeper)
     end
 
     def run
-      changes = Release.changes(@version, root: @root)
       validate
-      if @dry_run
-        @out.puts changes.fetch("CHANGELOG.md"), "Dry run: no files written, committed or pushed."
-        return
-      end
-
-      prepare(changes)
-      url = open_pull_request
-      if @push
-        publish(url)
+      pull_request = find_pull_request
+      if pull_request&.fetch("state") == "MERGED"
+        require_clean
+        @publication.run(pull_request.dig("mergeCommit", "oid"), push: @push, dry_run: @dry_run)
+      elsif @publication.remote_tag.any?
+        raise "#{tag} already exists without a matching merged release PR; inspect it before continuing"
+      elsif pull_request
+        resume_pull_request(pull_request)
       else
-        @out.puts "Opened #{url}. Review and merge, then sign and push #{tag} from main."
+        prepare_pull_request
       end
+    rescue StandardError => e
+      raise e.class, "#{e.message}\nAfter resolving the problem, rerun bin/release #{@version}#{' --push' if @push}. " \
+                     "Existing pull requests and tags are inspected before any new action."
     end
 
     private
@@ -42,22 +46,103 @@ module Release
 
     def branch = "release/#{tag}"
 
+    def command(...)
+      @commands.call(...)
+    end
+
     def validate
+      Release.validate_version(@version)
       origin = command(%w[git remote get-url origin]).strip
-      unless origin.match?(%r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{REPOSITORY}(?:\.git)?\z}o)
-        raise "The origin repository must be #{REPOSITORY}"
+      unless origin.match?(%r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{GitHub::REPOSITORY}(?:\.git)?\z}o)
+        raise "The origin repository must be #{GitHub::REPOSITORY}"
       end
 
+      @configuration.verify!
       command(%w[git fetch origin --tags])
-      raise "Release from main" unless command(%w[git branch --show-current]).strip == "main"
-      unless command(%w[git rev-parse HEAD]) == command(%w[git rev-parse origin/main])
-        raise "Local main must match origin/main; pull or push first"
+      @current_branch = command(%w[git branch --show-current]).strip
+      raise "Run from main or #{branch}" unless ["main", branch].include?(@current_branch)
+    end
+
+    def find_pull_request
+      requests = @commands.json(["gh", "pr", "list", "--state", "all", "--base", "main", "--head", branch,
+                                 "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
+      if requests.any? { |request| request["isCrossRepository"] != false }
+        raise "Release pull requests must originate in #{GitHub::REPOSITORY}, not a fork"
       end
-      raise "#{tag} already exists" unless command(["git", "tag", "--list", tag]).strip.empty?
+      raise "Several pull requests use #{branch}; reconcile them before releasing" if requests.length > 1
+
+      requests.first
+    end
+
+    def require_clean
+      raise "Commit or stash unrelated work before continuing" unless command(%w[git status --porcelain]).empty?
+    end
+
+    def resume_pull_request(request)
+      require_clean
+      unless request["state"] == "OPEN"
+        raise "The release PR #{request['url']} was closed without merging; reopen it before retrying"
+      end
+
+      @commit = request.fetch("headRefOid")
+      if @current_branch == branch && command(%w[git rev-parse HEAD]).strip != @commit
+        raise "Local #{branch} differs from the PR head. Push its reviewed changes before retrying"
+      end
+      return @out.puts "Existing release PR: #{request.fetch('url')} (dry run)." if @dry_run
+
+      finish_pull_request(request.fetch("url"))
+    end
+
+    def prepare_pull_request
+      if @current_branch == "main"
+        require_clean
+        head = command(%w[git rev-parse HEAD])
+        raise "Local main must match origin/main; pull first" unless head == command(%w[git rev-parse origin/main])
+
+        changes = Release.changes(@version, root: @root)
+        return @out.puts changes.fetch("CHANGELOG.md"), "Dry run: no working files or GitHub state changed." if @dry_run
+
+        command(["git", "switch", "-c", branch])
+      else
+        changes = resumed_changes
+        return @out.puts "Would resume preparation on #{branch}; no working files or GitHub state changed." if @dry_run
+      end
+      prepare(changes) if changes
+      @commit = command(%w[git rev-parse HEAD]).strip
+      command(%w[git verify-commit HEAD])
+      command(["git", "push", "-u", "origin", branch], stream: true)
+      finish_pull_request(open_pull_request)
+    end
+
+    def resumed_changes
+      dirty = command(%w[git status --porcelain]).lines.map { |line| line.chomp[3..] }
+      raise "Unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
+
+      source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, command(["git", "show", "HEAD:#{path}"])] }
+      if source.fetch("CHANGELOG.md").include?("## [#{@version}]")
+        require_clean
+        Release.verify(tag: tag, version: source.fetch(Release::VERSION_FILE)[/VERSION = "([^"]+)"/, 1],
+                       changelog: source.fetch("CHANGELOG.md"))
+        command(%w[bundle exec rake check], stream: true) unless @dry_run
+        return
+      end
+
+      # A retry may happen on another UTC day. Preserve the preparation date,
+      # while still comparing every edit against exactly what we would generate.
+      changelog = File.read(File.join(@root, "CHANGELOG.md"))
+      dated = changelog[/^## \[#{Regexp.escape(@version)}\] - (\d{4}-\d{2}-\d{2})$/, 1]
+      date = dated ? Date.iso8601(dated) : Time.now.utc.to_date
+      changes = Release.changes(@version, root: @root, source: source, date: date)
+      changes.each do |path, content|
+        actual = File.read(File.join(@root, path))
+        next if [source.fetch(path), content].include?(actual)
+
+        raise "#{path} has edits beyond release preparation; review them before retrying"
+      end
+      changes
     end
 
     def prepare(changes)
-      command(["git", "switch", "-c", branch])
       changes.each { |path, content| File.write(File.join(@root, path), content) }
       command(%w[bundle lock --local])
       command(%w[bundle exec rake generate], stream: true)
@@ -65,9 +150,6 @@ module Release
       command(["git", "add", "--", *FILES])
       command(["git", "commit", "-S", "-m", "chore: release #{tag}"])
       command(%w[git log -1 --format=full])
-      command(%w[git verify-commit HEAD])
-      @commit = command(%w[git rev-parse HEAD]).strip
-      command(["git", "push", "-u", "origin", branch], stream: true)
     end
 
     def open_pull_request
@@ -80,61 +162,28 @@ module Release
       end
     end
 
-    def publish(url)
-      wait_for do
-        command(["gh", "pr", "view", url, "--json", "statusCheckRollup", "--jq",
-                 ".statusCheckRollup | length"]).to_i.positive?
-      end
+    def finish_pull_request(url)
+      return @out.puts "Release PR: #{url}. Run bin/release #{@version} --push to merge, sign and publish." unless @push
+
+      @publication.verify_metadata(@commit)
+      command(["git", "verify-commit", @commit])
+      wait_for_checks(url)
       command(["gh", "pr", "checks", url, "--watch", "--fail-fast", "--interval", "10"], stream: true)
       command(["gh", "pr", "merge", url, "--merge", "--delete-branch", "--match-head-commit", @commit])
       sha = command(["gh", "pr", "view", url, "--json", "mergeCommit", "--jq", ".mergeCommit.oid"]).strip
-      raise "GitHub did not return the release merge commit" unless sha.match?(/\A[0-9a-f]{40}\z/)
-
       command(%w[git fetch origin --tags])
       command(["git", "merge-base", "--is-ancestor", @commit, sha])
-      command(%w[git switch main])
-      command(%w[git merge --ff-only origin/main])
-      command(["git", "tag", "-s", tag, "-m", "Release #{@version}", sha])
-      command(["git", "push", "origin", tag], stream: true)
-      watch_release
+      @publication.run(sha, push: true)
     end
 
-    def watch_release
-      run_id = nil
-      wait_for do
-        run_id = command(["gh", "run", "list", "--workflow", "release.yml", "--branch", tag, "--event", "push",
-                          "--limit", "1", "--json", "databaseId", "--jq", ".[0].databaseId // empty"]).strip
-        !run_id.empty?
-      end
-      command(["gh", "run", "watch", run_id, "--exit-status"], stream: true)
-      @out.puts "Released #{tag}."
-    end
-
-    def wait_for
+    def wait_for_checks(url)
       60.times do
-        return if yield
+        count = command(["gh", "pr", "view", url, "--json", "statusCheckRollup", "--jq", ".statusCheckRollup | length"])
+        return if count.to_i.positive?
 
         @sleeper.sleep(5)
       end
-      raise "Timed out waiting for GitHub; inspect the pull request or Actions run before retrying"
-    end
-
-    def command(argv, stream: false)
-      argv += ["--repo", REPOSITORY] if argv.first == "gh"
-      @out.puts "==> #{argv.join(' ')}"
-      output, status = @runner.call(argv, stream: stream)
-      unless status.success?
-        raise "#{argv.join(' ')} failed. Inspect the current branch and Actions before retrying.\n#{output}"
-      end
-
-      output
-    end
-
-    def execute(argv, stream: false)
-      return Open3.capture2e(*argv, chdir: @root) unless stream
-
-      system(*argv, chdir: @root)
-      ["", $CHILD_STATUS]
+      raise "Timed out waiting for checks on #{url}; the existing PR will be reused on retry"
     end
   end
 end

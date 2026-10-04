@@ -63,6 +63,11 @@ module RichRI
       @res << "\n"
     end
 
+    def accept_raw(raw)
+      # Markdown HTML blocks bypass the inline visitors in RDoc.
+      @res << RichRI.sanitize(raw.parts.join("\n"))
+    end
+
     def accept_method_list(list)
       @indent += list.indent
       wrap paint(RichRI.sanitize(list.text(@hard_break)), :reference)
