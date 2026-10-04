@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'hotfix/*']
   pull_request:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
   schedule:
@@ -39,10 +39,15 @@ jobs:
           ln -s /usr/bin/batcat "$RUNNER_TEMP/rich-ri-tools/bat"
           echo "$RUNNER_TEMP/rich-ri-tools" >> "$GITHUB_PATH"
       - run: bundle exec rake check
+      - run: bundle exec ruby bin/benchmark --output benchmark.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage
           path: coverage/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark
+          path: benchmark.json
 
   test:
     if: github.event_name != 'schedule'
@@ -94,6 +99,32 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
       - run: bundle update
       - run: bundle exec rake test package:check
+
+  compatibility:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: '3.4'
+      - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
+      - name: Generate an older RI store
+        run: |
+          BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle install
+          BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle exec ruby -rrdoc/rdoc -e \
+            'RDoc::RDoc.new.document(ARGV)' -- --ri --quiet --op "$RUNNER_TEMP/legacy-ri" test/fixtures/example.rb
+      - name: Test the minimum runtime dependencies and older store
+        env:
+          LEGACY_RI_STORE: ${{ runner.temp }}/legacy-ri
+          BUNDLE_GEMFILE: gemfiles/minimum.gemfile
+          RICH_RI_REQUIRE_SHELLS: '1'
+        run: |
+          bundle install
+          bundle exec ruby bin/test-compatibility
 
   commits:
     if: github.event_name == 'pull_request'

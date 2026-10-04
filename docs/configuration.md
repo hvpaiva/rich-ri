@@ -3,7 +3,7 @@
 rich-ri uses the original RDoc RI reader for documentation lookup. Its `RI`
 environment variable, installed documentation and pager settings still apply.
 The YAML file described here is specific to rich-ri; plain `ri` does not read it.
-There is no need to create a file before using rich-ri.
+All settings are optional.
 
 ## Select a file
 
@@ -29,13 +29,13 @@ write a file or load documentation. It includes environment overrides, so check
 its contents before sharing it. It shows the requested color policy and depth;
 `auto` still depends on the terminal when rendering. `pager: true` means paging
 is allowed; redirected output still bypasses the pager. The `styles` map lists
-explicit overrides rather than expanding every preset role.
+explicit role overrides; preset styles are selected by `theme`.
 
 Use a single YAML document containing a mapping; an empty file means no
 overrides. Files larger than 64 KiB, nesting deeper than 20 levels, duplicate or
 unknown keys, wrong types, invalid values, YAML aliases and object tags are
-rejected with a usage error. Values are not
-interpolated or evaluated as Ruby or shell code. A bad file does not prevent
+rejected with a usage error. Values are not interpolated or evaluated as Ruby
+or shell code. A bad file does not prevent
 `--help`, `--version`, `--config-path` or printing a shell completion script.
 `--no-config` bypasses the bad file to let you continue using the reader.
 
@@ -190,8 +190,10 @@ recolor bat's tokens. Run `bat --list-themes` to see installed themes.
 The selected color depth applies to rich-ri's built-in styles; bat handles its
 own depth. rich-ri disables bat's configuration file and passes its own formatting
 options.
-If bat is missing, fails, or changes the source text, the original code is shown
-without highlighting. Disabling rich-ri colors also disables bat highlighting.
+If bat is missing, fails, exceeds two seconds or returns invalid text, the original
+code is shown without highlighting and bat is disabled for the rest of the page.
+Examples larger than 1 MiB bypass bat; its output is limited to 8 MiB.
+Disabling rich-ri colors also disables bat highlighting.
 
 ## Environment variables
 

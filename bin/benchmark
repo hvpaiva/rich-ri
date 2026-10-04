@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "json"
+require "open3"
+require "optparse"
+require "tmpdir"
+require "rdoc/rdoc"
+
+# Measure complete CLI invocations against a fixed, local documentation store.
+class BenchmarkCLI
+  ROOT = File.expand_path("..", __dir__)
+
+  def initialize(argv)
+    @iterations = 5
+    OptionParser.new do |parser|
+      parser.banner = "Usage: ruby bin/benchmark [--output FILE] [--compare FILE] [--iterations N]"
+      parser.on("--output=FILE") { |path| @output = path }
+      parser.on("--compare=FILE") { |path| @baseline = path }
+      parser.on("--iterations=N", Integer) { |count| @iterations = count }
+    end.parse!(argv)
+    raise ArgumentError, "Use 1 to 50 iterations" unless argv.empty? && (1..50).cover?(@iterations)
+
+    @environment = ENV.keys.grep(/\ARICH_RI_/).to_h { |key| [key, nil] }.merge(
+      "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => nil, "BAT_THEME" => nil
+    )
+  end
+
+  def run
+    Dir.mktmpdir("rich-ri-benchmark-") do |directory|
+      store = File.join(directory, "ri")
+      RDoc::RDoc.new.document(["--ri", "--quiet", "--op", store, "#{ROOT}/test/fixtures/example.rb"])
+      sources = ["--no-config", "--no-standard-docs", "--doc-dir", store]
+      cases = { "startup" => %w[--no-config --version],
+                "render" => [*sources, "--no-pager", "--color=always", "RichRIExample"],
+                "completion" => ["--complete", *sources, "RichRIExample#"] }
+      measurements = cases.transform_values { |args| measure(args) }
+      report = { "ruby" => RUBY_DESCRIPTION, "rdoc" => RDoc::VERSION, "iterations" => @iterations,
+                 "median_ms" => measurements }
+      json = "#{JSON.pretty_generate(report)}\n"
+      File.write(@output, json) if @output
+      puts json
+      compare(measurements) if @baseline
+    end
+  end
+
+  private
+
+  def measure(args)
+    samples = Array.new(@iterations + 1) do
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      _output, error, status = Open3.capture3(@environment, RbConfig.ruby, "-I#{ROOT}/lib", "#{ROOT}/exe/rich-ri",
+                                              *args)
+      raise error unless status.success?
+
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
+    end
+    samples.drop(1).sort[@iterations / 2].round(2)
+  end
+
+  def compare(measurements)
+    previous = JSON.parse(File.read(@baseline)).fetch("median_ms")
+    regressions = measurements.filter_map do |name, value|
+      old = previous.fetch(name)
+      name if value > old * 1.3 && value - old > 50
+    end
+    abort "Slower by more than 30% and 50 ms: #{regressions.join(', ')}" unless regressions.empty?
+  end
+end
+
+BenchmarkCLI.new(ARGV).run

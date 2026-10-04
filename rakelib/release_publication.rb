@@ -6,11 +6,12 @@ module Release
   # An existing remote tag is observation-only: retries must not move it or
   # trigger another publication when RubyGems may already have accepted the gem.
   class Publication
-    def initialize(version, commands:, out: $stdout, sleeper: Kernel)
+    def initialize(version, commands:, out: $stdout, sleeper: Kernel, branch: "main")
       @version = version
       @commands = commands
       @out = out
       @sleeper = sleeper
+      @base = Release.validate_branch(branch, version)
     end
 
     def tag = "v#{@version}"
@@ -34,7 +35,8 @@ module Release
       verify_tag(sha) if exists
       if dry_run || (!push && remote.empty?)
         next_step = exists ? "push the signed tag" : "sign and push its tag"
-        @out.puts "Release merge #{sha} is ready. Run bin/release #{@version} --push to #{next_step}."
+        command = "bin/release #{@version}#{" --branch #{@base}" unless @base == 'main'} --push"
+        @out.puts "Release merge #{sha} is ready. Run #{command} to #{next_step}."
         return
       end
       if remote.empty?
@@ -48,7 +50,7 @@ module Release
     def verify_commit(sha)
       raise "GitHub did not return a valid release merge commit" unless sha&.match?(/\A[0-9a-f]{40}\z/)
 
-      @commands.call(["git", "merge-base", "--is-ancestor", sha, "origin/main"])
+      @commands.call(["git", "merge-base", "--is-ancestor", sha, "origin/#{@base}"])
       verify_metadata(sha)
     end
 

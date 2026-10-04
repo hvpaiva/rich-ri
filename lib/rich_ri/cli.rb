@@ -33,7 +33,13 @@ module RichRI
     rescue Errno::EPIPE
       0
     rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
-      warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
+      if e.is_a?(TypeError) && e.message.match?(/class RDoc::Markup::\w+ not a struct/)
+        warn "rich-ri: incompatible RI cache format for this Ruby and RDoc.\n" \
+             "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
+             "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
+      else
+        warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
+      end
       1
     rescue Interrupt
       130

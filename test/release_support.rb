@@ -60,7 +60,8 @@ module ReleaseFixtures
   def git_answer(argv, state, repository)
     case argv.first(3)
     when %w[git branch --show-current] then "#{state.fetch(:branch, 'main')}\n"
-    when %w[git rev-parse HEAD], %w[git rev-parse origin/main] then "#{'a' * 40}\n"
+    when %w[git rev-parse HEAD], %w[git rev-parse origin/main],
+         %w[git rev-parse origin/hotfix/0.2] then "#{'a' * 40}\n"
     when %w[git remote get-url] then "git@github.com:#{repository}.git\n"
     when %w[git status --porcelain] then state.fetch(:dirty, "")
     when %w[git tag --list] then state[:local_tag] ? "v0.2.0\n" : ""

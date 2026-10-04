@@ -50,9 +50,9 @@ class ProjectTest < Minitest::Test
     assert_includes err, "Publication runs only in the release workflow"
   end
 
-  def test_readme_project_example_runs_as_written_and_matches_its_output
-    readme = File.read(File.join(TestSupport::ROOT, "README.md"))
-    story = readme.split("### Read your project's documentation\n", 2).last.split("## Configuration", 2).first
+  def test_usage_guide_example_runs_as_written_and_matches_its_output
+    guide = File.read(File.join(TestSupport::ROOT, "docs/usage.md"))
+    story = guide.split("### Read your project's documentation\n", 2).last.split("## Manual", 2).first
     source = story[/```ruby\n(.*?)```/m, 1]
     commands = story[/```sh\n(.*?)```/m, 1].lines
     expected = story[/```text\n(.*?)```/m, 1]

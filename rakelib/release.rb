@@ -41,6 +41,24 @@ module Release
     raise "Use a stable X.Y.Z version" unless target&.match?(VERSION_PATTERN)
   end
 
+  def self.validate_branch(branch, target)
+    validate_version(target)
+    return branch if ["main", "hotfix/#{target.split('.').first(2).join('.')}"].include?(branch)
+
+    raise "Release branch must be main or hotfix/#{target.split('.').first(2).join('.')}"
+  end
+
+  def self.verify_ref(sha: ENV.fetch("GITHUB_SHA"), version: self.version)
+    raise "Invalid release commit" unless sha.match?(/\A[0-9a-f]{40}\z/)
+
+    refs, status = Open3.capture2("git", "for-each-ref", "--contains", sha, "--format=%(refname:short)",
+                                  "refs/remotes/origin")
+    allowed = ["origin/main", "origin/hotfix/#{version.split('.').first(2).join('.')}"]
+    return if status.success? && refs.lines.map(&:strip).intersect?(allowed)
+
+    raise "Release commit must belong to main or its matching hotfix branch"
+  end
+
   def self.notes(changelog, target)
     changelog.split(/^## \[#{Regexp.escape(target)}\][^\n]*\n/, 2).last.to_s.split(/^## |^\[[^\]]+\]:/, 2).first.to_s
   end

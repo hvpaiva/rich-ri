@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+root = File.expand_path("..", __dir__)
+$LOAD_PATH.unshift(File.join(root, "lib"), File.join(root, "test"))
+Dir[File.join(root, "test/*_test.rb")].each do |path|
+  next if File.basename(path).match?(/\A(?:release.*|github|commit_policy|project)_test\.rb\z/)
+
+  require path
+end

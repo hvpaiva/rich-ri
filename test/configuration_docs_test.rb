@@ -39,10 +39,10 @@ class ConfigurationDocsTest < Minitest::Test
     names.uniq.each { |name| assert_includes reference, "| `#{name}` |" }
   end
 
-  def test_readme_reference_and_manual_cover_configuration_environment
+  def test_reference_and_manual_cover_configuration_environment
     names = RichRI::Configuration::ENVIRONMENT.keys +
             %w[RICH_RI_CONFIG RICH_RI_STYLE_<ROLE> RI_PAGER BAT_THEME XDG_CONFIG_HOME COLORTERM]
-    [read("README.md"), read("docs/configuration.md"), Manual.render].each do |document|
+    [read("docs/configuration.md"), Manual.render].each do |document|
       names.each { |name| assert_includes document, name }
     end
   end

@@ -15,11 +15,12 @@ module Release
       @root = root
       @push = options.fetch(:push, false)
       @dry_run = options.fetch(:dry_run, false)
+      @base = Release.validate_branch(options.fetch(:branch, "main"), version)
       @out = out
       @sleeper = options.fetch(:sleeper, Kernel)
       @commands = Commands.new(root: root, runner: runner, out: out)
       @configuration = options.fetch(:configuration) { GitHub::Configuration.new(client: GitHub::Client.new(root: root), out: out) }
-      @publication = Publication.new(version, commands: @commands, out: out, sleeper: @sleeper)
+      @publication = Publication.new(version, commands: @commands, out: out, sleeper: @sleeper, branch: @base)
     end
 
     def run
@@ -36,7 +37,7 @@ module Release
         prepare_pull_request
       end
     rescue StandardError => e
-      raise e.class, "#{e.message}\nAfter resolving the problem, rerun bin/release #{@version}#{' --push' if @push}. " \
+      raise e.class, "#{e.message}\nAfter resolving the problem, rerun #{resume_command}#{' --push' if @push}. " \
                      "Existing pull requests and tags are inspected before any new action."
     end
 
@@ -45,6 +46,8 @@ module Release
     def tag = "v#{@version}"
 
     def branch = "release/#{tag}"
+
+    def resume_command = "bin/release #{@version}#{" --branch #{@base}" unless @base == 'main'}"
 
     def command(...)
       @commands.call(...)
@@ -60,11 +63,11 @@ module Release
       @configuration.verify!
       command(%w[git fetch origin --tags])
       @current_branch = command(%w[git branch --show-current]).strip
-      raise "Run from main or #{branch}" unless ["main", branch].include?(@current_branch)
+      raise "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
     end
 
     def find_pull_request
-      requests = @commands.json(["gh", "pr", "list", "--state", "all", "--base", "main", "--head", branch,
+      requests = @commands.json(["gh", "pr", "list", "--state", "all", "--base", @base, "--head", branch,
                                  "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
       if requests.any? { |request| request["isCrossRepository"] != false }
         raise "Release pull requests must originate in #{GitHub::REPOSITORY}, not a fork"
@@ -94,10 +97,12 @@ module Release
     end
 
     def prepare_pull_request
-      if @current_branch == "main"
+      if @current_branch == @base
         require_clean
         head = command(%w[git rev-parse HEAD])
-        raise "Local main must match origin/main; pull first" unless head == command(%w[git rev-parse origin/main])
+        unless head == command(["git", "rev-parse", "origin/#{@base}"])
+          raise "Local #{@base} must match origin/#{@base}; pull first"
+        end
 
         changes = Release.changes(@version, root: @root)
         return @out.puts changes.fetch("CHANGELOG.md"), "Dry run: no working files or GitHub state changed." if @dry_run
@@ -157,13 +162,13 @@ module Release
         body.write("Release rich-ri #{@version}. The signed tag will target the merge commit.\n\n" \
                    "Validation: `bundle exec rake check`. Release notes are in CHANGELOG.md.\n")
         body.flush
-        command(["gh", "pr", "create", "--base", "main", "--head", branch, "--title", "chore: release #{tag}",
+        command(["gh", "pr", "create", "--base", @base, "--head", branch, "--title", "chore: release #{tag}",
                  "--body-file", body.path]).strip
       end
     end
 
     def finish_pull_request(url)
-      return @out.puts "Release PR: #{url}. Run bin/release #{@version} --push to merge, sign and publish." unless @push
+      return @out.puts "Release PR: #{url}. Run #{resume_command} --push to merge, sign and publish." unless @push
 
       @publication.verify_metadata(@commit)
       command(["git", "verify-commit", @commit])
