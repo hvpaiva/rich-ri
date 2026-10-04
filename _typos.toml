@@ -1,0 +1,6 @@
+[files]
+extend-exclude = ["Gemfile.lock", "man/man1/*", "test/fixtures/*", "coverage/*", "tmp/*", "vendor/*"]
+
+[default.extend-words]
+rdoc = "rdoc"
+RDoc = "RDoc"

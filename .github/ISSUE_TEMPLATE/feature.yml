@@ -1,0 +1,12 @@
+name: Feature request
+description: Describe a documentation-reading workflow that could work better.
+body:
+  - type: textarea
+    attributes:
+      label: Use case
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed behavior and alternatives

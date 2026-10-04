@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Verify and build without publishing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository]
+    permissions:
+      contents: read
+
+  verify:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      publish: ${{ steps.decision.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - run: bundle install
+        env:
+          BUNDLE_FROZEN: 'true'
+      - name: Verify the tag and its ancestry
+        if: github.ref_type == 'tag'
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          bundle exec rake release:verify
+      - run: bundle exec rake build
+      - id: decision
+        env:
+          PUBLISH: ${{ github.ref_type == 'tag' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run) }}
+        run: echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - run: bundle install
+        env:
+          BUNDLE_FROZEN: 'true'
+      - uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
+        with:
+          # These helpers download unpinned tools while publication credentials
+          # are active. Enable them when the toolchain supports pinned execution.
+          await-release: false
+          attestations: false
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - name: Build and publish curated release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gem build rich-ri.gemspec
+          ruby -e '
+            version = ENV.fetch("TAG").delete_prefix("v")
+            lines = File.readlines("CHANGELOG.md")
+            start = lines.index { |line| line.start_with?("## [#{version}] - ") } or abort "Missing release notes"
+            body = lines[(start + 1)..].take_while { |line| !line.start_with?("## ") && !line.match?(/^\[[^\]]+\]: /) }
+            File.write("release-notes.md", body.join.strip + "\n")
+          '
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md ./*.gem

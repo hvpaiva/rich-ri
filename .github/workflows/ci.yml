@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler-cache: true
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.9.12
+          install_args: shellcheck typos zizmor lychee
+      - run: sudo apt-get update && sudo apt-get install -y groff zsh fish bash-completion bat
+      - name: Make the optional bat executable available
+        run: |
+          mkdir -p "$RUNNER_TEMP/rich-ri-tools"
+          ln -s /usr/bin/batcat "$RUNNER_TEMP/rich-ri-tools/bat"
+          echo "$RUNNER_TEMP/rich-ri-tools" >> "$GITHUB_PATH"
+      - run: bundle exec rake check
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage/
+
+  test:
+    if: github.event_name != 'schedule'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        ruby: ['3.4', '4.0']
+        include:
+          - os: macos-latest
+            ruby: '4.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y bash-completion zsh fish
+      - if: runner.os == 'macOS'
+        run: brew install bash bash-completion@2 fish
+      - run: bundle exec rake test package:check
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler-cache: true
+      - run: bundle exec rake audit
+
+  fresh-dependencies:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - run: sudo apt-get update && sudo apt-get install -y bash-completion zsh fish
+      - run: bundle update
+      - run: bundle exec rake test package:check
+
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - name: Validate commits and the changelog
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          SKIP_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: |
+          ruby bin/lint-commits "origin/$BASE_REF..HEAD"
+          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          if grep -qE '^(lib|exe|completions)/' <<< "$changed" &&
+             ! grep -qx 'CHANGELOG.md' <<< "$changed" && [ "$SKIP_CHANGELOG" != true ]; then
+            echo '::error::Add a user-visible change under Unreleased in CHANGELOG.md.'
+            exit 1
+          fi

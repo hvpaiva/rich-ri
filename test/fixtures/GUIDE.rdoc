@@ -1,0 +1,5 @@
+= Example guide
+
+A standalone documentation page for completion and rendering tests.
+
+  puts "hello"

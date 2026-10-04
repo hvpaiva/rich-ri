@@ -1,0 +1,94 @@
+.TH RICH-RI 1 "" "rich-ri 0.1.0" "User Commands"
+.SH NAME
+rich-ri - readable, colorful Ruby documentation
+.SH SYNOPSIS
+.B rich-ri
+[options] [name ...]
+.SH DESCRIPTION
+Read the RI documentation installed for the active Ruby and its gems.
+Headings, references, signatures and Ruby examples use the terminal palette.
+With no name, start interactive lookup with Tab completion.
+.SH OPTIONS
+.nf
+Usage: rich\-ri [options] [Class | Class#method | Class.method | gem:page ...]
+
+Presentation:
+        \-\-color[=MODE]               Color: auto (TTY, respects NO_COLOR), always or never.
+        \-\-no\-color                   Plain text with the same page layout.
+        \-\-[no\-]pager                 Display through a pager (automatically disabled in pipes).
+    \-T                               Write directly to stdout.
+    \-w, \-\-width=WIDTH                Text width in terminal columns (at least 20).
+    \-f, \-\-format=NAME                Select an original RDoc formatter: ansi, bs, markdown, rdoc.
+
+Lookup:
+    \-i, \-\-[no\-]interactive           Repeated lookup with Tab completion.
+    \-a, \-\-[no\-]all                   Include all methods in a class page.
+    \-l, \-\-[no\-]list                  List known classes and modules.
+        \-\-[no\-]expand\-refs           Expand RDoc references at the end of a page.
+        \-\-server[=PORT]              Serve RDoc in a browser (default port: 8214).
+
+Documentation sources:
+    \-d, \-\-doc\-dir=DIRS               Read RI stores from these directories; repeatable.
+        \-\-no\-standard\-docs           Use only directories provided with \-\-doc\-dir.
+        \-\-[no\-]system                Include system documentation (default: enabled).
+        \-\-[no\-]site                  Include site documentation (default: enabled).
+        \-\-[no\-]home                  Include home documentation (default: enabled).
+        \-\-[no\-]gems                  Include gems documentation (default: enabled).
+        \-\-[no\-]list\-doc\-dirs         List the directories searched for RI documentation.
+
+Tools:
+        \-\-completion=SHELL           Print a completion script for bash, zsh or fish.
+        \-\-man                        Open the bundled manual with man.
+        \-\-man\-path                   Print the path to the bundled manual.
+        \-\-dump=CACHE                 Inspect a trusted RI cache file.
+        \-\-[no\-]profile               Run with Ruby's optional profile library.
+    \-h, \-\-help                       Show this help.
+    \-v, \-\-version                    Show the rich\-ri version.
+
+Run without a name for interactive lookup and Tab completion.
+Examples: rich\-ri Array#map; rich\-ri ruby:syntax/pattern_matching
+Pager keys: / search, n next match, Space next page, q quit.
+RI supplies default options; RI_PAGER/PAGER choose the pager.
+Ruby highlighting is built in; bat optionally highlights other languages.
+.fi
+.SH EXAMPLES
+.nf
+rich-ri Array#map
+rich-ri 'Array.[]'
+rich-ri ruby:syntax/pattern_matching
+rich-ri --color=always Hash | less -R
+rich-ri --no-standard-docs --doc-dir ./doc/ri MyClass
+.fi
+.SH ENVIRONMENT
+.TP
+.B RI
+Default options, parsed as shell words. Command-line options take precedence.
+.TP
+.B RI_PAGER, PAGER
+Choose the pager; RI_PAGER takes precedence. These are trusted shell commands.
+.TP
+.B LESS
+Options for less. rich-ri adds -R for its child pager only.
+.TP
+.B NO_COLOR
+A nonempty value disables automatic colors. --color=always overrides it.
+.TP
+.B TERM
+TERM=dumb disables automatic colors.
+.TP
+.B BAT_THEME
+Optional bat theme for tagged non-Ruby examples. Shell commands use ansi.
+.TP
+.B GEM_HOME, GEM_PATH, HOME, PATH
+RubyGems documentation locations, home RI store and external program lookup.
+.SH COMPLETION
+rich-ri --completion=bash, --completion=zsh or --completion=fish prints
+an installable script. See README.md for installation and aliases.
+.SH SECURITY
+RI stores are Ruby Marshal data. Read only documentation you trust.
+Examples are never executed. Pager commands and bat come from your environment.
+.SH EXIT STATUS
+0: success (including a closed output pipe); 1: lookup or usage failure;
+130: interrupted.
+.SH SEE ALSO
+ri(1), ruby(1), less(1), bat(1)

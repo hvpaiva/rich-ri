@@ -1,0 +1,7 @@
+/.bundle/
+/vendor/
+/coverage/
+/pkg/
+/tmp/
+*.gem
+/.yardoc/

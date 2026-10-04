@@ -1,0 +1,19 @@
+name: Bug report
+description: Report a lookup, rendering, completion or installation problem.
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include the exact command, expected behavior and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: Include rich-ri --version, ruby --version, RDoc version, OS, shell and terminal.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: Include a small document or example when possible. Remove private paths and secrets.

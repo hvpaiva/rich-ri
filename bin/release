@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../rakelib/release"
+
+begin
+  abort "Usage: bin/release X.Y.Z (prepare files; does not tag or publish)" unless ARGV.length == 1
+  version = Release.prepare(ARGV.first)
+  Dir.chdir(Release::ROOT) do
+    abort "Dependency lock update failed" unless system("bundle", "lock", "--local")
+    abort "Manual generation failed" unless system("bundle", "exec", "rake", "generate")
+  end
+  puts "Prepared #{version}. Review the diff, run bundle exec rake check, and open a release pull request."
+  puts "After merging and verifying CI: git tag -s v#{version} -m 'Release #{version}' && git push origin v#{version}"
+rescue StandardError => e
+  abort "release: #{e.message}"
+end

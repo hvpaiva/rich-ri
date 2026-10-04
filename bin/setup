@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+bundle install
+if command -v mise >/dev/null 2>&1; then
+  mise install shellcheck typos zizmor lychee
+fi
+missing=0
+for tool in shellcheck typos zizmor lychee groff bash zsh fish; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    printf 'Missing: %s (required for the full check)\n' "$tool"
+    missing=1
+  fi
+done
+if [[ ! -r /usr/share/bash-completion/bash_completion ]] &&
+  [[ ! -r /opt/homebrew/etc/profile.d/bash_completion.sh ]] &&
+  [[ ! -r /usr/local/etc/profile.d/bash_completion.sh ]]; then
+  printf 'Install bash-completion 2.x for the Bash integration tests.\n'
+fi
+printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'
+exit "$missing"

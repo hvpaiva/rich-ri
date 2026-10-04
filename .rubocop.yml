@@ -1,0 +1,59 @@
+plugins:
+  - rubocop-minitest
+  - rubocop-performance
+  - rubocop-rake
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.4
+  Exclude:
+    - vendor/**/*
+    - tmp/**/*
+    - test/fixtures/**/*
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  # Document responsibilities and contracts, not every small visitor method.
+  Enabled: false
+
+Style/DisableCopsWithinSourceCodeDirective:
+  Enabled: true
+  AllowedCops: []
+
+Metrics/BlockLength:
+  Exclude:
+    - test/**/*
+    - rakelib/**/*
+    - Rakefile
+    - '*.gemspec'
+
+Metrics/MethodLength:
+  # Token visitors and option declarations read better as complete tables.
+  Max: 35
+  Exclude:
+    - rakelib/manual.rb
+
+Metrics/AbcSize:
+  # Width-aware wrapping tracks text, ANSI state and indentation together.
+  Max: 46
+
+Metrics/CyclomaticComplexity:
+  # Language token tables and RI option contexts have many simple alternatives.
+  Max: 18
+
+Metrics/PerceivedComplexity:
+  Max: 18
+
+Naming/MethodName:
+  # This is the RDoc visitor API spelling.
+  AllowedPatterns:
+    - '^handle_TIDYLINK$'
+
+Metrics/ClassLength:
+  Max: 180
+
+Minitest/MultipleAssertions:
+  # Rendering tests compare status, text preservation, layout and styles together.
+  Max: 12
