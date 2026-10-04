@@ -3,6 +3,11 @@
 Read Ruby documentation with clear headings, colored references and highlighted
 examples, using the RI documentation already installed for your Ruby and gems.
 
+![The same Ruby methods documentation in ri on the left and rich-ri on the right, with colored headings, references, inline code and Ruby examples.](docs/images/ri-vs-rich-ri.png)
+
+Actual output from `ri` (left) and `rich-ri` (right), using the same documentation,
+60-column width and terminal palette. The image shows an excerpt of `ruby:syntax/methods`.
+
 ```sh
 rich-ri Array#map
 rich-ri Hash
