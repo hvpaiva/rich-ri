@@ -25,13 +25,20 @@ class LegacyStoreTest < Minitest::Test
   end
 
   def test_cross_version_cache_error_explains_recovery
-    skip "Ruby 3 keeps the older Struct representation" unless RUBY_VERSION.start_with?("4.")
     Dir.mktmpdir do |dir|
       cache = File.join(dir, "old.ri")
       source = <<~RUBY
         module RDoc
           module Markup
-            Heading = Struct.new(:level, :text)
+            if RUBY_VERSION.start_with?("4.")
+              Heading = Struct.new(:level, :text)
+            else
+              class Heading
+                def initialize(level, text)
+                  @level, @text = level, text
+                end
+              end
+            end
           end
         end
         File.binwrite(ARGV[0], Marshal.dump(RDoc::Markup::Heading.new(1, "Old documentation")))

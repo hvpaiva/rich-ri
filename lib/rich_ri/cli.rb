@@ -33,7 +33,7 @@ module RichRI
     rescue Errno::EPIPE
       0
     rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
-      if e.is_a?(TypeError) && e.message.match?(/class RDoc::Markup::\w+ not a struct/)
+      if incompatible_cache?(e)
         warn "rich-ri: incompatible RI cache format for this Ruby and RDoc.\n" \
              "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
              "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
@@ -46,6 +46,11 @@ module RichRI
     end
 
     private
+
+    def incompatible_cache?(error)
+      (error.is_a?(TypeError) && error.message.match?(/class RDoc::Markup::\w+ not a struct/)) ||
+        (error.is_a?(ArgumentError) && error.message == "dump format error")
+    end
 
     def color?(mode)
       mode == "always" || (mode == "auto" && $stdout.tty? && ENV["TERM"] != "dumb" && ENV.fetch("NO_COLOR", "").empty?)
