@@ -38,12 +38,13 @@ module RichRI
                :subheading
              end
       @first_heading = false
-      wrap paint(RichRI.plain(attributes(heading.text)), role)
+      text = "#{'=' * heading.level} #{RichRI.plain(attributes(heading.text))}"
+      wrap paint(text, role)
     end
 
     def accept_rule(_rule)
       use_prefix or @res << (" " * @indent)
-      @res << paint("─" * [@width - @indent, 1].max, :muted) << "\n"
+      @res << paint("-" * [@width - @indent, 1].max, :muted) << "\n"
     end
 
     def accept_paragraph(paragraph)

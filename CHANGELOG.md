@@ -24,6 +24,8 @@ User-visible changes are recorded here. This project follows
 
 ### Fixed
 
+- Preserve heading level markers and ASCII horizontal separators in colored and
+  plain output so readers can search for document sections in their pager.
 - Ruby highlighting recognizes predicate, bang, setter and operator methods,
   including definitions and calls without parentheses. Symbols retain their
   style, and modulo operators are distinct from percent literals.
