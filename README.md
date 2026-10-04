@@ -10,10 +10,16 @@ It requires the RDoc library, which RubyGems installs as a dependency. Many Ruby
 installations already include RDoc and `ri`. rich-ri uses that library directly,
 so the separate `ri` executable does not need to be on your `PATH`.
 
-![The same Ruby methods documentation in ri on the left and rich-ri on the right, with colored headings, references, inline code and Ruby examples.](docs/images/ri-vs-rich-ri.png)
+![The same ARGF documentation in ri -f ansi on the left and rich-ri on the right. The original formatter colors headings and reverses inline code; rich-ri distinguishes references, Ruby strings, constants and method calls, and shell commands while leaving command output plain.](docs/images/ri-vs-rich-ri.png)
 
-Actual output from `ri` (left) and `rich-ri` (right), using the same documentation,
-60-column width and terminal palette. The image shows an excerpt of `ruby:syntax/methods`.
+Actual output from **`ri -f ansi`** (left) and **`rich-ri`** (right): the same
+`ARGF` excerpt, 58-column width and terminal palette. bat is installed for shell
+highlighting. [Regenerate the comparison](docs/images/README.md).
+
+`ri -f ansi` already styles headings and inline text. rich-ri adds syntax
+highlighting inside Ruby and shell examples, semantic colors for references and
+searchable heading markers. Shell command output keeps its original text and
+stays uncolored.
 
 ```sh
 rich-ri Array#map
