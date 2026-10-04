@@ -14,8 +14,12 @@ loads the same reader library directly.
   lists so the formatter can style them. Explicit `--format` delegates to RDoc.
 - `Formatter` visits the RDoc document tree. Prose wrapping uses Reline's terminal
   cell widths; balanced ANSI styles avoid leaking color into later paragraphs.
-- `Highlighter` uses Prism byte offsets to retain Ruby source exactly. It sorts
-  heredoc tokens into source order and tolerates incomplete tagged examples.
+- `Highlighter` uses Prism's syntax tree to locate Ruby method calls, definitions
+  and symbols, then colors the lexer tokens at their original byte offsets.
+  Infix operators and indexing keep their own styles; they are also calls in
+  Ruby's syntax tree. Tokens are sorted into source order for heredocs, with
+  lexical fallback for incomplete examples and RI signatures.
+  Ruby stays in process and uses the terminal palette without requiring bat.
   Other languages go to bat with an argument array and source through stdin.
 - `Completion` exposes a tab-separated candidate/description protocol consumed
   by the three shell scripts. Only documentation-source arguments reach lookup;
