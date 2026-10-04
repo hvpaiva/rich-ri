@@ -4,7 +4,7 @@ require_relative "../lib/rich_ri"
 
 module Manual
   def self.render
-    <<~ROFF
+    escape_code_blocks(<<~ROFF)
       .TH RICH-RI 1 "" "rich-ri #{RichRI::VERSION}" "User Commands"
       .SH NAME
       rich-ri - readable, colorful Ruby documentation
@@ -170,5 +170,14 @@ module Manual
 
   def self.escape(line)
     line.gsub("\\", "\\e").gsub("-", "\\-").sub(/\A(?=[.'])/) { "\\&" }
+  end
+
+  # Roff may typeset bare hyphens and apostrophes as Unicode punctuation.
+  # Literal commands need the ASCII glyphs so copied examples still run.
+  def self.escape_code_blocks(document)
+    document.gsub(/^\.nf\n(.*?)^\.fi$/m) do
+      code = Regexp.last_match(1).lines.map { |line| escape(line).gsub("'") { "\\(aq" } }.join
+      ".nf\n#{code}.fi"
+    end
   end
 end

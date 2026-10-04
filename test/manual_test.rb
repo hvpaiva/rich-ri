@@ -180,4 +180,23 @@ class ManualDisplayTest < Minitest::Test
       assert_includes plain, 'rich-ri --completion=fish > "$dir/rich-ri.fish"'
     end
   end
+
+  def test_code_blocks_preserve_copyable_commands_with_typographic_formatter_glyphs
+    source = ::Manual.render
+
+    assert_includes source, 'rich\-ri \(aqArray.[]\(aq'
+    assert_includes source, 'alias ri=\(aqrich\-ri\(aq'
+    # Older groff versions use these glyphs for ordinary source punctuation.
+    source = source.sub(".SH NAME", ".char - \\[u2010]\n.char ' \\[u2019]\n.SH NAME")
+    out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-man", stdin_data: source)
+    plain = out.gsub(/\e\[[\d;]*m/, "").gsub(/.\x08/, "")
+
+    assert_predicate status, :success?, err
+    assert_empty err
+    assert_includes plain, "rich\u2010ri"
+    assert_includes plain, "rich-ri 'Array.[]'"
+    assert_includes plain, "alias ri='rich-ri'"
+    assert_includes plain, 'data=${XDG_DATA_HOME:-"$HOME/.local/share"}'
+    assert_includes plain, 'rich-ri --completion=fish > "$dir/rich-ri.fish"'
+  end
 end

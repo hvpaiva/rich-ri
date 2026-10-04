@@ -105,11 +105,11 @@ Show this help.
 Show the rich\-ri version.
 .SH EXAMPLES
 .nf
-rich-ri Array#map
-rich-ri 'Array.[]'
-rich-ri ruby:syntax/pattern_matching
-rich-ri --color=always Hash | less -R
-rich-ri --no-standard-docs --doc-dir ./doc/ri MyClass
+rich\-ri Array#map
+rich\-ri \(aqArray.[]\(aq
+rich\-ri ruby:syntax/pattern_matching
+rich\-ri \-\-color=always Hash | less \-R
+rich\-ri \-\-no\-standard\-docs \-\-doc\-dir ./doc/ri MyClass
 .fi
 .SH ENVIRONMENT
 .TP
@@ -151,33 +151,33 @@ makes no network requests and leaves broken stores without suggestions.
 .SS Bash
 Load bash-completion 2.x, then run these commands:
 .nf
-data=${XDG_DATA_HOME:-"$HOME/.local/share"}
-dir="$data/bash-completion/completions"
-mkdir -p "$dir"
-rich-ri --completion=bash > "$dir/rich-ri"
+data=${XDG_DATA_HOME:\-"$HOME/.local/share"}
+dir="$data/bash\-completion/completions"
+mkdir \-p "$dir"
+rich\-ri \-\-completion=bash > "$dir/rich\-ri"
 .fi
 .PP
 For the current shell, run source <(rich-ri --completion=bash).
 .SS Zsh
 Add these lines to .zshrc, after any existing completion setup:
 .nf
-autoload -Uz compinit && compinit
-source <(rich-ri --completion=zsh)
+autoload \-Uz compinit && compinit
+source <(rich\-ri \-\-completion=zsh)
 .fi
 .SS Fish
 Run these commands in Fish:
 .nf
-set -l dir "$__fish_config_dir/completions"
-mkdir -p "$dir"
-rich-ri --completion=fish > "$dir/rich-ri.fish"
+set \-l dir "$__fish_config_dir/completions"
+mkdir \-p "$dir"
+rich\-ri \-\-completion=fish > "$dir/rich\-ri.fish"
 .fi
 .SS Optional alias
 To use ri as the short name in Bash, add these lines after loading
 bash-completion:
 .nf
-alias ri='rich-ri'
-source <(rich-ri --completion=bash)
-complete -o filenames -F _rich_ri ri
+alias ri=\(aqrich\-ri\(aq
+source <(rich\-ri \-\-completion=bash)
+complete \-o filenames \-F _rich_ri ri
 .fi
 .PP
 In Zsh, add alias ri='rich-ri' after the completion setup.
