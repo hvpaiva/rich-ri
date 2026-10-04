@@ -66,6 +66,8 @@ module Manual
       Use --list-doc-dirs to inspect the searched locations and --list for known classes.
       If a gem lacks documentation, run gem rdoc GEM_NAME --ri.
       Ruby core documentation comes from your Ruby manager or operating system.
+      RI caches can be incompatible across Ruby major versions.
+      Regenerate incompatible documentation with the current Ruby and RDoc.
       rich-ri does not download or generate documentation while browsing.
       .SH SECURITY
       RI stores are Ruby Marshal data. Read only documentation you trust,
@@ -74,6 +76,8 @@ module Manual
       object tags, aliases or code evaluation. No project configuration is loaded
       automatically. Pager commands and selected RI stores must still be trusted.
       bat comes from PATH; its configuration file is disabled.
+      bat calls have a two-second deadline, a 1 MiB input limit and an 8 MiB output limit.
+      Failed or invalid output leaves the original text and disables bat for the rest of the page.
       .SH EXIT STATUS
       0: success (including a closed output pipe); 1: lookup or usage failure;
       130: interrupted.

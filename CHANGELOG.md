@@ -8,6 +8,11 @@ User-visible changes are recorded here. This project follows
 
 ### Added
 
+- Compatibility checks for minimum runtime dependencies and older RI stores,
+  upstream Ruby documentation samples and repeatable CLI performance measurements.
+- Release artifact checksums, build attestations and a protected hotfix workflow.
+- Focused guides for reading, configuration, completion, troubleshooting,
+  compatibility, contribution and maintenance.
 - Optional user YAML configuration with RI, environment and command-line
   precedence, effective-settings inspection and safe recovery from invalid files.
 - Terminal, dark and light themes, per-role style overrides, configurable color
@@ -24,6 +29,9 @@ User-visible changes are recorded here. This project follows
 
 ### Fixed
 
+- Optional bat highlighting has time and size limits, handles invalid encoding
+  and falls back to the original text without blocking subsequent examples.
+- Incompatible RI cache formats explain how to regenerate documentation.
 - Preserve heading level markers and ASCII horizontal separators in colored and
   plain output so readers can search for document sections in their pager.
 - Ruby highlighting recognizes predicate, bang, setter and operator methods,

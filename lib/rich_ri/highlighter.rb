@@ -10,6 +10,7 @@ module RichRI
       @theme = theme
       @bat_theme = bat_theme
       @shell_theme = shell_theme
+      @bat = Bat.new
       @cache = {}
     end
 
@@ -188,17 +189,7 @@ module RichRI
 
     def other_language(text, format, theme: @bat_theme)
       language = { sh: "bash", shell: "bash", js: "javascript", yml: "yaml" }.fetch(format, format.to_s)
-      output, status = Open3.capture2(
-        "bat", "--no-config", "--language=#{language}", "--style=plain",
-        "--color=always", "--paging=never", "--wrap=never",
-        "--theme=#{theme}",
-        stdin_data: text, err: File::NULL
-      )
-      # Do not let a highlighter change the document's contents.
-      output = output.delete_suffix("\n") if !text.end_with?("\n") && output.end_with?("\n")
-      status.success? && RichRI.plain(output) == text ? output : text
-    rescue Errno::ENOENT
-      text
+      @bat.highlight(text, language:, theme:) || text
     end
   end
 end

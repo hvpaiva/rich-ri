@@ -19,7 +19,8 @@ Gem::Specification.new do |spec|
     "bug_tracker_uri" => "#{spec.homepage}/issues",
     "changelog_uri" => "#{spec.homepage}/blob/main/CHANGELOG.md",
     "documentation_uri" => "#{spec.homepage}#readme",
-    "rubygems_mfa_required" => "true"
+    "rubygems_mfa_required" => "true",
+    "allowed_push_host" => "https://rubygems.org"
   }
   # An allowlist also builds from a source archive without shipping local files.
   spec.files = Dir.chdir(__dir__) do

@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+gemspec path: ".."
+
+# Lowest direct runtime versions compatible with RDoc 8.1's dependency graph.
+gem "io-console", "0.8.0"
+gem "minitest", "~> 6.0"
+gem "open3", "0.2.0"
+gem "prism", "1.6.0"
+gem "psych", "5.2.0"
+gem "rdoc", "8.1.0"
+gem "readline", "0.0.4"
+gem "reline", "0.6.0"
+gem "shellwords", "0.2.0"
+gem "timeout", "0.4.0"

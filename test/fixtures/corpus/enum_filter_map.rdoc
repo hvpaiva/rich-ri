@@ -1,0 +1,15 @@
+= Enumerable#filter_map
+
+call-seq:
+  filter_map {|element| ... } -> array
+  filter_map -> enumerator
+
+Returns an array containing truthy elements returned by the block.
+
+With a block given, calls the block with successive elements;
+returns an array containing each truthy value returned by the block:
+
+  (0..9).filter_map {|i| i * 2 if i.even? }                              # => [0, 4, 8, 12, 16]
+  {foo: 0, bar: 1, baz: 2}.filter_map {|key, value| key if value.even? } # => [:foo, :baz]
+
+When no block given, returns an Enumerator.

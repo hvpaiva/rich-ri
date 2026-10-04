@@ -28,6 +28,9 @@ loads the same reader library directly.
   lexical fallback for incomplete examples and RI signatures.
   Ruby stays in process and uses the selected semantic theme without requiring bat.
   Other languages go to bat with an argument array and source through stdin.
+- `Bat` bounds optional highlighting by time, input size and output size. It
+  terminates the process group on a timeout or output overflow, reaps the child
+  and stops trying bat for that page after a failure.
 - `Completion` exposes a tab-separated candidate/description protocol consumed
   by the three shell scripts. Only documentation-source arguments reach lookup;
   source options follow the same RI, configuration and command-line precedence
@@ -37,7 +40,8 @@ loads the same reader library directly.
 
 The runtime files under `lib/` form one small library. The supported public
 interface is the executable, its flags and the installed completion scripts;
-Ruby classes and the internal `--complete` protocol can change before 1.0.
+Ruby classes and the internal `--complete` protocol are implementation details.
+See [compatibility](docs/compatibility.md) for the public interface policy.
 
 ## Shell transcripts
 
@@ -49,15 +53,19 @@ Only commands are highlighted; output is preserved. Ambiguous prompts and shell
 heredocs are left plain, and explicit Ruby/text tags override detection.
 
 bat is optional. Its output is accepted only when removing SGR color codes yields
-the input exactly. Failed processes, missing executables and altered content
-fall back to the original text. Repeated examples are cached per formatter.
+the input exactly. Failed processes, missing executables, invalid encoding and
+altered content fall back to the original text. Calls have a two-second deadline,
+a 1 MiB input limit and an 8 MiB output limit. Repeated examples are cached per formatter.
 
 ## Compatibility and trust
 
 The driver and formatter extend RDoc APIs, including visitor methods that may
 change between releases. RDoc 8.1 is the baseline and the gem restricts updates
-to the 8.x series. CI tests the locked version and a fresh resolution; dependency
-updates must exercise rendering, lookup, completion and installed-package tests.
+to the 8.x series. CI tests the locked bundle, a fresh resolution and minimum
+runtime dependencies. It also reads RDoc 6.14 stores on Ruby 3.4. RDoc changes its
+Marshal representation between Ruby 3 and 4, so moving a store across that
+boundary can require regeneration. Dependency updates exercise rendering, lookup,
+completion and installed-package tests.
 
 RI cache files use Marshal and must be trusted, including when used only for
 completion. Terminal controls in rich rendering are shown as escaped text.

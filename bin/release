@@ -6,7 +6,8 @@ require_relative "../rakelib/release_workflow"
 
 options = { push: false, dry_run: false }
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: bin/release X.Y.Z [--push | --dry-run]"
+  opts.banner = "Usage: bin/release X.Y.Z [--branch main|hotfix/X.Y] [--push | --dry-run]"
+  opts.on("--branch=NAME", "Release from main or the matching hotfix/X.Y branch") { |value| options[:branch] = value }
   opts.on("--push", "Prepare or resume, wait for checks, merge and publish through GitHub Actions") do
     options[:push] = true
   end
@@ -18,7 +19,7 @@ end
 begin
   parser.parse!(ARGV)
   raise OptionParser::InvalidArgument, "exactly one version is required" unless ARGV.length == 1
-  raise OptionParser::InvalidArgument, "--push and --dry-run cannot be combined" if options.values.all?
+  raise OptionParser::InvalidArgument, "--push and --dry-run cannot be combined" if options[:push] && options[:dry_run]
 
   Release::Workflow.new(ARGV.first, **options).run
 rescue OptionParser::ParseError => e

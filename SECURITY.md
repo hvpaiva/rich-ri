@@ -21,6 +21,7 @@ documentation into a searched directory. Completion reads the same trusted store
 Ruby examples are parsed, never evaluated. Shell examples are tokenized, never
 executed. Optional bat receives source on stdin with separate command arguments.
 Its configuration file is disabled, and output that alters source is discarded.
+Execution time and output size are bounded; failed highlighting leaves plain code.
 Terminal controls in rich rendering are escaped; original RDoc formatters retain
 upstream behavior when explicitly selected with `--format`.
 
@@ -42,11 +43,13 @@ RDoc before exposing it on a network.
 The gem declares runtime dependencies and its supported Ruby range. Development
 uses a committed lockfile, automated dependency updates and a vulnerability audit.
 GitHub Actions use pinned commits and minimal job permissions. Releases verify
-the tag, version, changelog and main-branch ancestry, then use RubyGems trusted
-publishing. Publication credentials are short-lived and scoped to this gem.
+the tag, version, changelog and ancestry on main or the matching hotfix branch,
+then use RubyGems trusted publishing. Publication credentials are short-lived
+and scoped to this gem. Installation tests, publication and GitHub Releases use
+the same gem artifact, with a verified checksum and a GitHub build attestation.
 
 Changes to protected branches go through pull requests with signed commits and
 passing checks. Release tags and the publication environment are restricted,
 and published GitHub releases are immutable. Maintainers verify these settings
 before release. RubyGems trust must be configured for the repository, workflow
-and environment described in [Maintenance and releases](CONTRIBUTING.md#maintenance-and-releases).
+and environment described in [Maintenance](docs/maintenance.md).

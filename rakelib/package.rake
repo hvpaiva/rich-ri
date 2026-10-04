@@ -15,10 +15,10 @@ end
 
 namespace :package do
   desc "Install the gem into an empty gem home and exercise the installed CLI"
-  task :check do
+  task :check, [:artifact] do |_task, args|
     require_relative "../lib/rich_ri/version"
     Dir.mktmpdir("rich-ri-package-") do |dir|
-      package = File.join(dir, "rich-ri.gem")
+      package = args[:artifact] ? File.expand_path(args[:artifact]) : File.join(dir, "rich-ri.gem")
       home = File.join(dir, "gems")
       # Copy cached dependencies only as installation sources. The child process
       # cannot load the development bundle or the contributor's installed gems.
@@ -28,7 +28,7 @@ namespace :package do
         FileUtils.cp(spec.cache_file, dir)
       end
       Bundler.with_unbundled_env do
-        sh(*gem_command, "build", "rich-ri.gemspec", "--output", package)
+        sh(*gem_command, "build", "rich-ri.gemspec", "--output", package) unless args[:artifact]
         env = ENV.keys.grep(/\ARICH_RI_/).to_h { |key| [key, nil] }.merge(
           "GEM_HOME" => home, "GEM_PATH" => home, "RUBYOPT" => nil, "RUBYLIB" => nil,
           "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1", "BAT_THEME" => nil,
