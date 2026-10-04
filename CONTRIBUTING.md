@@ -71,7 +71,7 @@ compatibility and accessibility. Non-English strings in tests are appropriate
 when they exercise Unicode handling.
 
 Use Conventional Commits, such as `fix: preserve blank lines in shell examples`.
-Keep commits focused and passing, and omit attribution trailers. CI validates
+Keep commits focused and passing, and omit generated attribution trailers. CI validates
 commit subjects and pull request titles. User-visible code changes need a line
 under `Unreleased` in `CHANGELOG.md`; maintainers may apply `skip-changelog` for
 changes that have no user-visible effect.
