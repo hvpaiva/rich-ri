@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "json"
 require_relative "../rakelib/ci"
 
 class CIResultTest < Minitest::Test
@@ -17,7 +18,7 @@ class CIResultTest < Minitest::Test
       data = results("full")
       data.fetch(job)["result"] = result
 
-      assert_rejected(/^#{job}: expected success, got "#{result}"$/, data)
+      assert_rejected(%(#{job}: expected success, got "#{result}"), data)
     end
   end
 
@@ -26,7 +27,7 @@ class CIResultTest < Minitest::Test
       data = results("docs")
       data.fetch(job)["result"] = "failure"
 
-      assert_rejected(/^#{job}: expected success, got "failure"$/, data)
+      assert_rejected(%(#{job}: expected success, got "failure"), data)
     end
   end
 
@@ -34,7 +35,7 @@ class CIResultTest < Minitest::Test
     data = results("full")
     data.delete("test")
 
-    assert_rejected(/\AIncomplete CI job results\z/, data)
+    assert_rejected("incomplete CI job results", data)
   end
 
   def test_change_detection_that_did_not_succeed_cannot_pass
@@ -42,7 +43,7 @@ class CIResultTest < Minitest::Test
       data = results("docs")
       data.fetch("changes")["result"] = result
 
-      assert_rejected(/\AChange detection did not succeed\z/, data)
+      assert_rejected("change detection did not succeed", data)
     end
   end
 
@@ -50,7 +51,7 @@ class CIResultTest < Minitest::Test
     data = results("docs")
     data.fetch("changes")["outputs"] = { "scope" => "unknown" }
 
-    assert_rejected(/\AUnknown CI scope: "unknown"\z/, data)
+    assert_rejected('unknown CI scope: "unknown"', data)
   end
 
   def test_a_scheduled_run_needs_the_audit_and_freshly_resolved_dependencies
@@ -59,24 +60,36 @@ class CIResultTest < Minitest::Test
       data = results("scheduled", event: "schedule")
       data.fetch(job)["result"] = "skipped"
 
-      assert_rejected(/^#{job}: expected success, got "skipped"$/, data, event: "schedule")
+      assert_rejected(%(#{job}: expected success, got "skipped"), data, event: "schedule")
     end
   end
 
   def test_a_release_cannot_pass_with_only_documentation_checks
-    assert_rejected(/\AThis run requires the full suite\z/, results("docs"), force_full: true)
+    assert_rejected("this run requires the full suite", results("docs"), force_full: true)
   end
 
   def test_only_a_scheduled_run_can_use_the_scheduled_checks
-    assert_rejected(/\AOnly scheduled runs may use scheduled scope\z/, results("scheduled", event: "push"),
-                    event: "push")
+    assert_rejected("only scheduled runs may use scheduled scope", results("scheduled", event: "push"), event: "push")
   end
 
   def test_only_pushes_and_pull_requests_can_use_the_documentation_checks
     %w[workflow_dispatch schedule].each do |event|
-      assert_rejected(/\AOnly pushes and pull requests may use docs scope\z/, results("docs", event: event),
-                      event: event)
+      assert_rejected("only pushes and pull requests may use docs scope", results("docs", event: event), event: event)
     end
+  end
+
+  def test_bin_ci_says_which_checks_passed
+    out, err, status = verify(results("docs"))
+
+    assert_equal [0, "Docs CI checks passed.\n", ""], [status.exitstatus, out, err]
+  end
+
+  def test_bin_ci_names_itself_when_it_rejects_the_results
+    data = results("full")
+    data.delete("test")
+    out, err, status = verify(data)
+
+    assert_equal [1, "", "ci: incomplete CI job results\n"], [status.exitstatus, out, err]
   end
 
   private
@@ -84,7 +97,12 @@ class CIResultTest < Minitest::Test
   def assert_rejected(reason, data, event: "pull_request", **)
     error = assert_raises(CI::Error) { CI.verify!(data, event: event, **) }
 
-    assert_match reason, error.message
+    assert_equal reason, error.message
+  end
+
+  def verify(data)
+    environment = { "GITHUB_EVENT_NAME" => "pull_request", "CI_FORCE_FULL" => nil, "CI_RESULTS" => JSON.generate(data) }
+    Open3.capture3(environment, RbConfig.ruby, File.join(TestSupport::ROOT, "bin/ci"), "verify")
   end
 
   def results(scope, event: "pull_request")

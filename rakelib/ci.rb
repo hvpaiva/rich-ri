@@ -44,20 +44,20 @@ module CI
   end
 
   def self.verify!(results, event:, force_full: false)
-    raise Error, "Incomplete CI job results" unless results.keys.sort == JOBS.sort
-    raise Error, "Change detection did not succeed" unless results.dig("changes", "result") == "success"
+    raise Error, "incomplete CI job results" unless results.keys.sort == JOBS.sort
+    raise Error, "change detection did not succeed" unless results.dig("changes", "result") == "success"
 
     scope = results.dig("changes", "outputs", "scope")
     required = case scope
                when "full" then FULL_JOBS.dup
                when "docs" then ["docs"]
                when "scheduled" then SCHEDULED_JOBS.dup
-               else raise Error, "Unknown CI scope: #{scope.inspect}"
+               else raise Error, "unknown CI scope: #{scope.inspect}"
                end
-    raise Error, "This run requires the full suite" if force_full && scope != "full"
-    raise Error, "Only scheduled runs may use scheduled scope" if scope == "scheduled" && event != "schedule"
+    raise Error, "this run requires the full suite" if force_full && scope != "full"
+    raise Error, "only scheduled runs may use scheduled scope" if scope == "scheduled" && event != "schedule"
     if scope == "docs" && !%w[push pull_request].include?(event)
-      raise Error, "Only pushes and pull requests may use docs scope"
+      raise Error, "only pushes and pull requests may use docs scope"
     end
 
     required << "commits" if event == "pull_request"

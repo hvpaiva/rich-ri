@@ -14,9 +14,9 @@ begin
     puts "scope=#{scope}"
   when ["verify"]
     scope = CI.verify!(JSON.parse(ENV.fetch("CI_RESULTS")), event: event, force_full: force_full)
-    puts "CI: #{scope} checks passed."
+    puts "#{scope.capitalize} CI checks passed."
   else abort "Usage: ruby bin/ci scope|verify"
   end
 rescue KeyError, JSON::ParserError, CI::Error => e
-  abort "CI: #{e.message}"
+  abort "ci: #{e.message}"
 end
