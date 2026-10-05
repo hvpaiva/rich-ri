@@ -5,7 +5,8 @@ require "open3"
 module CommitPolicy
   TYPES = %w[feat fix docs test refactor perf build ci chore revert].freeze
   SUBJECT = /\A(?:#{TYPES.join('|')})(?:\([\w.-]+\))?!?: \S/
-  UNFINISHED = /\A(?:(?:fixup|squash|amend)!|wip\b)|\A\w+(?:\([\w.-]+\))?!?:\s*wip\b/i
+  WIP = /wip(?![\w-])/i
+  UNFINISHED = /\A(?:(?:fixup|squash|amend)!|#{WIP})|\A\w+(?:\([\w.-]+\))?!?:\s*#{WIP}/i
   # git revert writes Reapply when the reverted commit was itself a revert.
   REVERT = /\A(?:Revert|Reapply) "(?<subject>.+)"\z/
 

@@ -103,7 +103,7 @@ class CommitPolicyTest < Minitest::Test
     unfinished = ["fix: wip", "fix: WIP still broken", "fix(cli): wip", "WIP", "wip: try things",
                   "fixup! fix: preserve documentation", "squash! fix: preserve documentation",
                   "amend! fix: preserve documentation", 'Revert "fixup! fix: preserve documentation"']
-    accepted = ["fix: wipe stale caches", 'Revert "fix: preserve documentation"',
+    accepted = ["fix: wipe stale caches", "fix: WIP-free path", 'Revert "fix: preserve documentation"',
                 'Reapply "fix: preserve documentation"', 'Revert "Revert "fix: preserve documentation""',
                 "revert: restore the previous pager default", "chore(deps): bump rdoc from 8.1.0 to 8.2.0"]
 
