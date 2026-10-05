@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "open3"
 
 # Disposable Git repositories for the maintenance tests.
@@ -18,5 +19,15 @@ module GitSupport
 
     assert_predicate status, :success?, err
     out.strip
+  end
+
+  def commit(root, files)
+    files.each do |path, content|
+      FileUtils.mkdir_p(File.dirname(File.join(root, path)))
+      File.write(File.join(root, path), content)
+    end
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "test: change fixture")
+    git(root, "rev-parse", "HEAD")
   end
 end

@@ -2,8 +2,11 @@
 
 require "test_helper"
 require_relative "../rakelib/changelog"
+require_relative "release_support"
 
 class ChangelogTest < Minitest::Test
+  include ReleaseFixtures
+
   URL = "https://github.com/hvpaiva/rich-ri"
   TODAY = Date.new(2026, 10, 4)
   RELEASED = <<~TEXT.freeze
@@ -104,5 +107,50 @@ class ChangelogTest < Minitest::Test
     assert_empty(visible.select { |path| Changelog.entry_missing?([path, "CHANGELOG.md"]) })
     refute Changelog.entry_missing?(%w[rakelib/release.rb test/cli_test.rb README.md library/notes.md])
     refute Changelog.entry_missing?([])
+  end
+
+  def test_a_branch_that_changes_what_users_see_needs_an_entry
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      commit(root, "README.md" => "Read me", "rakelib/tools.rb" => "# maintenance")
+
+      assert_empty Changelog.lint(root: root, base: base)
+      commit(root, "man/man1/rich-ri.1" => ".TH RICH-RI 1")
+
+      assert_equal [Changelog::ENTRY_REQUIRED], Changelog.lint(root: root, base: base)
+      assert_empty Changelog.lint(root: root)
+      commit(root, "CHANGELOG.md" => File.read(File.join(root, "CHANGELOG.md")).sub("- Readable", "- More readable"))
+
+      assert_empty Changelog.lint(root: root, base: base)
+    end
+  end
+
+  def test_the_comparison_starts_where_the_branch_left_its_base
+    repository do |root|
+      original = git(root, "rev-parse", "HEAD")
+      commit(root, "lib/base.rb" => "# merged to the base branch meanwhile")
+      base = git(root, "rev-parse", "HEAD")
+      git(root, "switch", "-qc", "topic", original)
+      commit(root, "docs/usage.md" => "Usage")
+
+      assert_empty Changelog.lint(root: root, base: base)
+      error = assert_raises(Changelog::Error) { Changelog.lint(root: root, base: "missing") }
+
+      assert_equal "Cannot compare HEAD with missing", error.message
+    end
+  end
+
+  def test_the_command_checks_the_project_and_honors_the_waiver
+    script = File.join(TestSupport::ROOT, "bin/lint-changelog")
+    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => nil }, RbConfig.ruby, script, "HEAD")
+
+    assert_predicate status, :success?, err
+    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => nil }, RbConfig.ruby, script, "missing-base")
+
+    assert_equal 1, status.exitstatus
+    assert_equal "lint-changelog: Cannot compare HEAD with missing-base\n", err
+    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => "true" }, RbConfig.ruby, script, "missing-base")
+
+    assert_predicate status, :success?, err
   end
 end

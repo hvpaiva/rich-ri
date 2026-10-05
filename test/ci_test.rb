@@ -99,14 +99,4 @@ class CITest < Minitest::Test
   def scope(root, base, head, **)
     CI.scope(root: root, base: base, head: head, event: "pull_request", ref: "refs/pull/1/merge", **)
   end
-
-  def commit(root, files)
-    files.each do |path, content|
-      FileUtils.mkdir_p(File.dirname(File.join(root, path)))
-      File.write(File.join(root, path), content)
-    end
-    git(root, "add", "-A")
-    git(root, "commit", "-qm", "test: change fixture")
-    git(root, "rev-parse", "HEAD")
-  end
 end

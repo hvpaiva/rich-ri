@@ -5,6 +5,11 @@ require "rubocop/rake_task"
 require "fileutils"
 require_relative "rakelib/tools"
 
+# The branch checks compare with origin/main. A shallow CI checkout may not have it.
+def default_base
+  "origin/main" if system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL)
+end
+
 # A missing program gets one line of advice instead of a failed command and its trace.
 def require_tool(name)
   abort Tools.missing(name) unless Tools.available?(name)
@@ -69,17 +74,12 @@ end
 namespace :lint do
   desc "Check branch commits and optional PR_TITLE/PR_BODY (range defaults to origin/main..HEAD)"
   task :commits, [:range] do |_task, args|
-    range = args[:range]
-    unless range
-      has_base = system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL)
-      range = has_base ? "origin/main..HEAD" : "HEAD"
-    end
-    sh RbConfig.ruby, "bin/lint-commits", range
+    sh RbConfig.ruby, "bin/lint-commits", args[:range] || (default_base ? "#{default_base}..HEAD" : "HEAD")
   end
 
-  desc "Check CHANGELOG.md headings, dates, sections and link references"
-  task :changelog do
-    sh RbConfig.ruby, "bin/lint-changelog"
+  desc "Check CHANGELOG.md structure and that the branch records user-visible changes (base: origin/main)"
+  task :changelog, [:base] do |_task, args|
+    sh RbConfig.ruby, "bin/lint-changelog", *(args[:base] || default_base)
   end
 
   desc "Check Bash scripts with ShellCheck"

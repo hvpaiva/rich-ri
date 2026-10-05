@@ -201,20 +201,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
-      - name: Validate commits and the changelog
+      # The title and body reach the script through the environment, never through template
+      # expansion inside the command.
+      - name: Check the commits and the pull request title and body
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+        run: ruby bin/lint-commits "origin/$BASE_REF..HEAD"
+      # The same check as bundle exec rake lint:changelog. The skip-changelog label waives the
+      # entry for changes users cannot see; the structure of the file is always checked.
+      - name: Require a changelog entry for changes users can see
+        if: ${{ !cancelled() }}
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           SKIP_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
-        run: |
-          ruby bin/lint-commits "origin/$BASE_REF..HEAD"
-          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
-          if grep -qE '^(lib|exe|completions)/' <<< "$changed" &&
-             ! grep -qx 'CHANGELOG.md' <<< "$changed" && [ "$SKIP_CHANGELOG" != true ]; then
-            echo '::error::Add a user-visible change under Unreleased in CHANGELOG.md.'
-            exit 1
-          fi
+        run: ruby bin/lint-changelog "origin/$BASE_REF"
 
   ci:
     if: ${{ always() }}

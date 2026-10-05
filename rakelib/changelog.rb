@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "date"
+require_relative "ci"
 require_relative "github"
 
 # CHANGELOG.md follows Keep a Changelog: Unreleased first, then releases newest
@@ -16,6 +17,11 @@ module Changelog
   SECTION_END = /^## |#{REFERENCE}/
   # A change under these paths reaches users, so it needs an entry.
   USER_VISIBLE = %r{\A(?:lib|exe|completions|man)/}
+  ENTRY_REQUIRED = 'Changes under lib/, exe/, completions/ or man/ need a line under "## [Unreleased]". ' \
+                   "When users cannot see the change, set SKIP_CHANGELOG=1; a maintainer adds the " \
+                   "skip-changelog label to the pull request."
+
+  class Error < StandardError; end
 
   Heading = Data.define(:version, :date) do
     def day = Date.strptime(date, "%Y-%m-%d")
@@ -56,6 +62,17 @@ module Changelog
   end
 
   def self.entry_missing?(paths) = paths.any?(USER_VISIBLE) && !paths.include?(PATH)
+
+  # Structural problems, plus a missing entry when +base+ names what HEAD branched from.
+  def self.lint(root:, base: nil)
+    problems = problems(File.read(File.join(root, PATH)))
+    return problems unless base
+
+    paths = CI.changed_paths("#{base}...HEAD", root)
+    raise Error, "Cannot compare HEAD with #{base}" unless paths
+
+    entry_missing?(paths) ? problems << ENTRY_REQUIRED : problems
+  end
 
   def self.problems(text, today: Time.now.utc.to_date)
     heading_problems(text) + release_problems(text, today) + section_problems(text) + reference_problems(text)

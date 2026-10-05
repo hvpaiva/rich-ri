@@ -51,6 +51,19 @@ class CIWorkflowTest < Minitest::Test
     assert_includes commands, "bundle update --all"
   end
 
+  def test_pull_requests_run_the_commit_and_changelog_checks_contributors_run_locally
+    steps = ci.dig("jobs", "commits", "steps")
+    commands = steps.filter_map { |step| step["run"] }
+    waiver = steps.find { |step| step["run"].to_s.include?("lint-changelog") }.dig("env", "SKIP_CHANGELOG")
+    local = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
+
+    assert_equal ['ruby bin/lint-commits "origin/$BASE_REF..HEAD"', 'ruby bin/lint-changelog "origin/$BASE_REF"'],
+                 commands
+    assert_equal "${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}", waiver
+    assert_includes local, "lint:commits"
+    assert_includes local, "lint:changelog"
+  end
+
   def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
     jobs = ci.fetch("jobs")
     matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")
