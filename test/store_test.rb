@@ -5,6 +5,8 @@ require "test_helper"
 class StoreTest < Minitest::Test
   DAMAGED = { "empty" => "", "truncated" => Marshal.dump({ modules: %w[One Two] })[0, 9],
               "nil" => Marshal.dump(nil), "text" => Marshal.dump("cache") }.freeze
+  # As written by another RDoc version: an object of RDoc::RetiredMethod, a class this one lacks.
+  RETIRED_CLASS_DATA = "\x04\bo:\x18RDoc::RetiredMethod\x00".b.freeze
 
   def with_store
     Dir.mktmpdir("rich-ri-store-") do |dir|
@@ -16,14 +18,6 @@ class StoreTest < Minitest::Test
 
   def lookup(store, *)
     cli("--no-standard-docs", "--doc-dir", store, *, docs: false)
-  end
-
-  # As written by another RDoc version: Marshal names a class this one lacks.
-  def retired_class_data
-    RDoc.const_set(:RetiredMethod, Class.new)
-    Marshal.dump(RDoc::RetiredMethod.new)
-  ensure
-    RDoc.send(:remove_const, :RetiredMethod)
   end
 
   def test_damaged_cache_names_the_store_for_lookups_and_class_lists
@@ -58,7 +52,7 @@ class StoreTest < Minitest::Test
 
   def test_method_data_from_another_rdoc_names_the_store
     with_store do |store|
-      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), retired_class_data)
+      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), RETIRED_CLASS_DATA)
       out, err, status = lookup(store, "RichRIExample#map")
 
       assert_equal 1, status.exitstatus
@@ -75,7 +69,7 @@ class StoreTest < Minitest::Test
 
   def test_class_data_from_another_rdoc_names_the_store
     with_store do |store|
-      File.binwrite(File.join(store, "RichRIExample/cdesc-RichRIExample.ri"), retired_class_data)
+      File.binwrite(File.join(store, "RichRIExample/cdesc-RichRIExample.ri"), RETIRED_CLASS_DATA)
       out, err, status = lookup(store, "RichRIExample")
 
       assert_equal 1, status.exitstatus
@@ -86,7 +80,7 @@ class StoreTest < Minitest::Test
 
   def test_page_data_from_another_rdoc_names_the_store_while_missing_pages_stay_missing
     with_store do |path|
-      File.binwrite(File.join(path, "page-GUIDE_rdoc.ri"), retired_class_data)
+      File.binwrite(File.join(path, "page-GUIDE_rdoc.ri"), RETIRED_CLASS_DATA)
       options = RichRI::Options.new.parse(["--no-standard-docs", "--doc-dir", path], defaults: "")
       store = RichRI::Driver.new(options.driver_options).stores.first
       error = assert_raises(RichRI::StoreError) { store.load_page("GUIDE.rdoc") }
@@ -99,7 +93,7 @@ class StoreTest < Minitest::Test
 
   def test_all_keeps_the_class_page_when_one_method_cannot_be_read
     with_store do |store|
-      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), retired_class_data)
+      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), RETIRED_CLASS_DATA)
       out, err, status = lookup(store, "--all", "RichRIExample")
 
       assert_predicate status, :success?, err
@@ -114,7 +108,7 @@ class StoreTest < Minitest::Test
 
   def test_dump_of_unreadable_data_names_the_file
     Dir.mktmpdir("rich-ri-store-") do |dir|
-      { "retired.ri" => retired_class_data, "empty.ri" => "", "text.ri" => "not marshal data" }.each do |name, content|
+      { "retired.ri" => RETIRED_CLASS_DATA, "empty.ri" => "", "text.ri" => "not marshal data" }.each do |name, content|
         path = File.join(dir, name)
         File.binwrite(path, content)
         out, err, status = cli("--dump=#{path}", docs: false)
