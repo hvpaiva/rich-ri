@@ -172,7 +172,8 @@ class ManualDisplayTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_empty err
-    out.gsub(/\e\[[\d;]*m/, "").gsub(/.\x08/, "")
+    # -Tutf8 writes UTF-8 whatever the locale says, and Open3 labels the output by the locale.
+    out.force_encoding(Encoding::UTF_8).gsub(/\e\[[\d;]*m/, "").gsub(/.\x08/, "")
   end
 
   def test_generated_options_and_prose_fit_narrow_and_standard_manuals
