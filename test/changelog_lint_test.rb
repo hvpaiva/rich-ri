@@ -60,10 +60,10 @@ class ChangelogLintTest < Minitest::Test
   def test_a_file_name_that_is_not_utf8_is_still_classified
     repository do |root|
       base = git(root, "rev-parse", "HEAD")
-      commit(root, "notes-\xFF.txt".b => "maintenance")
+      commit_in_index(root, "notes-\xFF.txt".b)
 
       assert_empty Changelog::Lint.problems(root: root, base: base)
-      commit(root, "lib/rich_ri/\xFF.rb".b => "# user-visible")
+      commit_in_index(root, "lib/rich_ri/\xFF.rb".b)
 
       assert_equal [Changelog::Lint::ENTRY_REQUIRED], Changelog::Lint.problems(root: root, base: base)
     end
@@ -99,5 +99,12 @@ class ChangelogLintTest < Minitest::Test
       commit(root, files)
       Changelog::Lint.problems(root: root, base: base)
     end
+  end
+
+  # APFS refuses file names that are not UTF-8, so the name reaches Git through the index alone.
+  def commit_in_index(root, path)
+    blob = git(root, "hash-object", "-w", File::NULL)
+    git(root, "update-index", "--add", "--cacheinfo", "100644,#{blob},#{path}")
+    git(root, "commit", "-qm", "test: change fixture")
   end
 end
