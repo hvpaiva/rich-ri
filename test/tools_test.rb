@@ -58,6 +58,26 @@ class ToolsTest < Minitest::Test
     end
   end
 
+  def test_groff_warnings_about_the_manual_are_reported_with_the_file
+    Dir.mktmpdir("rich-ri-tools-") do |bin|
+      write_program(bin, "groff", "echo 'troff: <standard input>:7: warning: macro not defined' >&2")
+      out, err, status = isolated_rake(bin, "lint:man")
+
+      assert_equal [1, "", "rake: groff reported problems in man/man1/rich-ri.1:\n" \
+                           "troff: <standard input>:7: warning: macro not defined\n"], [status.exitstatus, out, err]
+    end
+  end
+
+  def test_a_silent_groff_failure_reports_its_exit_status
+    Dir.mktmpdir("rich-ri-tools-") do |bin|
+      write_program(bin, "groff", "exit 3")
+      out, err, status = isolated_rake(bin, "lint:man")
+
+      assert_equal [1, "", "rake: groff failed on man/man1/rich-ri.1 with exit status 3\n"],
+                   [status.exitstatus, out, err]
+    end
+  end
+
   def test_package_check_needs_groff_to_render_the_installed_manual
     Dir.mktmpdir("rich-ri-tools-") do |bin|
       write_program(bin, "man")

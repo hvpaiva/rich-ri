@@ -122,7 +122,8 @@ namespace :lint do
     Tools.require!("groff")
     require "open3"
     _out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-man", "man/man1/rich-ri.1")
-    abort err unless status.success? && err.empty?
+    abort "rake: groff reported problems in man/man1/rich-ri.1:\n#{err.chomp}" unless err.empty?
+    abort "rake: groff failed on man/man1/rich-ri.1 with exit status #{status.exitstatus}" unless status.success?
   rescue Tools::Error => e
     abort "rake: #{e.message}"
   end

@@ -61,20 +61,22 @@ namespace :package do
                                             chdir: dir, stdin_data: args.include?("--interactive") ? "\n" : "")
           out = out.gsub(/.\x08/, "")
           unless status.success? && out.include?(expected)
-            abort "Installed lookup failed: #{args.inspect}\n#{err}\n#{out}"
+            abort "rake: installed lookup failed: rich-ri #{args.join(' ')}\n#{err}#{out}".chomp
           end
         end
         [%w[--version], %w[--help], %w[--no-standard-docs --list], %w[--complete --no-all],
          %w[--completion=bash], %w[--completion=zsh], %w[--completion=fish], %w[--man-path]].each do |args|
           out, err, status = Open3.capture3(env, command, *args, chdir: dir)
-          abort "Installed CLI failed: #{args.inspect}\n#{err}" unless status.success?
-          abort "Wrong package version" if args == ["--version"] && out != "rich-ri #{RichRI::VERSION}\n"
+          abort "rake: installed CLI failed: rich-ri #{args.join(' ')}\n#{err}".chomp unless status.success?
+          if args == ["--version"] && out != "rich-ri #{RichRI::VERSION}\n"
+            abort "rake: installed rich-ri --version printed #{out.chomp.dump}; expected \"rich-ri #{RichRI::VERSION}\""
+          end
           next unless args == ["--man-path"]
 
           manual = out.strip
           # macOS exposes /private/var through /var; __dir__ resolves symlinks.
           unless File.file?(manual) && File.realpath(manual).start_with?("#{File.realpath(home)}/")
-            abort "Manual missing from installed gem: #{manual}"
+            abort "rake: manual missing from installed gem: #{manual}"
           end
         end
         puts "Installed gem: version, help, lookup, configuration, themes, completion and manual passed."
