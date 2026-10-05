@@ -12,8 +12,9 @@ module TestSupport
   ROOT = File.expand_path("..", __dir__)
   TEMP = Dir.mktmpdir("rich-ri-test-")
   STORE = File.join(TEMP, "ri")
-  # A contributor's theme file must not change fixture output or option defaults.
-  application_variables = RichRI::Configuration::ENVIRONMENT.keys + ["RICH_RI_CONFIG"] +
+  # A contributor's theme file must not change fixture output or option
+  # defaults, nor a debugging session add backtraces to expected messages.
+  application_variables = RichRI::Configuration::ENVIRONMENT.keys + ["RICH_RI_CONFIG", RichRI::Error::DEBUG_VARIABLE] +
                           ENV.keys.grep(/\ARICH_RI_STYLE_/)
   application_variables.each { |key| ENV.delete(key) }
   ENV["XDG_CONFIG_HOME"] = File.join(TEMP, "config")

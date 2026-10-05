@@ -6,7 +6,7 @@ require "shell_support"
 
 class TestEnvironmentTest < Minitest::Test
   def test_application_settings_are_cleared_without_erasing_suite_controls
-    values = { "RICH_RI_REQUIRE_SHELLS" => "1", "RICH_RI_CONFIG" => "/missing/config.yml",
+    values = { "RICH_RI_REQUIRE_SHELLS" => "1", "RICH_RI_CONFIG" => "/missing/config.yml", "RICH_RI_DEBUG" => "1",
                "RICH_RI_THEME" => "invalid", "RICH_RI_STYLE_COMMENT" => "invalid" }
     source = "puts JSON.generate(ENV.to_h.slice(*ARGV.shift.split(',')))"
     environment = TestSupport::ENVIRONMENT.merge(values).merge("COVERAGE_CHILD" => "1")
