@@ -4,12 +4,13 @@
 #
 # shellcheck shell=bash
 
-_rich_ri() {
+# The function names and the words, cur and out variables are the ones of the
+# scripts cobra generates. ble.sh knows that shape: it runs the command without
+# blocking the line and shows the descriptions in its own menu.
+__start_rich_ri() {
     # prev is assigned by the initializers of bash-completion; it stays local.
     # shellcheck disable=SC2034
-    local cur prev words cword value _description directive="" typed=${2-}
-    local -a names=()
-    COMPREPLY=()
+    local cur prev words cword
     if declare -F _comp_initialize >/dev/null 2>&1; then
         _comp_initialize -n ':=' -- "$@" || return
     elif declare -F _init_completion >/dev/null 2>&1; then
@@ -17,13 +18,12 @@ _rich_ri() {
     else
         __rich_ri_words || return
     fi
-    while IFS=$'\t' read -r value _description; do
-        if [[ $value == :* ]]; then
-            directive=${value#:}
-        elif [[ -n $value ]]; then
-            names+=("$value")
-        fi
-    done < <(command rich-ri --complete --shell=bash "${words[@]:1:cword-1}" "$cur" 2>/dev/null)
+    # The first word may be an alias or a function. ble.sh runs this one.
+    words[0]=__rich_ri_complete
+
+    local out directive typed=${2-}
+    __rich_ri_get_completion_results
+    COMPREPLY=()
     # The candidates are names, however the function was registered.
     compopt +o filenames 2>/dev/null
     case $directive in
@@ -32,26 +32,56 @@ _rich_ri() {
         directories) compopt -o dirnames 2>/dev/null ;;
         *)
             [[ $directive == nospace ]] && compopt -o nospace 2>/dev/null
-            __rich_ri_reply "${names[@]}"
+            # ble.sh adds file names of its own to an answer without candidates
+            # and takes a candidate that also names a directory for that directory.
+            [[ -n ${BLE_ATTACHED-} ]] && compopt -o ble/no-default -o ble/no-mark-directories 2>/dev/null
+            [[ -n $out ]] && __rich_ri_handle_completion_types
             ;;
     esac
     return 0
 }
 
-# Replies with the end of each name that readline is to replace, quoted as
-# the word needs it where it stands.
-__rich_ri_reply() {
+__rich_ri_complete() {
+    command rich-ri --complete --shell=bash "$@"
+}
+
+# Leaves the candidate lines in out and the last line, without its colon, in
+# directive. A line keeps its tab only when a description follows it.
+__rich_ri_get_completion_results() {
+    out=$("${words[0]}" "${words[@]:1:cword-1}" "$cur" 2>/dev/null)
+    directive=${out##*$'\n':}
+    [[ $out == :* ]] && directive=${out#:}
+    out=${out%$'\n'*}
+    [[ $out == :* ]] && out=""
+    out=${out//$'\t\n'/$'\n'} out=${out%$'\t'}
+    return 0
+}
+
+# out holds the lines as one string or, after ble.sh took the described ones
+# for its menu, the others as an array.
+__rich_ri_handle_completion_types() {
+    local chunk line
+    local -a names=()
+    for chunk in "${out[@]}"; do
+        while IFS= read -r line; do
+            [[ -n $line ]] && names+=("${line%%$'\t'*}")
+        done <<<"$chunk"
+    done
+
     # Only the end of the word is replaced when it holds ":" or "=", where
     # readline breaks words, or follows an open quote: head is what stays.
     local head quote REPLY
     __rich_ri_dequote "${cur%"$typed"}"
     head=$REPLY
+    # ble.sh breaks the word itself, says what it keeps and quotes what it inserts.
+    [[ -n ${BLE_ATTACHED-} ]] && head=${progcomp_prefix-$head} quote=ble
 
     local name reply
-    for name in "$@"; do
+    for name in "${names[@]}"; do
         [[ $name == "$head"* ]] || continue
         reply=${name#"$head"}
         case $quote in
+            ble) ;;
             "'") reply=${reply//\'/\'\\\'\'} ;;
             '"') reply=${reply//\\/\\\\} reply=${reply//\"/\\\"} reply=${reply//\$/\\\$} reply=${reply//\`/\\\`} ;;
             *) [[ -n $reply ]] && printf -v reply %q "$reply" ;;
@@ -109,4 +139,9 @@ __rich_ri_words() {
     return 0
 }
 
-complete -F _rich_ri rich-ri
+# The name this function had; an alias registered with it keeps working.
+_rich_ri() {
+    __start_rich_ri "$@"
+}
+
+complete -F __start_rich_ri rich-ri

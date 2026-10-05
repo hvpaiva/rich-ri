@@ -21,8 +21,9 @@ class TestEnvironmentTest < Minitest::Test
   def test_missing_shells_fail_in_required_mode_and_skip_in_optional_mode
     Dir.mktmpdir do |empty_path|
       ["1", nil].each do |required|
+        # ble.sh is optional: its tests are skipped where it is missing, in either mode.
         environment = TestSupport::ENVIRONMENT.merge("PATH" => empty_path, "RICH_RI_REQUIRE_SHELLS" => required,
-                                                     "COVERAGE_CHILD" => "1")
+                                                     "XDG_DATA_HOME" => empty_path, "COVERAGE_CHILD" => "1")
         out, err, status = Open3.capture3(environment, RbConfig.ruby, "-Ilib", "-Itest", "test/shell_test.rb",
                                           "--verbose", chdir: TestSupport::ROOT)
         message = "#{out}\n#{err}"
@@ -32,9 +33,9 @@ class TestEnvironmentTest < Minitest::Test
           assert_includes out, "fish is required"
           assert_includes out, "zsh is required"
           assert_includes out, "bash-completion 2.x with a compatible bash is required"
-          assert_match(/20 failures, 0 errors, 0 skips/, out)
+          assert_match(/23 failures, 0 errors, 3 skips/, out)
         else
-          assert_match(/0 failures, 0 errors, 20 skips/, out)
+          assert_match(/0 failures, 0 errors, 26 skips/, out)
         end
       end
     end

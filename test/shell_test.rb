@@ -127,6 +127,123 @@ class BashCompletionTest < Minitest::Test
   end
 end
 
+# ble.sh runs a completion function shaped like the ones cobra generates in a
+# way of its own (patch:cobraV2 in its core-complete.sh): it calls words[0]
+# through a function of its own that it can cancel, takes the lines with a
+# description for its menu and hands the others back in out. It breaks the
+# word at ":" and "=" itself, says in progcomp_prefix what comes before the
+# piece being completed, puts it back before every reply and quotes the reply.
+# ble.sh does not run in CI, so ANSWER does the same in plain bash.
+class BleCompletionTest < Minitest::Test
+  include ShellInsertion
+
+  ANSWER = <<~'BASH'
+    source "$1/completions/rich-ri.bash"
+    marker=$2
+    BLE_ATTACHED=1 COMP_TYPE=9 COMP_LINE=$3 COMP_POINT=${#3} progcomp_prefix=$4
+    shift 4
+    COMP_WORDS=("$@") COMP_CWORD=$(( $# - 1 ))
+    asked=() yielded=()
+    compopt() { asked+=("$*"); }
+    invoke() { : >"$marker"; "${orig_words[0]}" "$@"; }
+
+    eval "ble_original_$(declare -f __rich_ri_get_completion_results)"
+    __rich_ri_get_completion_results() {
+        local -a orig_words=("${words[@]}")
+        local -a words=(invoke "${orig_words[@]:1}")
+        ble_original___rich_ri_get_completion_results
+    }
+    eval "ble_original_$(declare -f __rich_ri_handle_completion_types)"
+    __rich_ri_handle_completion_types() {
+        local lines line unprocessed=()
+        for lines in "${out[@]}"; do
+            while IFS= read -r line; do
+                if [[ $line == *$'\t'* ]]; then
+                    [[ ${line%%$'\t'*} == "$cur"* ]] && yielded+=("${line%%$'\t'*}")
+                elif [[ -n $line ]]; then
+                    unprocessed+=("$line")
+                fi
+            done <<<"$lines"
+        done
+        if (( ${#unprocessed[@]} )); then
+            out=("${unprocessed[@]}")
+            ble_original___rich_ri_handle_completion_types
+        fi
+    }
+
+    __start_rich_ri "${COMP_WORDS[0]}" "${COMP_WORDS[COMP_CWORD]}" "${COMP_WORDS[COMP_CWORD - 1]}"
+    if [[ -e $marker ]]; then echo invoked; else echo direct; fi
+    for line in "${yielded[@]}"; do printf '%s\n' "$line"; done
+    echo --
+    for line in "${COMPREPLY[@]}"; do printf '%s\n' "$line"; done
+    echo --
+    for line in "${asked[@]}"; do printf '%s\n' "$line"; done
+  BASH
+
+  NO_FALLBACK = ["+o filenames", "-o ble/no-default -o ble/no-mark-directories"].freeze
+
+  def test_the_script_has_the_shape_ble_sh_patches
+    script = File.read(File.join(TestSupport::ROOT, "completions/rich-ri.bash"))
+
+    assert_includes script, "complete -F __start_rich_ri rich-ri"
+    assert_includes script, "__rich_ri_get_completion_results() {"
+    assert_includes script, "__rich_ri_handle_completion_types() {"
+    refute_includes script, "_extract_activeHelp"
+  end
+
+  def test_ble_sh_runs_the_command_and_lists_the_described_candidates_itself
+    assert_equal ["invoked", %w[--color=always --color=auto], [], NO_FALLBACK],
+                 ble_answer("rich-ri --color=a", "--color=", "--color", "=", "a")
+  end
+
+  def test_names_come_back_without_what_ble_sh_puts_before_them
+    assert_equal ["invoked", [], ["GUIDE.rdoc"], NO_FALLBACK],
+                 ble_answer("rich-ri #{TestSupport::STORE}:G", "#{TestSupport::STORE}:", TestSupport::STORE, ":", "G")
+    assert_equal ["invoked", [], ["Inkwell#fill", "Inkwell#filled?"], NO_FALLBACK],
+                 ble_answer("rich-ri Inkwell#fi", "", "Inkwell#fi")
+  end
+
+  def test_an_answer_without_candidates_turns_off_the_file_names_of_ble_sh
+    assert_equal ["invoked", [], [], NO_FALLBACK], ble_answer("rich-ri NoSuchExample", "", "NoSuchExample")
+  end
+
+  def test_ble_sh_inserts_a_page_of_a_gem_given_in_two_steps
+    environment = TestSupport.gem_environment.merge("RI" => "--no-system --no-site --no-home")
+    result = ble_arguments(["RICH_READY> ", "rich-ri inkwell-n\t"], ["native:", "B\t"], ["UILDING.rdoc", "\r"],
+                           env: environment)
+
+    assert_equal ["inkwell-native:BUILDING.rdoc"], result, @terminal_output
+  end
+
+  def test_ble_sh_inserts_a_name_as_it_is_and_not_as_a_directory
+    FileUtils.mkdir_p(File.join(@bin, "RichRIExample"))
+
+    assert_equal ["Inkwell#filled?"], ble_arguments(["RICH_READY> ", "rich-ri Inkwell#fille\t"], ["d\\? ", "\r"]),
+                 @terminal_output
+    assert_equal ["RichRIExample"], ble_arguments(["RICH_READY> ", "rich-ri RichRIExam\t"], ["ple ", "\r"]),
+                 @terminal_output
+  end
+
+  def test_ble_sh_inserts_no_file_name_for_a_name_it_does_not_know
+    FileUtils.mkdir_p(File.join(@bin, "NoSuchExample"))
+    result = ble_arguments(["RICH_READY> ", "rich-ri NoSuchExam"], %W[NoSuchExam \t], %W[\a \r])
+
+    assert_equal ["NoSuchExam"], result, @terminal_output
+  end
+
+  private
+
+  # How the command was reached, the candidates ble.sh took, the replies and
+  # the compopt calls.
+  def ble_answer(line, prefix, *pieces)
+    require_bash
+    marker = File.join(@bin, "invoked")
+    FileUtils.rm_f(marker)
+    reached, *rest = shell("bash", ANSWER, TestSupport::ROOT, marker, line, prefix, "rich-ri", *pieces)
+    [reached, *["--", *rest].slice_before("--").map { |part| part.drop(1) }]
+  end
+end
+
 class ZshCompletionTest < Minitest::Test
   include ShellHarness
 

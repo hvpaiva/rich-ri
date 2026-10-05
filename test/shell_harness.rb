@@ -66,6 +66,9 @@ module ShellInsertion
   include ShellHarness
   include TerminalTestSupport
 
+  # ble.sh, a line editor for bash, where it installs itself.
+  BLE = File.join(ENV.fetch("XDG_DATA_HOME", File.join(Dir.home, ".local/share")), "blesh/ble.sh")
+
   private
 
   def inserted_arguments(name, line, env: {}, **)
@@ -110,6 +113,43 @@ module ShellInsertion
     # Ubuntu's global zshrc runs compinit before this fixture and may prompt
     # about system directory permissions. Load only our controlled user rc.
     [name, "-d", "-i"]
+  end
+
+  # The words bash passes to rich-ri with ble.sh as its line editor, the keys
+  # of each step typed once the text before them has appeared. ble.sh drops a
+  # completion when a key arrives while it runs, so the key after a Tab waits
+  # for what the Tab changed: the text inserted, or the bell for nothing.
+  def ble_arguments(*steps, env: {})
+    skip "ble.sh is not installed" unless File.file?(BLE)
+    require_bash
+    directories = { "XDG_RUNTIME_DIR" => "run", "XDG_CACHE_HOME" => "cache", "XDG_STATE_HOME" => "state",
+                    "XDG_CONFIG_HOME" => "config" }.transform_values { |name| File.join(@bin, name) }
+    directories.each_value { |directory| FileUtils.mkdir_p(directory, mode: 0o700) }
+    environment = @env.merge("HOME" => @bin, "HISTFILE" => File::NULL, "INPUTRC" => File::NULL,
+                             "PS1" => "RICH_START> ", **directories, **env)
+    # Enter is a carriage return: ble.sh runs the line for it, not for a line feed.
+    input = [["RICH_START> ", " source #{ble_rc.shellescape}\r"], *steps, ["__RICH_ARG__", "exit\r"]]
+    output, status = terminal("bash", "--noprofile", "--norc", "-i", env: environment, input: input)
+    @terminal_output = output
+
+    assert_equal 0, status, output
+    output.scan(/__RICH_ARG__([^\r\n]*)/).flatten
+  end
+
+  def ble_rc
+    library = ShellSupport.bash_completion
+    File.join(@bin, "blerc").tap do |rc|
+      File.write(rc, <<~BASH)
+        source -- #{BLE.shellescape} --noattach
+        PS1='RICH_READY> '
+        cd #{@bin.shellescape}
+        #{"source #{library.shellescape}" if library}
+        source #{File.join(TestSupport::ROOT, 'completions/rich-ri.bash').shellescape}
+        rich-ri() { printf '__RICH_ARG__%s\\n' "$@"; }
+        bleopt complete_auto_complete= highlight_syntax= edit_bell=abell
+        ble-attach
+      BASH
+    end
   end
 
   def fish_command(completion)
