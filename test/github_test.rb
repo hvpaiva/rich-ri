@@ -131,6 +131,16 @@ class GitHubTest < Minitest::Test
     assert_raises(GitHub::Error) { response.call(500).request("/immutable-releases") }
   end
 
+  def test_origin_accepts_only_this_repository_on_github
+    accepted = %w[https://github.com/hvpaiva/rich-ri https://github.com/hvpaiva/rich-ri.git
+                  git@github.com:hvpaiva/rich-ri.git ssh://git@github.com/hvpaiva/rich-ri]
+    rejected = %w[https://github.com/someone/rich-ri.git https://github.com/hvpaiva/rich-ri-fork
+                  https://github.com/hvpaiva/rich_ri https://example.org/hvpaiva/rich-ri.git
+                  https://github.com/hvpaiva/rich-ri.git/extra]
+
+    assert_equal(accepted, (accepted + rejected).select { |url| GitHub.origin?("#{url}\n") })
+  end
+
   def test_required_check_covers_every_ci_job
     jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml"))["jobs"]
     gate = jobs.fetch("ci")

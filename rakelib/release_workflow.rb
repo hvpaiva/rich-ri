@@ -55,8 +55,7 @@ module Release
 
     def validate
       Release.validate_version(@version)
-      origin = command(%w[git remote get-url origin]).strip
-      unless origin.match?(%r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{GitHub::REPOSITORY}(?:\.git)?\z}o)
+      unless GitHub.origin?(command(%w[git remote get-url origin]))
         raise Error, "The origin repository must be #{GitHub::REPOSITORY}"
       end
 

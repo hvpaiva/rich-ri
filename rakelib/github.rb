@@ -6,6 +6,7 @@ require "open3"
 module GitHub
   REPOSITORY = "hvpaiva/rich-ri"
   ROOT = File.expand_path("..", __dir__)
+  ORIGIN = %r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{Regexp.escape(REPOSITORY)}(?:\.git)?\z}
 
   class Error < StandardError; end
 
@@ -44,9 +45,11 @@ module GitHub
     end
   end
 
+  def self.origin?(url) = url.strip.match?(ORIGIN)
+
   def self.verify_origin!(root: ROOT)
     origin, status = Open3.capture2("git", "remote", "get-url", "origin", chdir: root)
-    return if status.success? && origin.strip.match?(%r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{REPOSITORY}(?:\.git)?\z}o)
+    return if status.success? && origin?(origin)
 
     raise Error, "The origin repository must be #{REPOSITORY}"
   end
