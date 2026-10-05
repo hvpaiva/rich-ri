@@ -39,6 +39,7 @@ module RichRI
       @rich_ri_bat_theme = options.delete(:rich_ri_bat_theme) || ENV.fetch("BAT_THEME", "base16")
       @rich_ri_shell_theme = options.delete(:rich_ri_shell_theme) || "ansi"
       options = self.class.default_options.merge(options)
+      optional_gem("profile", "--profile") if options[:profile]
       # RDoc would load every store itself, as plain RDoc stores that cannot
       # say which of them failed. Start it without any and load them here.
       super(options.merge(STANDARD_SOURCES.to_h { |source| [source, false] }, extra_doc_dirs: []))
@@ -63,8 +64,7 @@ module RichRI
     end
 
     def start_server
-      # Surface missing dependencies through CLI errors instead of RDoc's abort.
-      require "webrick"
+      optional_gem("webrick", "--server")
       super
     end
 
@@ -133,6 +133,17 @@ module RichRI
     end
 
     private
+
+    # webrick and profile are not dependencies of the gem. RDoc answers their
+    # absence with abort or a bare LoadError; say which gem the option needs.
+    def optional_gem(name, option)
+      require name
+    rescue LoadError => e
+      raise unless e.path == name
+
+      raise Error.new("#{option} requires the optional #{name} gem.",
+                      hint: "Install it for your active Ruby: gem install #{name}")
+    end
 
     def load_stores(*selection)
       RDoc::RI::Paths.each(*selection) do |path, type|

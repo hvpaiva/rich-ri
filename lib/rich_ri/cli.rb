@@ -18,15 +18,10 @@ module RichRI
       options.action ? action(*options.action, options: options) : lookup(options)
     rescue Errno::EPIPE
       0
-    rescue Error => e
-      warn "rich-ri: #{RichRI.sanitize(e.message)}"
-      warn e.hint if e.hint
-      e.exit_status
-    rescue ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
-      warn "rich-ri: #{unclassified(e)}"
-      1
     rescue Interrupt
       130
+    rescue StandardError, ScriptError => e
+      Error.report(e)
     end
 
     private
@@ -45,19 +40,6 @@ module RichRI
         end
       end
       0
-    end
-
-    def unclassified(error)
-      if (dependency = optional_dependency(error))
-        "--#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
-          "Install it for your active Ruby: gem install #{dependency}"
-      else
-        RichRI.sanitize(error.message)
-      end
-    end
-
-    def optional_dependency(error)
-      error.path if error.is_a?(LoadError) && %w[profile webrick].include?(error.path)
     end
 
     def color?(mode)

@@ -5,8 +5,33 @@ module RichRI
   # prints "rich-ri: message", then the hint when there is one, and exits with
   # exit_status. Any other exception reaching the command is a defect.
   class Error < StandardError
+    DEBUG_VARIABLE = "RICH_RI_DEBUG"
+
     # Advice printed on its own line after the message, or nil.
     attr_reader :hint
+
+    # Writes any exception as the single failure the user sees and returns the
+    # exit status it calls for. Text in a message can come from the command
+    # line, a path or a store, so no terminal control in it is passed on. The
+    # exception class and backtrace, which a user cannot act on, are shown only
+    # when RICH_RI_DEBUG is set.
+    def self.report(error, io = $stderr)
+      explained = error.is_a?(Error)
+      io.puts "rich-ri: #{RichRI.sanitize(error.message)}"
+      io.puts error.hint if explained && error.hint
+      trace(error, io) unless ENV.fetch(DEBUG_VARIABLE, "").empty?
+      explained ? error.exit_status : 1
+    end
+
+    def self.trace(error, io)
+      io.puts error.class.name
+      while error
+        Array(error.backtrace).each { |line| io.puts "    #{RichRI.sanitize(line)}" }
+        error = error.cause
+        io.puts "caused by #{error.class.name}: #{RichRI.sanitize(error.message)}" if error
+      end
+    end
+    private_class_method :trace
 
     def initialize(message = nil, hint: nil)
       super(message)
