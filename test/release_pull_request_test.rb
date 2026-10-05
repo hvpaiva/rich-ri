@@ -77,6 +77,17 @@ class ReleasePullRequestTest < Minitest::Test
     end
   end
 
+  def test_a_remote_branch_with_other_commits_is_never_overwritten
+    repository do |root|
+      commands = []
+      closed = release_pr("CLOSED").merge("headRefOid" => "c" * 40)
+      error = assert_raises(Release::Error) { release(root, commands, prs: [closed], remote_branch: "e" * 40) }
+
+      assert_equal "git push -u origin release/v0.2.0 failed.\n\n#{RESUME}", error.message
+      assert_equal([%w[git push -u origin release/v0.2.0]], commands.select { |args| args.first(2) == %w[git push] })
+    end
+  end
+
   def test_a_local_branch_with_other_commits_is_never_overwritten
     repository do |root|
       commands = []
