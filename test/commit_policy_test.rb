@@ -30,6 +30,10 @@ class CommitPolicyTest < Minitest::Test
     "Reviewed-by: Cursor Maintainer <maintainer@example.org>", "See notclaude.ai/code/session_ for a lookalike."
   ].freeze
 
+  def teardown
+    FileUtils.remove_entry(@policy_root) if @policy_root
+  end
+
   def test_a_conventional_commit_with_a_human_coauthor_and_title_passes
     repository do |root|
       git(root, "commit", "--allow-empty", "-qm",
@@ -73,8 +77,8 @@ class CommitPolicyTest < Minitest::Test
   end
 
   def test_the_offending_line_is_quoted_without_its_indentation
-    assert_equal ["remove generated attribution: Assisted-by: Codex"],
-                 CommitPolicy.check("Fix it.\n\n  Assisted-by: Codex  \nMore text.", subject: false)
+    assert_equal ["pull request body: remove generated attribution: Assisted-by: Codex"],
+                 pull_request_problems(body: "Fix it.\n\n  Assisted-by: Codex  \nMore text.")
   end
 
   def test_attribution_in_a_pull_request_body_is_rejected_with_the_offending_line
@@ -105,8 +109,8 @@ class CommitPolicyTest < Minitest::Test
     unfinished['Revert "fixup! fix: preserve documentation"'] = "fixup! fix: preserve documentation"
 
     unfinished.each do |subject, quoted|
-      assert_equal ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{quoted}"],
-                   CommitPolicy.check(subject, subject: true)
+      assert_equal ["pull request title: finish this commit first; fixup!, squash!, amend! and WIP subjects are not " \
+                    "accepted: #{quoted}"], pull_request_problems(title: subject)
     end
   end
 
@@ -114,21 +118,21 @@ class CommitPolicyTest < Minitest::Test
     accepted = ['Revert "fix: preserve documentation"', 'Reapply "fix: preserve documentation"',
                 'Revert "Revert "fix: preserve documentation""', "revert: restore the previous pager default"]
 
-    assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
+    assert_empty(accepted.flat_map { |subject| pull_request_problems(title: subject) })
   end
 
   def test_words_that_start_with_wip_are_not_unfinished_work
     accepted = ["fix: wipe stale caches", "fix: WIP-free path"]
 
-    assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
+    assert_empty(accepted.flat_map { |subject| pull_request_problems(title: subject) })
   end
 
   def test_a_scoped_dependency_update_is_accepted
-    assert_empty CommitPolicy.check("chore(deps): bump rdoc from 8.1.0 to 8.2.0", subject: true)
+    assert_empty pull_request_problems(title: "chore(deps): bump rdoc from 8.1.0 to 8.2.0")
   end
 
   def test_a_revert_of_an_unstructured_subject_is_still_unstructured
-    assert_equal ["#{UNSTRUCTURED}Revert it"], CommitPolicy.check('Revert "Revert it"', subject: true)
+    assert_equal ["pull request title: #{UNSTRUCTURED}Revert it"], pull_request_problems(title: 'Revert "Revert it"')
   end
 
   def test_shallow_merge_uses_stored_parents_but_still_checks_its_body
@@ -202,5 +206,14 @@ class CommitPolicyTest < Minitest::Test
 
   private
 
-  def attributed?(line) = CommitPolicy.check("Fix it.\n\n#{line}\n", subject: false).any?
+  def attributed?(line) = pull_request_problems(body: "Fix it.\n\n#{line}\n").any?
+
+  # An empty range leaves only the pull request title or body to check.
+  def pull_request_problems(**text)
+    @policy_root ||= Dir.mktmpdir("rich-ri-policy-").tap do |root|
+      git(root, "init", "-q")
+      git(root, "commit", "--allow-empty", "-qm", "chore: initialize")
+    end
+    Dir.chdir(@policy_root) { CommitPolicy.problems("HEAD..HEAD", **text) }
+  end
 end

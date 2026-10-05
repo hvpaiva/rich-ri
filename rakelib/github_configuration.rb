@@ -76,6 +76,8 @@ module GitHub
       verify!
     end
 
+    private
+
     def changes
       @changes = []
       repository_settings
@@ -85,8 +87,6 @@ module GitHub
       labels
       @changes
     end
-
-    private
 
     def matches?(actual, expected)
       case expected

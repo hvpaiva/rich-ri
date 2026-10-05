@@ -9,6 +9,8 @@ class GitHubTest < Minitest::Test
   include GitSupport
   include ProgramSupport
 
+  VERIFIED = "GitHub repository protections, release environment and security settings verified.\n"
+
   class MemoryClient
     attr_reader :calls, :state
     attr_accessor :fail_path
@@ -82,16 +84,16 @@ class GitHubTest < Minitest::Test
     %w[/automated-security-fixes /private-vulnerability-reporting /immutable-releases].each do |path|
       client.state[path] = { "enabled" => false }
     end
-    config = GitHub::Configuration.new(client: client, out: StringIO.new)
-    config.setup
+    GitHub::Configuration.new(client: client, out: StringIO.new).setup
     writes = client.calls.reject { |method, *_| method == "GET" }
 
     assert_equal 10, writes.length
     client.calls.clear
-    config.setup
+    output = StringIO.new
+    GitHub::Configuration.new(client: client, out: output).setup
 
     assert(client.calls.all? { |method, *_| method == "GET" })
-    assert_empty config.changes
+    assert_equal VERIFIED, output.string
   end
 
   def test_setup_reads_every_setting_before_writing_and_fails_on_access_errors
@@ -120,8 +122,10 @@ class GitHubTest < Minitest::Test
     assert_equal "repository configuration needs attention; run bundle exec rake github:setup to apply:\n" \
                  "- main ruleset\n- remove extra release deployment policy *", error.message
     config.setup
+    output = StringIO.new
+    GitHub::Configuration.new(client: client, out: output).verify!
 
-    assert_empty config.changes
+    assert_equal VERIFIED, output.string
   end
 
   def test_a_missing_label_that_ci_or_releases_use_needs_attention

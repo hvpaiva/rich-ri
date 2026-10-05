@@ -69,4 +69,6 @@ module CI
 
     scope
   end
+
+  private_class_method :documentation?
 end

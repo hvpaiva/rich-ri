@@ -32,11 +32,16 @@ class CITest < Minitest::Test
   end
 
   def test_scripts_fixtures_generated_manual_and_unknown_paths_require_full_checks
-    %w[docs/images/render_comparison.rb test/fixtures/GUIDE.rdoc lib/rich_ri/cli.rb
-       .github/workflows/ci.yml Gemfile.lock man/man1/rich-ri.1 new-tool].each do |path|
-      refute CI.documentation?(path), path
+    repository do |root|
+      paths = %w[docs/images/render_comparison.rb test/fixtures/GUIDE.rdoc lib/rich_ri/cli.rb .github/workflows/ci.yml
+                 Gemfile.lock man/man1/rich-ri.1 new-tool] + ["docs/invalid-\xff.md".b]
+      paths.each do |path|
+        base = git(root, "rev-parse", "HEAD")
+        head = commit(root, path => "changed")
+
+        assert_equal "full", scope(root, base, head), path
+      end
     end
-    refute CI.documentation?("docs/invalid-\xff.md")
   end
 
   def test_the_whole_pull_request_is_considered_after_a_documentation_only_commit

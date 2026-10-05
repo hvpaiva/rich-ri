@@ -79,5 +79,5 @@ module CommitPolicy
     errors
   end
 
-  private_class_method :git, :attribution, :subject_problems
+  private_class_method :git, :attribution, :subject_problems, :check
 end

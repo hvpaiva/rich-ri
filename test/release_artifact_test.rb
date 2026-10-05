@@ -17,7 +17,7 @@ class ReleaseArtifactTest < Minitest::Test
       gem.license = "MIT"
       gem.homepage = "https://example.org"
     end
-    capture_io { Gem::Package.build(spec, true, false, Release::Artifact.path(root: root)) }
+    capture_io { Gem::Package.build(spec, true, false, gem_path(root)) }
     Release::Artifact.record(root: root)
   end
 
@@ -25,7 +25,7 @@ class ReleaseArtifactTest < Minitest::Test
     repository do |root|
       digest = artifact(root)
 
-      assert_equal Release::Artifact.path(root: root), Release::Artifact.verify(root: root, expected: digest)
+      assert_equal gem_path(root), Release::Artifact.verify(root: root, expected: digest)
     end
   end
 
@@ -42,7 +42,7 @@ class ReleaseArtifactTest < Minitest::Test
   def test_an_artifact_whose_bytes_differ_from_the_recorded_checksum_is_refused
     repository do |root|
       digest = artifact(root)
-      File.binwrite(Release::Artifact.path(root: root), "tampered")
+      File.binwrite(gem_path(root), "tampered")
 
       assert_release_error("release artifact checksum mismatch") do
         Release::Artifact.verify(root: root, expected: digest)
@@ -71,7 +71,7 @@ class ReleaseArtifactTest < Minitest::Test
   def test_an_artifact_that_is_not_a_gem_is_refused_without_a_backtrace
     repository do |root|
       FileUtils.mkdir_p(File.join(root, "pkg"))
-      File.binwrite(Release::Artifact.path(root: root), "not a gem")
+      File.binwrite(gem_path(root), "not a gem")
       Release::Artifact.record(root: root)
 
       gem = File.join(root, "pkg/rich-ri-0.1.0.gem")
@@ -92,7 +92,11 @@ class ReleaseArtifactTest < Minitest::Test
       digest = artifact(root, version: "0.2.0")
 
       assert_match(/\A[0-9a-f]{64}\z/, digest)
-      assert_equal Release::Artifact.path(root: root), Release::Artifact.verify(root: root)
+      assert_equal gem_path(root), Release::Artifact.verify(root: root)
     end
   end
+
+  private
+
+  def gem_path(root) = File.join(root, "pkg/rich-ri-#{Release.version(root: root)}.gem")
 end
