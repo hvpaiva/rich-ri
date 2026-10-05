@@ -166,9 +166,14 @@ module Manual
       Code blocks preserve their original content and indentation.
       .TP
       .B pager
-      true (default), false, or a trusted command string such as "less -R".
+      true (default), false, or a trusted command such as "less -R". The command
+      is split into words and run directly, without a shell.
       RI_PAGER overrides a file command; --pager-command overrides both.
-      PAGER is a fallback. --no-pager disables paging; redirected output is not paged.
+      PAGER is used when none of them names a pager.
+      A pager named in any of these ways has to start and to end without failure,
+      or the lookup fails with status 1. When none is named, pager, less and more
+      are tried, and the page is written to the terminal if none exists.
+      --no-pager disables paging; redirected output is not paged.
       .TP
       .B bat_theme, shell_theme
       bat themes for non-Ruby, non-shell examples (default base16) and shell examples or
@@ -276,8 +281,9 @@ module Manual
       Completion uses documentation-source options but never utility actions.
       .TP
       .B RI_PAGER, PAGER
-      Trusted documentation pager commands. RI_PAGER overrides a file command;
-      PAGER is the fallback. --pager-command takes precedence over both.
+      Trusted documentation pager commands, run without a shell.
+      RI_PAGER overrides a file command; PAGER is used when no other names a
+      pager. --pager-command takes precedence over both.
       .TP
       .B LESS
       Your options for less. For its own pager only, rich-ri puts -R ahead of

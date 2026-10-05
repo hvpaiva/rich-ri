@@ -6,10 +6,20 @@ require "terminal_helper"
 class TerminalTest < Minitest::Test
   include TerminalTestSupport
 
+  SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
+
   def terminal_cli(*, env: {}, prompt: nil, input: nil)
     coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
     terminal(RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", "#{TestSupport::ROOT}/exe/rich-ri", *,
              env: { "COVERAGE_CHILD" => "1", "NO_COLOR" => nil }.merge(env), prompt: prompt, input: input)
+  end
+
+  # A pager that appends its arguments to the log beside it and shows the page.
+  def logging_pager(dir)
+    pager = File.join(dir, "pager.rb")
+    File.write(pager, "File.write(File.join(__dir__, 'log'), ARGV.inspect + \"\\n\", mode: 'a')\n" \
+                      "STDOUT.write(STDIN.read)\n")
+    [[RbConfig.ruby, pager].shelljoin, File.join(dir, "log")]
   end
 
   def test_tty_color_policy_and_explicit_override
@@ -33,8 +43,7 @@ class TerminalTest < Minitest::Test
       environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "PAGER" => "missing" }
       # An option of less that takes a string, such as a prompt, runs to the end of LESS.
       { "-i" => "-R -i", "-Pmyprompt" => "-R -Pmyprompt", "" => "-R ", nil => "-R -Fi" }.each do |less, expected|
-        output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
-                                      env: environment.merge("LESS" => less))
+        output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: environment.merge("LESS" => less))
         page = File.read(capture)
 
         assert_equal 0, status, output
@@ -45,29 +54,76 @@ class TerminalTest < Minitest::Test
     end
   end
 
-  def test_missing_pagers_fall_back_to_terminal_output
-    environment = { "PATH" => "", "RI_PAGER" => "missing-ri-pager", "PAGER" => "missing-pager" }
-    output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
-                                  env: environment)
+  def test_without_any_pager_the_page_goes_to_the_terminal
+    output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: { "PATH" => "", "PAGER" => nil })
 
     assert_equal 0, status, output
     assert_includes RichRI.plain(output), "Return transformed values."
-    refute_includes output, "No such file"
+    refute_includes output, "rich-ri:"
+  end
+
+  def test_a_named_pager_that_cannot_run_is_an_error_whoever_named_it
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      working, log = logging_pager(dir)
+      config = File.join(dir, "config.yml")
+      File.write(config, "pager: missing-pager --flag\n")
+      [[["--pager-command=missing-pager --flag"], { "RI_PAGER" => working }],
+       [[], { "RI_PAGER" => "missing-pager --flag", "PAGER" => working }],
+       [["--config", config], { "PAGER" => working }], [[], { "PAGER" => "missing-pager --flag" }]].each do |args, env|
+        output, status = terminal_cli(*SOURCES, *args, "RichRIExample#map", env: env)
+
+        assert_equal 1, status, output
+        assert_equal "rich-ri: cannot run the pager \"missing-pager --flag\": No such file or directory\r\n" \
+                     "Use --no-pager to write to the terminal instead.\r\n", output
+        refute_path_exists log
+      end
+      output, status = terminal_cli(*SOURCES, "--pager-command=cat 'unclosed", "RichRIExample#map")
+
+      assert_equal 1, status, output
+      assert_includes output, "rich-ri: the pager \"cat 'unclosed\" has an unmatched quote\r\n"
+      output, status = terminal_cli(*SOURCES, "--pager-command=missing-pager", "--no-pager", "RichRIExample#map")
+
+      assert_equal 0, status, output
+      assert_includes RichRI.plain(output), "Return transformed values."
+    end
+  end
+
+  def test_a_pager_that_fails_is_reported_instead_of_losing_the_page_quietly
+    command = [RbConfig.ruby, "-e", "exit 3"].shelljoin
+    output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: { "RI_PAGER" => command })
+
+    assert_equal 1, status, output
+    assert_equal "rich-ri: the pager #{command.inspect} exited with status 3\r\n", output
+    command = [RbConfig.ruby, "-e", "Process.kill('TERM', Process.pid)"].shelljoin
+    output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: { "RI_PAGER" => command })
+
+    assert_equal 1, status, output
+    assert_equal "rich-ri: the pager #{command.inspect} was ended by signal 15\r\n", output
+  end
+
+  def test_pager_command_is_split_into_words_and_run_without_a_shell
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      working, log = logging_pager(dir)
+      command = "#{working} 'two words' | $HOME > #{dir}/redirected"
+      output, status = terminal_cli(*SOURCES, "--pager-command=#{command}", "RichRIExample#map")
+
+      assert_equal 0, status, output
+      assert_includes RichRI.plain(output), "Return transformed values."
+      assert_equal "#{['two words', '|', '$HOME', '>', "#{dir}/redirected"].inspect}\n", File.read(log)
+      refute_path_exists File.join(dir, "redirected")
+    end
   end
 
   def test_interactive_lookups_are_paged_with_and_without_the_option
     Dir.mktmpdir("rich-ri-pager-") do |dir|
-      pager = File.join(dir, "pager.rb")
-      log = File.join(dir, "log")
-      File.write(pager, "File.write(ARGV.fetch(0), \"paged\\n\", mode: \"a\")\nSTDOUT.write(STDIN.read)\n")
+      pager, log = logging_pager(dir)
       # On a dumb terminal the line editor asks for no cursor reports, which
       # this test terminal would leave it waiting for.
-      environment = { "RI_PAGER" => [RbConfig.ruby, pager, log].shelljoin, "HOME" => dir, "TERM" => "dumb" }
-      sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
-      { [] => "paged\npaged\n", ["--interactive"] => "paged\npaged\n", ["--no-pager"] => "",
+      environment = { "RI_PAGER" => pager, "HOME" => dir, "TERM" => "dumb" }
+      { [] => "[]\n[]\n", ["--interactive"] => "[]\n[]\n", ["--no-pager"] => "",
         ["--interactive", "--no-pager"] => "", ["-i", "-T"] => "" }.each do |mode, paged|
         File.write(log, "")
-        output, status = terminal_cli(*sources, *mode, env: environment, prompt: ">> ",
+        output, status = terminal_cli(*SOURCES, *mode, env: environment, prompt: ">> ",
                                                        input: "RichRIExample#map\nRichRIExample.build\n\n")
 
         assert_equal 0, status, output
@@ -80,9 +136,8 @@ class TerminalTest < Minitest::Test
 
   def test_interactive_tab_completes_lookup_and_blank_line_exits_without_external_programs
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = { "PATH" => "", "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
-      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
-                                    env: environment, prompt: ">> ", input: "RichRIExample#ma\t\n\n")
+      environment = { "PATH" => "", "PAGER" => nil, "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+      output, status = terminal_cli(*SOURCES, env: environment, prompt: ">> ", input: "RichRIExample#ma\t\n\n")
 
       assert_equal 0, status, output
       assert_includes output, "You can use tab to autocomplete."

@@ -9,13 +9,18 @@ class InterruptTest < Minitest::Test
   EXECUTABLE = File.join(TestSupport::ROOT, "exe/rich-ri")
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
 
+  # What the program below does on Ctrl-C: carry on as less does, leave with
+  # a failure as less -K does, or be ended by the signal.
+  ON_INTERRUPT = { handles: 'trap("INT") { File.write(log, "interrupted\n", mode: "a") }',
+                   leaves: 'trap("INT") { exit 2 }', dies: "" }.freeze
+
   # A program that takes over the terminal the way a pager does: it announces
-  # itself, then waits for a line. With survive it handles Ctrl-C as less does.
-  def terminal_program(path, survive:)
+  # itself, then waits for a line.
+  def terminal_program(path, on_interrupt)
     File.write(path, <<~RUBY)
       #!#{RbConfig.ruby}
       log = File.join(__dir__, "log")
-      trap("INT") { File.write(log, "interrupted\n", mode: "a") } if #{survive}
+      #{ON_INTERRUPT.fetch(on_interrupt)}
       STDIN.read unless STDIN.tty?
       File.open("/dev/tty", "r+") do |tty|
         tty.puts "PROGRAM READY"
@@ -34,7 +39,7 @@ class InterruptTest < Minitest::Test
 
   def test_ctrl_c_is_left_to_a_pager_that_handles_it
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
-      pager = terminal_program(File.join(dir, "pager"), survive: true)
+      pager = terminal_program(File.join(dir, "pager"), :handles)
       output, status = paged_lookup(pager, "\u0003q\n")
 
       assert_equal 0, status, output
@@ -44,7 +49,7 @@ class InterruptTest < Minitest::Test
 
   def test_ctrl_c_that_ends_the_pager_ends_the_lookup_as_an_interrupt
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
-      pager = terminal_program(File.join(dir, "pager"), survive: false)
+      pager = terminal_program(File.join(dir, "pager"), :dies)
       output, status = paged_lookup(pager, "\u0003")
 
       assert_equal 130, status, output
@@ -52,9 +57,20 @@ class InterruptTest < Minitest::Test
     end
   end
 
+  def test_ctrl_c_that_makes_the_pager_leave_is_an_interrupt_not_a_pager_failure
+    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
+      pager = terminal_program(File.join(dir, "pager"), :leaves)
+      output, status = paged_lookup(pager, "\u0003")
+
+      assert_equal 130, status, output
+      refute_includes output, "rich-ri:"
+      refute_path_exists File.join(dir, "log")
+    end
+  end
+
   def test_ctrl_c_is_left_to_the_manual_viewer
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
-      terminal_program(File.join(dir, "man"), survive: true)
+      terminal_program(File.join(dir, "man"), :handles)
       output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, "--man",
                                 env: { "PATH" => dir }, prompt: "PROGRAM READY", input: "\u0003q\n")
 

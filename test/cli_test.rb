@@ -161,7 +161,7 @@ class CLITest < Minitest::Test
     assert_equal 60, options.driver_options[:width]
   end
 
-  def test_cli_run_restores_the_pager_environment
+  def test_cli_run_leaves_the_environment_alone
     with_environment("RI" => nil, "LESS" => "-Fi") do
       _out, err = capture_io { assert_equal 0, RichRI::CLI.run(["--no-standard-docs", "--list"]) }
 

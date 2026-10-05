@@ -36,12 +36,11 @@ module RichRI
       driver_options[:rich_ri_theme] = options.theme
       driver_options[:rich_ri_bat_theme] = options.bat_theme
       driver_options[:rich_ri_shell_theme] = options.shell_theme
-      with_pager(options.pager_command) do
-        if driver_options[:dump_path]
-          dump(driver_options[:dump_path])
-        else
-          Driver.new(driver_options).run
-        end
+      driver_options[:rich_ri_pager] = options.pager_command
+      if driver_options[:dump_path]
+        dump(driver_options[:dump_path])
+      else
+        Driver.new(driver_options).run
       end
       0
     end
@@ -81,19 +80,6 @@ module RichRI
         styled = line.match?(/\A\S.*:/) ? options.theme.paint(line, role, enabled: color?(options.color)) : line
         print styled
       end
-    end
-
-    def with_pager(command = nil)
-      previous_pager = ENV.fetch("RI_PAGER", nil)
-      ENV["RI_PAGER"] = command if command
-      previous = ENV.fetch("LESS", nil)
-      # less shows colors only with -R. It goes first: an option that takes a
-      # string, such as -Pprompt, runs to the end of LESS and would take it in.
-      ENV["LESS"] = "-R #{previous || '-Fi'}"
-      yield
-    ensure
-      ENV["LESS"] = previous
-      ENV["RI_PAGER"] = previous_pager
     end
   end
 end

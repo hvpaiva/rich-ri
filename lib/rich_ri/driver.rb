@@ -46,6 +46,7 @@ module RichRI
       @rich_ri_theme = options.delete(:rich_ri_theme) || Theme.new
       @rich_ri_bat_theme = options.delete(:rich_ri_bat_theme) || ENV.fetch("BAT_THEME", "base16")
       @rich_ri_shell_theme = options.delete(:rich_ri_shell_theme) || "ansi"
+      @rich_ri_pager = options.delete(:rich_ri_pager)
       options = self.class.default_options.merge(options)
       optional_gem("profile", "--profile") if options[:profile]
       # RDoc resolves ~/.rdoc as soon as its list of stores is loaded and
@@ -85,7 +86,21 @@ module RichRI
       interrupted = Signals.defer_interrupt(method(:paging?)) do
         super { |io| yield(@formatter_klass ? io : Output.new(io)) }
       end
-      raise Interrupt if interrupted && Signals.killed?
+      @pager&.finish(interrupted)
+    ensure
+      @pager = nil
+    end
+
+    # RDoc tries RI_PAGER, PAGER and three programs in turn and passes over
+    # any that does not start, the one the user asked for included.
+    def setup_pager
+      return if @use_stdout
+
+      @pager = Pager.start(@rich_ri_pager)
+      @paging = !@pager.nil?
+      # With no pager on this system, write to the terminal from now on.
+      @use_stdout = !@paging
+      @pager&.io
     end
 
     # RDoc interpolates the name into a pattern unescaped. A class name holds

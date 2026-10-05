@@ -154,7 +154,7 @@ class ConfigurationCLITest < Minitest::Test
     assert_includes err, "--config must be a nonempty string without control characters"
   end
 
-  def test_rich_pager_environment_is_restored_after_lookup
+  def test_pager_settings_are_not_written_to_the_environment
     with_environment(TestSupport::ENVIRONMENT.merge("RI_PAGER" => "original", "LESS" => "-i")) do
       _out, err = capture_io do
         assert_equal 0, RichRI::CLI.run(["--no-config", "--no-standard-docs", "--list", "--pager-command=cat"])
