@@ -4,6 +4,10 @@ require "test_helper"
 require "yaml"
 
 class GitHubTemplatesTest < Minitest::Test
+  # In the help notes a variable opens a line or follows a comma, slash, semicolon or "and";
+  # notations such as ANSI, RGB or #RRGGBB never do.
+  VARIABLE = %r{(?<=^|, |/|; | and )[A-Z][A-Z0-9_]*[A-Z0-9](?=[ /=,.])}
+
   def test_every_issue_starts_from_a_form
     assert_same false, template("config.yml").fetch("blank_issues_enabled")
   end
@@ -31,12 +35,12 @@ class GitHubTemplatesTest < Minitest::Test
     assert_empty shown - rich_ri_options
   end
 
-  def test_every_variable_a_form_asks_for_is_one_the_help_names
-    help = RichRI::Options.new.parser.to_s
-    variables = form_text.scan(/`([A-Z][A-Z0-9_]*)`/).flatten
+  def test_the_bug_form_asks_for_every_variable_the_help_names_outside_the_settings
+    named = RichRI::Options.new.parser.to_s[/^File: .*/m].scan(VARIABLE).uniq
+    # --show-config already reports what the RICH_RI_ variables set; RI holds ri's own options.
+    expected = named.grep_v(/\ARICH_RI_/) + ["RI"]
 
-    assert_includes variables, "RI_PAGER"
-    assert_empty(variables.reject { |name| help.match?(/(?<![\w$])#{name}(?!\w)/) })
+    assert_equal expected.sort, form_text.scan(/`([A-Z][A-Z0-9_]*)`/).flatten.sort
   end
 
   private
