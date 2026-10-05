@@ -66,15 +66,22 @@ module Release
       raise Error, "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
     end
 
+    # gh matches the head branch by name, in forks too, and a pull request can never be deleted.
+    # One opened from a fork or closed without merging must not stop this version forever.
     def find_pull_request
       requests = @commands.json(["gh", "pr", "list", "--state", "all", "--base", @base, "--head", branch,
                                  "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
-      if requests.any? { |request| request["isCrossRepository"] != false }
-        raise Error, "Release pull requests must originate in #{GitHub::REPOSITORY}, not a fork"
-      end
-      raise Error, "Several pull requests use #{branch}; reconcile them before releasing" if requests.length > 1
+      ignored, candidates = requests.partition { |request| reason_to_ignore(request) }
+      ignored.each { |request| @out.puts "Ignoring #{request['url']}: #{reason_to_ignore(request)}." }
+      raise Error, "Several pull requests use #{branch}; reconcile them before releasing" if candidates.length > 1
 
-      requests.first
+      candidates.first
+    end
+
+    def reason_to_ignore(request)
+      return "it comes from a fork" unless request["isCrossRepository"] == false
+
+      "it was closed without merging" if request["state"] == "CLOSED"
     end
 
     def require_clean
@@ -83,10 +90,6 @@ module Release
 
     def resume_pull_request(request)
       require_clean
-      unless request["state"] == "OPEN"
-        raise Error, "The release PR #{request['url']} was closed without merging; reopen it before retrying"
-      end
-
       @commit = request.fetch("headRefOid")
       if @current_branch == branch && command(%w[git rev-parse HEAD]).strip != @commit
         raise Error, "Local #{branch} differs from the PR head. Push its reviewed changes before retrying"

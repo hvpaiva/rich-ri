@@ -93,7 +93,7 @@ module ReleaseFixtures
 
   def github_answer(argv, state)
     case argv.first(3)
-    when %w[gh pr list] then JSON.generate(state[:pr] ? [state[:pr]] : [])
+    when %w[gh pr list] then JSON.generate(state.fetch(:prs) { [state[:pr]].compact })
     when %w[gh pr create] then "https://github.com/hvpaiva/rich-ri/pull/1\n"
     when %w[gh pr view] then argv.include?("mergeCommit") ? "#{'b' * 40}\n" : "1\n"
     when %w[gh run list]
@@ -113,5 +113,10 @@ module ReleaseFixtures
   def release_pr(state = "MERGED")
     { "state" => state, "url" => "https://github.com/hvpaiva/rich-ri/pull/1", "isCrossRepository" => false,
       "headRefOid" => "a" * 40, "mergeCommit" => { "oid" => "b" * 40 } }
+  end
+
+  def fork_pr(state)
+    release_pr(state).merge("url" => "https://github.com/hvpaiva/rich-ri/pull/99", "isCrossRepository" => true,
+                            "headRefOid" => "f" * 40)
   end
 end

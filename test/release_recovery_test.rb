@@ -48,19 +48,17 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
-  def test_open_pr_is_reused_but_foreign_pr_and_wrong_version_are_never_merged
-    { /Release tag must be v0\.3\.0/ => { pr: release_pr("OPEN"), release_version: "0.3.0" },
-      /not a fork/ => { pr: release_pr("OPEN").merge("isCrossRepository" => true) } }.each do |reason, state|
-      repository do |root|
-        commands = []
-        assert_release_error(reason) do
-          workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
-                            out: StringIO.new).run
-        end
-
-        refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
-        refute(commands.any? { |args| args.first(3) == %w[gh pr create] })
+  def test_open_pr_for_another_version_is_never_merged
+    repository do |root|
+      commands = []
+      state = { pr: release_pr("OPEN"), release_version: "0.3.0" }
+      assert_release_error(/Release tag must be v0\.3\.0/) do
+        workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
+                          out: StringIO.new).run
       end
+
+      refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
+      refute(commands.any? { |args| args.first(3) == %w[gh pr create] })
     end
   end
 
