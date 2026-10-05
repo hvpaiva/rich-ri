@@ -236,14 +236,25 @@ class CommandLineCompletionTest < Minitest::Test
 
   def test_names_are_not_offered_for_a_command_line_the_lookup_refuses
     sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
-    refused = [[["-x"], {}], [["--bogus"], {}], [["--width=abc"], {}], [["--width", "5"], {}], [["--theme=nope"], {}],
-               [["-ax"], {}], [[], { "RI" => "-x" }], [[], { "RI" => "--width=abc" }], [[], { "RI" => "--theme=nope" }],
-               [[], { "RI" => "--server --dump=/missing" }], [[], { "RICH_RI_WIDTH" => "abc" }]]
-    refused.each do |words, environment|
+    usage = "\nRun rich-ri --help for usage.\n"
+    width = "must be an integer from 20 to 10000, not"
+    theme = "--theme must be one of terminal, dark, light, not \"nope\""
+    refused = {
+      [["-x"], {}] => [2, "invalid option: -x#{usage}"], [["--bogus"], {}] => [2, "invalid option: --bogus#{usage}"],
+      [["--width=abc"], {}] => [2, "--width #{width} \"abc\"#{usage}"],
+      [["--width", "5"], {}] => [2, "--width #{width} \"5\"#{usage}"],
+      [["--theme=nope"], {}] => [2, "#{theme}#{usage}"], [["-ax"], {}] => [2, "invalid option: -x#{usage}"],
+      [[], { "RI" => "-x" }] => [1, "RI: invalid option: -x\n"],
+      [[], { "RI" => "--width=abc" }] => [1, "RI: --width #{width} \"abc\"\n"],
+      [[], { "RI" => "--theme=nope" }] => [1, "RI: #{theme}\n"],
+      [[], { "RI" => "--server --dump=/missing" }] => [1, "RI: --server and --dump cannot be used together\n"],
+      [[], { "RICH_RI_WIDTH" => "abc" }] => [1, "RICH_RI_WIDTH #{width} \"abc\"\n"]
+    }
+    refused.each do |(words, environment), (code, message)|
       _out, err, status = cli(*sources, *words, "RichRIExample#map", docs: false, env: environment)
 
-      refute_predicate status, :success?, [words, environment].inspect
-      refute_empty err
+      assert_equal code, status.exitstatus, [words, environment].inspect
+      assert_equal "rich-ri: #{message}", err
       out, err, status = cli("--complete", *sources, *words, "RichRIExample#ma", docs: false, env: environment)
 
       assert_predicate status, :success?, err
