@@ -25,11 +25,15 @@ module ReleaseFixtures
     end
   end
 
-  def assert_release_error(reason, &)
+  def assert_release_error(message, &)
     error = assert_raises(Release::Error, &)
 
-    assert_match reason, error.message
-    error
+    assert_equal message, error.message
+  end
+
+  def resume(command = "bin/release 0.2.0 --push")
+    "After resolving the problem, rerun #{command}. " \
+      "Existing pull requests and tags are inspected before any new action."
   end
 
   def workflow(version, **)

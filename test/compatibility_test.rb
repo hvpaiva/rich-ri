@@ -12,8 +12,8 @@ class CompatibilityTest < Minitest::Test
   # They test the repository's own tooling, which the minimum bundle does not install.
   MAINTENANCE = %w[benchmark changelog changelog_command changelog_lint ci ci_result ci_workflow commit_command
                    commit_policy compatibility github github_templates package project release release_artifact
-                   release_branch release_commands release_publication release_pull_request release_recovery setup
-                   shell_runner test_environment tools].freeze
+                   release_branch release_commands release_publication release_pull_request release_recovery
+                   release_refusals setup shell_runner test_environment tools].freeze
 
   def test_both_bundles_stay_in_a_private_directory_and_never_reach_the_active_gem_home
     recorded_run do |home, calls|

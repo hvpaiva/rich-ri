@@ -20,11 +20,11 @@ module GitSupport
     out.strip
   end
 
-  # Commands that check origin first find this project there through GIT_DIR.
-  def github_origin
+  # Commands that check origin first find it in this repository through GIT_DIR.
+  def github_origin(url = "https://github.com/hvpaiva/rich-ri.git")
     Dir.mktmpdir("rich-ri-origin-") do |root|
       git(root, "init", "-q")
-      git(root, "remote", "add", "origin", "https://github.com/hvpaiva/rich-ri.git")
+      git(root, "remote", "add", "origin", url)
       yield ENVIRONMENT.merge("GIT_DIR" => File.join(root, ".git"))
     end
   end

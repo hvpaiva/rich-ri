@@ -7,9 +7,6 @@ require_relative "release_support"
 class ReleasePullRequestTest < Minitest::Test
   include ReleaseFixtures
 
-  RESUME = "After resolving the problem, rerun bin/release 0.2.0 --push. " \
-           "Existing pull requests and tags are inspected before any new action."
-
   def test_a_pull_request_from_a_fork_cannot_block_or_become_the_release
     %w[OPEN CLOSED].each do |state|
       repository do |root|
@@ -83,7 +80,7 @@ class ReleasePullRequestTest < Minitest::Test
       closed = release_pr("CLOSED").merge("headRefOid" => "c" * 40)
       error = assert_raises(Release::Error) { release(root, commands, prs: [closed], remote_branch: "e" * 40) }
 
-      assert_equal "git push -u origin release/v0.2.0 failed.\n\n#{RESUME}", error.message
+      assert_equal "git push -u origin release/v0.2.0 failed.\n\n#{resume}", error.message
       assert_equal([%w[git push -u origin release/v0.2.0]], commands.select { |args| args.first(2) == %w[git push] })
     end
   end
@@ -91,7 +88,8 @@ class ReleasePullRequestTest < Minitest::Test
   def test_a_local_branch_with_other_commits_is_never_overwritten
     repository do |root|
       commands = []
-      assert_release_error(%r{\Alocal release/v0\.2\.0 has commits outside its closed pull request; }) do
+      assert_release_error("local release/v0.2.0 has commits outside its closed pull request; delete or rename it, " \
+                           "then rerun\n#{resume}") do
         release(root, commands, prs: [release_pr("CLOSED")], local_branch: "e" * 40)
       end
 
@@ -102,7 +100,7 @@ class ReleasePullRequestTest < Minitest::Test
   def test_two_live_pull_requests_for_one_release_are_refused
     repository do |root|
       commands = []
-      assert_release_error(%r{\Aseveral pull requests use release/v0\.2\.0; reconcile them before releasing$}) do
+      assert_release_error("several pull requests use release/v0.2.0; reconcile them before releasing\n#{resume}") do
         release(root, commands, prs: [release_pr, release_pr("OPEN")])
       end
 
@@ -140,7 +138,7 @@ class ReleasePullRequestTest < Minitest::Test
       end
 
       assert_equal "v0.2.0 already exists without a matching merged release pull request; inspect it before " \
-                   "continuing\n#{RESUME}", error.message
+                   "continuing\n#{resume}", error.message
     end
   end
 
@@ -152,7 +150,7 @@ class ReleasePullRequestTest < Minitest::Test
       end
 
       assert_equal "local release/v0.2.0 differs from the pull request head; push its reviewed changes before " \
-                   "retrying\n#{RESUME}", error.message
+                   "retrying\n#{resume}", error.message
       refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
     end
   end
@@ -170,7 +168,7 @@ class ReleasePullRequestTest < Minitest::Test
       end
 
       assert_equal "timed out waiting for checks on https://github.com/hvpaiva/rich-ri/pull/1; the existing pull " \
-                   "request will be reused on retry\n#{RESUME}", error.message
+                   "request will be reused on retry\n#{resume}", error.message
     end
   end
 

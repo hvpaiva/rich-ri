@@ -32,12 +32,12 @@ class ReleaseArtifactTest < Minitest::Test
   def test_an_artifact_whose_bytes_differ_from_the_recorded_checksum_is_refused
     repository do |root|
       digest = artifact(root)
-      assert_release_error(/\Arelease artifact checksum mismatch\z/) do
+      assert_release_error("release artifact checksum mismatch") do
         Release::Artifact.verify(root: root, expected: "0" * 64)
       end
       File.binwrite(Release::Artifact.path(root: root), "tampered")
 
-      assert_release_error(/\Arelease artifact checksum mismatch\z/) do
+      assert_release_error("release artifact checksum mismatch") do
         Release::Artifact.verify(root: root, expected: digest)
       end
     end
@@ -47,7 +47,7 @@ class ReleaseArtifactTest < Minitest::Test
     repository do |root|
       artifact(root, version: "9.0.0")
 
-      assert_release_error(%r{\Arelease artifact name/version does not match the checkout\z}) do
+      assert_release_error("release artifact name/version does not match the checkout") do
         Release::Artifact.verify(root: root)
       end
     end
@@ -55,8 +55,7 @@ class ReleaseArtifactTest < Minitest::Test
 
   def test_a_missing_artifact_names_the_missing_files
     repository do |root|
-      missing = %r{\Arelease artifact is incomplete: pkg/rich-ri-0\.1\.0\.gem and pkg/SHA256SUMS not found\z}
-      assert_release_error(missing) do
+      assert_release_error("release artifact is incomplete: pkg/rich-ri-0.1.0.gem and pkg/SHA256SUMS not found") do
         Release::Artifact.verify(root: root)
       end
     end
@@ -68,7 +67,11 @@ class ReleaseArtifactTest < Minitest::Test
       File.binwrite(Release::Artifact.path(root: root), "not a gem")
       Release::Artifact.record(root: root)
 
-      assert_release_error(/\Arelease artifact is not a valid gem: /) { Release::Artifact.verify(root: root) }
+      gem = File.join(root, "pkg/rich-ri-0.1.0.gem")
+
+      assert_release_error("release artifact is not a valid gem: package metadata is missing in #{gem}") do
+        Release::Artifact.verify(root: root)
+      end
     end
   end
 

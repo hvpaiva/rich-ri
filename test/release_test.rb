@@ -25,14 +25,14 @@ class ReleaseTest < Minitest::Test
 
   def test_preparation_refuses_a_version_lower_than_the_current_one
     repository do |root|
-      assert_release_error(/\Aversion cannot go backwards\z/) { Release.changes("0.0.1", root: root) }
+      assert_release_error("version cannot go backwards") { Release.changes("0.0.1", root: root) }
     end
   end
 
   def test_preparation_refuses_a_version_that_is_not_stable_x_y_z
     repository do |root|
       %w[01.2.3 invalid 1.0.0.rc1].each do |version|
-        assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes(version, root: root) }
+        assert_release_error("use a stable X.Y.Z version") { Release.changes(version, root: root) }
       end
     end
   end
@@ -41,7 +41,7 @@ class ReleaseTest < Minitest::Test
     repository do |root|
       File.write(File.join(root, "unfinished"), "work")
 
-      assert_release_error(/\Acommit or stash changes before preparing a release\z/) do
+      assert_release_error("commit or stash changes before preparing a release") do
         Release.changes("0.2.0", root: root)
       end
     end
@@ -66,7 +66,7 @@ class ReleaseTest < Minitest::Test
     repository do |root|
       commands = []
       runner = workflow_runner(commands, repository: "someone/another-project")
-      assert_release_error(%r{origin repository must be hvpaiva/rich-ri}) do
+      assert_release_error("the origin repository must be hvpaiva/rich-ri\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
@@ -130,7 +130,7 @@ class ReleaseTest < Minitest::Test
     repository do |root|
       commands = []
       runner = workflow_runner(commands, fail_at: %w[bundle exec rake check])
-      assert_release_error(/bundle exec rake check failed/) do
+      assert_release_error("bundle exec rake check failed.\n\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
@@ -171,7 +171,8 @@ class ReleaseTest < Minitest::Test
     repository do |root|
       commands = []
       runner = workflow_runner(commands, fail_at: %w[gh pr checks])
-      assert_release_error(/gh pr checks .+ failed/) do
+      assert_release_error("gh pr checks https://github.com/hvpaiva/rich-ri/pull/1 --watch --fail-fast --interval 10 " \
+                           "--repo hvpaiva/rich-ri failed.\n\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
 
@@ -184,7 +185,7 @@ class ReleaseTest < Minitest::Test
     repository do |root|
       commands = []
       runner = workflow_runner(commands, fail_at: %w[git merge-base --is-ancestor])
-      assert_release_error(/git merge-base --is-ancestor .+ failed/) do
+      assert_release_error("git merge-base --is-ancestor #{'a' * 40} #{'b' * 40} failed.\n\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: runner, out: StringIO.new).run
       end
       merge = commands.find { |args| args.first(3) == %w[gh pr merge] }

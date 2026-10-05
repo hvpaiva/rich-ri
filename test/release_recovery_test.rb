@@ -17,7 +17,7 @@ class ReleaseRecoveryTest < Minitest::Test
                                        runner: workflow_runner(commands), out: StringIO.new).run
       end
 
-      assert_match(/release environment/, error.message)
+      assert_equal "missing release environment\n#{resume('bin/release 0.2.0')}", error.message
       assert_equal [%w[git remote get-url origin]], commands
       assert_equal "0.1.0", Release.version(root: root)
     end
@@ -40,7 +40,8 @@ class ReleaseRecoveryTest < Minitest::Test
       assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
       File.write(File.join(root, "CHANGELOG.md"), "#{changes.fetch('CHANGELOG.md')}unrelated\n")
       commands.clear
-      assert_release_error(/CHANGELOG\.md has edits beyond release preparation/) do
+      assert_release_error("CHANGELOG.md has edits beyond release preparation; review them before retrying\n" \
+                           "#{resume('bin/release 0.2.0')}") do
         workflow("0.2.0", root: root, runner: workflow_runner(commands, state: state), out: StringIO.new).run
       end
 
@@ -54,12 +55,10 @@ class ReleaseRecoveryTest < Minitest::Test
       changelog = Release.changes("0.2.0", root: root, date: Date.new(2026, 10, 4)).fetch("CHANGELOG.md")
       File.write(File.join(root, "CHANGELOG.md"), changelog.sub("2026-10-04", "2026-02-30"))
       state = { branch: "release/v0.2.0", dirty: " M CHANGELOG.md\n", source: source }
-      error = assert_raises(Release::Error) do
+      assert_release_error("CHANGELOG.md: [0.2.0] is dated 2026-02-30, which is not a calendar date; use YYYY-MM-DD\n" \
+                           "#{resume('bin/release 0.2.0')}") do
         workflow("0.2.0", root: root, runner: workflow_runner([], state: state), out: StringIO.new).run
       end
-
-      assert_equal "CHANGELOG.md: [0.2.0] is dated 2026-02-30, which is not a calendar date; use YYYY-MM-DD",
-                   error.message.lines.first.chomp
     end
   end
 
@@ -67,7 +66,7 @@ class ReleaseRecoveryTest < Minitest::Test
     repository do |root|
       commands = []
       state = { pr: release_pr("OPEN"), release_version: "0.3.0" }
-      assert_release_error(/\Arelease tag must be v0\.3\.0$/) do
+      assert_release_error("release tag must be v0.3.0\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end
@@ -118,7 +117,7 @@ class ReleaseRecoveryTest < Minitest::Test
       refute(commands.any? { |args| args.first(2) == %w[git push] || args.first(3) == %w[gh run rerun] })
       commands.clear
       state[:remote_tag] = "d" * 40
-      assert_release_error(/never be moved/) do
+      assert_release_error("remote v0.2.0 targets another commit; it will never be moved\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end
@@ -150,13 +149,14 @@ class ReleaseRecoveryTest < Minitest::Test
       state = { pr: release_pr, local_tag: true, remote_tag: "b" * 40, run_status: "in_progress", conclusion: "failure",
                 jobs: [{ "name" => "publish", "conclusion" => "success", "databaseId" => 40 },
                        { "name" => "github-release", "conclusion" => "failure", "databaseId" => 41 }] }
-      error = assert_release_error(/RubyGems publication succeeded/) do
+      assert_release_error("v0.2.0 is already on GitHub. Release run 123 failed; no publication was retried.\n" \
+                           "RubyGems publication succeeded. Retry only GitHub release creation:\n" \
+                           "gh run rerun 123 --job 41 --repo hvpaiva/rich-ri\n#{resume}") do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end
 
       assert_includes commands, %w[gh run watch 123 --repo hvpaiva/rich-ri]
-      assert_match(/gh run rerun 123 --job 41/, error.message)
       refute(commands.any? { |args| args.first(3) == %w[gh run rerun] })
     end
   end
@@ -166,26 +166,25 @@ class ReleaseRecoveryTest < Minitest::Test
       sleeper = Object.new
       def sleeper.sleep(_seconds) = nil
       state = { pr: release_pr, local_tag: true, runs: [] }
-      error = assert_raises(Release::Error) do
+      assert_release_error("no Release run appeared for v0.2.0, which is already on GitHub and was not changed; " \
+                           "inspect Actions before dispatching one\n#{resume}") do
         workflow("0.2.0", root: root, push: true, sleeper: sleeper, runner: workflow_runner([], state: state),
                           out: StringIO.new).run
       end
-
-      assert_equal "no Release run appeared for v0.2.0, which is already on GitHub and was not changed; " \
-                   "inspect Actions before dispatching one\n" \
-                   "After resolving the problem, rerun bin/release 0.2.0 --push. " \
-                   "Existing pull requests and tags are inspected before any new action.", error.message
     end
   end
 
   def test_verification_rejects_a_malformed_changelog_and_a_version_it_does_not_release
     rejected = {
-      /\ACHANGELOG\.md: \[0\.2\.0\] is dated 2026-99-99, which is not a calendar date/ =>
+      "CHANGELOG.md: [0.2.0] is dated 2026-99-99, which is not a calendar date; use YYYY-MM-DD" =>
         released_changelog.sub("2026-10-04", "2026-99-99"),
-      /\ACHANGELOG\.md: \[0\.2\.0\] has no entries/ => released_changelog.sub("- Readable documentation.", ""),
-      /\ACHANGELOG\.md: link references must be, in this order/ =>
+      'CHANGELOG.md: [0.2.0] has no entries; add at least one "- " line' =>
+        released_changelog.sub("- Readable documentation.", ""),
+      "CHANGELOG.md: link references must be, in this order:\n" \
+      "[Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v0.2.0...HEAD\n" \
+      "[0.2.0]: https://github.com/hvpaiva/rich-ri/releases/tag/v0.2.0" =>
         released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
-      /^CHANGELOG\.md: "## \[0\.2\.0\] - YYYY-MM-DD" is missing\z/ => released_changelog.gsub("0.2.0", "0.1.9")
+      'CHANGELOG.md: "## [0.2.0] - YYYY-MM-DD" is missing' => released_changelog.gsub("0.2.0", "0.1.9")
     }
 
     rejected.each do |reason, text|

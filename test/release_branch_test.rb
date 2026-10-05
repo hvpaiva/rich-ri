@@ -25,7 +25,8 @@ class ReleaseBranchTest < Minitest::Test
   def test_hotfix_retry_keeps_the_selected_branch
     repository do |root|
       runner = workflow_runner([], fail_at: %w[git push], state: { branch: "hotfix/0.2" })
-      assert_release_error(%r{rerun bin/release 0\.2\.0 --branch hotfix/0\.2}) do
+      assert_release_error("git push -u origin release/v0.2.0 failed.\n\n" \
+                           "#{resume('bin/release 0.2.0 --branch hotfix/0.2')}") do
         workflow("0.2.0", root: root, branch: "hotfix/0.2", runner: runner, out: StringIO.new).run
       end
     end
@@ -46,7 +47,7 @@ class ReleaseBranchTest < Minitest::Test
 
   def test_hotfix_branch_must_match_the_release_version
     %w[feature/foo hotfix/0.1 hotfix/0.2/extra --all].each do |branch|
-      assert_release_error(%r{must be main or hotfix/0\.2\z}) { Release.validate_branch(branch, "0.2.1") }
+      assert_release_error("release branch must be main or hotfix/0.2") { Release.validate_branch(branch, "0.2.1") }
     end
     assert_equal "main", Release.validate_branch("main", "0.2.1")
     assert_equal "hotfix/0.2", Release.validate_branch("hotfix/0.2", "0.2.1")
@@ -58,7 +59,7 @@ class ReleaseBranchTest < Minitest::Test
       git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
       Dir.chdir(root) do
         Release.verify_ref(sha: sha, version: "0.2.1")
-        assert_release_error(/\Arelease commit must belong to main or its matching hotfix branch\z/) do
+        assert_release_error("release commit must belong to main or its matching hotfix branch") do
           Release.verify_ref(sha: sha, version: "0.3.0")
         end
       end
@@ -66,7 +67,7 @@ class ReleaseBranchTest < Minitest::Test
   end
 
   def test_ci_refuses_to_check_ancestry_without_a_release_commit
-    assert_release_error(/\Ainvalid release commit: set GITHUB_SHA to a full commit ID\z/) do
+    assert_release_error("invalid release commit: set GITHUB_SHA to a full commit ID") do
       Release.verify_ref(sha: nil, version: "0.2.1")
     end
   end

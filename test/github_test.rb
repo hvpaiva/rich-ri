@@ -102,7 +102,7 @@ class GitHubTest < Minitest::Test
       GitHub::Configuration.new(client: client, out: StringIO.new).setup
     end
 
-    assert_match(/403/, error.message)
+    assert_equal "HTTP 403", error.message
     assert(client.calls.all? { |method, *_| method == "GET" })
   end
 
@@ -117,8 +117,8 @@ class GitHubTest < Minitest::Test
     config = GitHub::Configuration.new(client: client, out: StringIO.new)
     error = assert_raises(GitHub::Error) { config.verify! }
 
-    assert_match(/main ruleset/, error.message)
-    assert_match(/extra release deployment policy/, error.message)
+    assert_equal "repository configuration needs attention; run bundle exec rake github:setup to apply:\n" \
+                 "- main ruleset\n- remove extra release deployment policy *", error.message
     config.setup
 
     assert_empty config.changes
@@ -132,6 +132,37 @@ class GitHubTest < Minitest::Test
 
       assert_equal "repository configuration needs attention; run bundle exec rake github:setup to apply:\n" \
                    "- #{label.fetch('name')} label", error.message
+    end
+  end
+
+  def test_configuration_needs_an_administrator
+    client = MemoryClient.new
+    client.state[""]["permissions"]["admin"] = false
+    error = assert_raises(GitHub::Error) { GitHub::Configuration.new(client: client, out: StringIO.new).verify! }
+
+    assert_equal "repository administrator access is required", error.message
+  end
+
+  def test_two_rulesets_with_one_name_are_left_for_a_person_to_reconcile
+    client = MemoryClient.new
+    client.state["/rulesets"] << { "id" => 3, "name" => "main" }
+    error = assert_raises(GitHub::Error) { GitHub::Configuration.new(client: client, out: StringIO.new).setup }
+
+    assert_equal "duplicate main rulesets; reconcile them in GitHub first", error.message
+    assert(client.calls.all? { |method, *_| method == "GET" })
+  end
+
+  def test_repository_tasks_refuse_another_origin
+    %w[github:verify github:setup].each do |task|
+      github_origin("https://github.com/someone/rich-ri.git") do |environment|
+        Dir.mktmpdir("rich-ri-origin-") do |bin|
+          link_program(bin, "git")
+          out, err, status = isolated_rake(bin, task, env: environment)
+
+          assert_equal [1, "", "rake: the origin repository must be hvpaiva/rich-ri\n"],
+                       [status.exitstatus, out, err], task
+        end
+      end
     end
   end
 
