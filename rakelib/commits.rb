@@ -61,7 +61,7 @@ module CommitPolicy
   end
 
   def self.problems(range, title: nil, body: nil)
-    errors = git("rev-list", "--reverse", range, "--").lines.flat_map do |line|
+    errors = git("rev-list", "--reverse", "--end-of-options", range, "--").lines.flat_map do |line|
       sha = line.strip
       # Read stored parents: shallow checkouts hide them from git log --no-merges.
       headers, message = git("cat-file", "commit", sha).split("\n\n", 2)

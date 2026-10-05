@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "git_support"
+require "commit_support"
 require_relative "../rakelib/commits"
 
 class CommitPolicyTest < Minitest::Test
-  include GitSupport
+  include CommitSupport
 
   UNSTRUCTURED = 'use a Conventional Commit subject, "type(scope): summary" with one of feat, fix, docs, test, ' \
                  "refactor, perf, build, ci, chore, revert: "
@@ -29,19 +29,6 @@ class CommitPolicyTest < Minitest::Test
     "See https://claude.ai/ and https://chatgpt.com/ for the products.",
     "Reviewed-by: Cursor Maintainer <maintainer@example.org>", "See notclaude.ai/code/session_ for a lookalike."
   ].freeze
-
-  def repository
-    Dir.mktmpdir("rich-ri-commits-") do |root|
-      git(root, "init", "-q")
-      git(root, "commit", "--allow-empty", "-qm", "chore: initialize")
-      yield root
-    end
-  end
-
-  def lint(root, range = "HEAD", **env)
-    Open3.capture3({ "PR_TITLE" => nil, "PR_BODY" => nil }.merge(env), RbConfig.ruby,
-                   File.join(TestSupport::ROOT, "bin/lint-commits"), range, chdir: root)
-  end
 
   def test_a_conventional_commit_with_a_human_coauthor_and_title_passes
     repository do |root|

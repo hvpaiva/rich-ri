@@ -1,12 +1,28 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "optparse"
 require_relative "../rakelib/commits"
+require_relative "../rakelib/untrusted"
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: ruby bin/lint-commits [RANGE]"
+  opts.separator ""
+  opts.separator "Checks that each commit in RANGE, such as origin/main..HEAD (default: HEAD),"
+  opts.separator "has a finished Conventional Commit subject and no generated attribution."
+  opts.separator "PR_TITLE, when set, is checked like a subject, and PR_BODY for attribution."
+end
 
 begin
-  errors = CommitPolicy.problems(ARGV.fetch(0, "HEAD"), title: ENV.fetch("PR_TITLE", nil),
-                                                        body: ENV.fetch("PR_BODY", nil))
+  arguments = parser.parse(ARGV)
+  raise OptionParser::NeedlessArgument, arguments.drop(1).join(" ") if arguments.length > 1
+
+  errors = CommitPolicy.problems(arguments.fetch(0, "HEAD"), title: ENV.fetch("PR_TITLE", nil),
+                                                             body: ENV.fetch("PR_BODY", nil))
   abort errors.map { |error| "lint-commits: #{error}" }.join("\n") unless errors.empty?
+rescue OptionParser::ParseError => e
+  warn "lint-commits: #{Untrusted.visible(e.message)}\n#{parser}"
+  exit 2
 rescue CommitPolicy::Error => e
   abort "lint-commits: #{e.message}"
 end
