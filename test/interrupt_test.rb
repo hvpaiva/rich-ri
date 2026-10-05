@@ -67,6 +67,21 @@ class InterruptTest < Minitest::Test
     end
   end
 
+  def test_ctrl_c_in_a_page_of_an_interactive_session_returns_to_the_prompt
+    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
+      pager = terminal_program(File.join(dir, "pager"), :handles)
+      keys = [[">> ", "RichRIExample#map\n"], ["PROGRAM READY", "\u0003q\n"], [">> ", "RichRIExample.build\n"],
+              ["PROGRAM READY", "q\n"], [">> ", "\n"]]
+      output, status = with_session("RI_PAGER" => [pager].shelljoin) do |environment|
+        terminal_cli(*SOURCES, env: environment, input: keys)
+      end
+
+      assert_equal 0, status, output
+      assert_equal "interrupted\nfinished\nfinished\n", File.read(File.join(dir, "log"))
+      refute_includes output, "rich-ri:"
+    end
+  end
+
   def test_ctrl_c_is_left_to_the_manual_viewer
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
       terminal_program(File.join(dir, "man"), :handles)
