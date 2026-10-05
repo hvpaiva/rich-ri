@@ -119,7 +119,7 @@ class LocaleTest < Minitest::Test
   def test_accented_option_values_are_kept
     in_accented_directory do |dir|
       out, err, status = posix("--no-config", "--pager-command", "pagér", "--bat-theme=Thème",
-                               "--style=method=red", "--show-config", env: { "RI_PAGER" => "outro pagér" })
+                               "--style=method=red", "--show-config", env: { "RI_PAGER" => "other pagér" })
 
       assert_predicate status, :success?, err
       assert_includes out, "pager: pagér".b
@@ -156,8 +156,8 @@ class LocaleTest < Minitest::Test
   def test_failures_naming_accented_text_are_reported
     in_accented_directory do |dir|
       { ["--bógus"] => [2, "invalid option: --bógus"], ["Açaí"] => [1, "Açaí"],
-        ["--style=method=vérde"] => [2, "invalid color"], ["--dump=#{dir}/nada.ri"] => [1, "#{dir}/nada.ri"],
-        ["--config=#{dir}/nada.yml", "--show-config"] => [1, "#{dir}/nada.yml"] }.each do |args, (code, text)|
+        ["--style=method=gréen"] => [2, "invalid color"], ["--dump=#{dir}/missing.ri"] => [1, "#{dir}/missing.ri"],
+        ["--config=#{dir}/missing.yml", "--show-config"] => [1, "#{dir}/missing.yml"] }.each do |args, (code, text)|
         out, err, status = posix(*args)
 
         assert_equal code, status.exitstatus, args.inspect
