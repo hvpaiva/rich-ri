@@ -88,7 +88,7 @@ module ShellInsertion
     missing(name)
   end
 
-  def interactive_command(name, environment, library: :bash_completion)
+  def interactive_command(name, environment, library: :bash_completion, fpath: nil)
     completion = File.join(TestSupport::ROOT, "completions", "rich-ri.#{name}").shellescape
     capture = "rich-ri() { printf '__RICH_ARG__%s\\n' \"$@\"; }\nalias ri=rich-ri\n"
     return fish_command(completion) if name == "fish"
@@ -107,7 +107,9 @@ module ShellInsertion
       return [name, "--noprofile", "--norc", "-i"]
     end
 
-    script += "autoload -Uz compinit\ncompinit -D -u\nbindkey '^I' complete-word\nsource #{completion}\n"
+    script += "fpath=(#{fpath.shellescape} $fpath)\n" if fpath
+    script += "autoload -Uz compinit\ncompinit -D -u\nbindkey '^I' complete-word\n"
+    script += "source #{completion}\n" unless fpath
     File.write(File.join(@bin, ".zshrc"), script + capture)
     environment["ZDOTDIR"] = @bin
     # Ubuntu's global zshrc runs compinit before this fixture and may prompt

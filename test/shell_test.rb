@@ -273,7 +273,7 @@ class ZshCompletionTest < Minitest::Test
     shift
     words=(rich-ri "$@")
     CURRENT=${#words}
-    _rich_ri
+    _rich-ri
   ZSH
 
   def test_zsh_handles_method_names_and_descriptions
@@ -379,6 +379,15 @@ class ShellInsertionTest < Minitest::Test
 
   def test_fish_inserts_names_that_no_shell_takes_unquoted
     check_names("fish")
+  end
+
+  def test_zsh_loads_the_script_from_fpath_on_first_use
+    functions = File.join(@bin, "functions")
+    FileUtils.mkdir_p(functions)
+    FileUtils.cp(File.join(TestSupport::ROOT, "completions/rich-ri.zsh"), File.join(functions, "_rich-ri"))
+    result = inserted_arguments("zsh", "rich-ri RichRIExample#rea", fpath: functions)
+
+    assert_equal ["RichRIExample#ready?"], result, @terminal_output
   end
 
   private

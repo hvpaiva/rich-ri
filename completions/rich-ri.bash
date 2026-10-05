@@ -1,6 +1,13 @@
-# bash completion for rich-ri
+# bash completion for rich-ri                              -*- shell-script -*-
 #
+# Install it where bash-completion loads it the first time it is needed:
+#
+#   dir="${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion/completions"
+#   mkdir -p "$dir" && rich-ri --completion=bash > "$dir/rich-ri"
+#
+# or load it from ~/.bashrc with: source <(rich-ri --completion=bash)
 # bash-completion is used when it is loaded and is not required.
+# For an alias: alias ri=rich-ri; complete -F _rich_ri ri
 #
 # shellcheck shell=bash
 

@@ -1,3 +1,9 @@
+# fish completion for rich-ri
+#
+# Install it where fish loads it the first time it is needed:
+#
+#   rich-ri --completion=fish > $__fish_config_dir/completions/rich-ri.fish
+
 function __rich_ri_complete
     set -l words (commandline -xpc 2>/dev/null)
     or set words (commandline -opc | string unescape)

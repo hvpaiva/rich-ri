@@ -1,6 +1,15 @@
 #compdef rich-ri
+# zsh completion for rich-ri
+#
+# Install it as _rich-ri in a directory of your fpath, where compinit finds it
+# and loads it the first time it is needed:
+#
+#   mkdir -p ~/.zfunc && rich-ri --completion=zsh > ~/.zfunc/_rich-ri
+#
+# with "fpath+=(~/.zfunc)" before compinit in ~/.zshrc. Or load it there, after
+# compinit, with: source <(rich-ri --completion=zsh)
 
-_rich_ri() {
+_rich-ri() {
   local value description directive=""
   local -a values descriptions
   while IFS=$'\t' read -r value description; do
@@ -20,4 +29,9 @@ _rich_ri() {
   esac
 }
 
-compdef _rich_ri rich-ri
+# Loaded from fpath, this file is the body of the function on its first call.
+if [[ $funcstack[1] == _rich-ri ]]; then
+  _rich-ri "$@"
+else
+  compdef _rich-ri rich-ri
+fi
