@@ -41,8 +41,9 @@ class CLITest < Minitest::Test
   end
 
   def test_errors_have_nonzero_status_and_no_backtrace
-    ["NoSuchExample123", "--unknown", "--color=invalid", "--width=0", "--doc-dir=/no/such/directory"].each do |arg|
-      _out, err, status = cli(arg)
+    ["NoSuchExample123", "--unknown", "--color=invalid", "--width=0", "--doc-dir=/no/such/directory",
+     "RichRIExample[", %w[--list (]].each do |arg|
+      _out, err, status = cli(*arg)
 
       refute_predicate status, :success?, arg
       refute_empty err, arg

@@ -32,7 +32,7 @@ module RichRI
       0
     rescue Errno::EPIPE
       0
-    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
+    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError, RegexpError => e
       if (dependency = optional_dependency(e))
         warn "rich-ri: --#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
              "Install it for your active Ruby: gem install #{dependency}"

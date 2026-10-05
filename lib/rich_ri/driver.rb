@@ -50,6 +50,13 @@ module RichRI
       super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
     end
 
+    def expand_name(name)
+      super
+    rescue RegexpError
+      # RDoc builds a pattern from the name without escaping it.
+      raise NotFoundError, name
+    end
+
     def start_server
       # Surface missing dependencies through CLI errors instead of RDoc's abort.
       require "webrick"

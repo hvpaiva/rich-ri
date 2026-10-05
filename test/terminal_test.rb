@@ -66,4 +66,16 @@ class TerminalTest < Minitest::Test
       refute_includes output, "Nothing known about"
     end
   end
+
+  def test_interactive_lookup_continues_after_a_name_with_pattern_characters
+    Dir.mktmpdir("rich-ri-interactive-") do |dir|
+      environment = { "PATH" => "", "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                                    env: environment, prompt: ">> ", input: "RichRIExample[\nRichRIExample#map\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "Nothing known about RichRIExample["
+      assert_includes output, "Return transformed values."
+    end
+  end
 end

@@ -12,6 +12,8 @@ User-visible changes are recorded here. This project follows
   has documentation pages.
 - An empty configuration file means no overrides, as documented, instead of
   stopping every command.
+- Names with pattern characters, such as `Array[`, are reported as unknown and no
+  longer end interactive lookup.
 
 ## [0.1.0] - 2026-10-05
 
