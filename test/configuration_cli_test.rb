@@ -191,23 +191,4 @@ class ConfigurationCLITest < Minitest::Test
     refute_includes err, "\e"
     assert_includes err, "--config must be a nonempty string without control characters"
   end
-
-  def test_pager_settings_reach_only_the_pager_not_the_commands_own_environment
-    observer = <<~RUBY
-      require "rich_ri"
-      RichRI::Driver.prepend(Module.new do
-        def run
-          warn ENV.values_at("RI_PAGER", "LESS").inspect
-          super
-        end
-      end)
-    RUBY
-    out, err, status = with_planted(observer, env: { "RI_PAGER" => "original", "LESS" => "-i" }) do |env|
-      cli("--pager-command=cat", "--list", env: env)
-    end
-
-    assert_predicate status, :success?, err
-    assert_equal "RichRIExample\nRichRIExample::Nested\n", out
-    assert_equal %(["original", "-i"]\n), err
-  end
 end

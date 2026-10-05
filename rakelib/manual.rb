@@ -232,9 +232,9 @@ module Manual
       .B pager
       true (default), false, or a trusted command such as "less -R". The command
       is split into words and run directly, without a shell.
-      RI_PAGER overrides a file command; --pager-command overrides both, and on
-      the command line it pages even when the file says false.
-      PAGER is used when none of them names a pager.
+      The first that names a pager is used: --pager-command on the command line,
+      RI_PAGER, this key, --pager-command in RI, then PAGER.
+      On the command line, --pager-command pages even when the file says false.
       A pager named in any of these ways has to start and to end without failure,
       or the lookup fails with status 1. When none is named, #{listing(RichRI::Pager::USUAL)}
       are tried, and the page is written to the terminal if none exists.
@@ -348,8 +348,8 @@ module Manual
       .TP
       .B RI_PAGER, PAGER
       Trusted documentation pager commands, run without a shell.
-      RI_PAGER overrides a file command; PAGER is used when no other names a
-      pager. --pager-command takes precedence over both.
+      The first that names a pager is used: --pager-command on the command line,
+      RI_PAGER, the pager key, --pager-command in RI, then PAGER.
       .TP
       .B LESS
       Your options for less. For its own pager only, rich-ri puts -R ahead of
