@@ -46,9 +46,7 @@ module RichRI
     def install_directory(target)
       raise UsageError, "--install-man=DIR must not be empty" if target && target.strip.empty?
 
-      data = RichRI.utf8(ENV.fetch("XDG_DATA_HOME", ""))
-      data = File.join(RichRI.utf8(Dir.home), ".local/share") unless data.start_with?("/")
-      directory = RichRI.expand_path(target || File.join(data, "man/man1"))
+      directory = RichRI.expand_path(target || default_directory)
       # Without DIR the destination comes from the environment, not from the command line.
       refused = target ? UsageError : ConfigurationError
       if directory.match?(/[[:cntrl:]]/) || !RichRI.printable?(directory)
@@ -62,6 +60,12 @@ module RichRI
       end
 
       directory
+    end
+
+    def default_directory
+      data = RichRI.utf8(ENV.fetch("XDG_DATA_HOME", ""))
+      data = File.join(RichRI.home!, ".local/share") unless data.start_with?("/")
+      File.join(data, "man/man1")
     end
 
     def pager_environment(color:, theme:)

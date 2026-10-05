@@ -3,6 +3,18 @@
 require "test_helper"
 
 class EnvironmentFailuresTest < Minitest::Test
+  NO_HOME = { "HOME" => "relative", "XDG_CONFIG_HOME" => nil, "XDG_DATA_HOME" => nil }.freeze
+
+  def without_home(*)
+    Dir.mktmpdir("rich-ri-home-") do |dir|
+      # A relative HOME must never be resolved against the working directory.
+      result = Dir.chdir(dir) { cli(*, docs: false, env: NO_HOME) }
+
+      assert_empty Dir.children(dir)
+      result
+    end
+  end
+
   def test_file_failures_name_the_file_before_the_reason
     Dir.mktmpdir("rich-ri-files-") do |dir|
       config = File.join(dir, "config.yml")
@@ -33,6 +45,40 @@ class EnvironmentFailuresTest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       assert_equal "rich-ri: standard output: No space left on device\n", reader.read
+    end
+  end
+
+  def test_commands_that_need_no_home_directory_work_without_one
+    { ["--version"] => "rich-ri #{RichRI::VERSION}\n", ["--help"] => "Usage: rich-ri",
+      ["--show-config"] => "theme: terminal", ["--config-path"] => "\n" }.each do |args, text|
+      out, err, status = without_home(*args)
+
+      assert_predicate status, :success?, "#{args.inspect}: #{err}"
+      assert_includes out, text
+    end
+  end
+
+  def test_lookup_without_a_home_directory_says_what_is_missing
+    out, err, status = without_home("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample")
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_includes err, "rich-ri: cannot find a home directory; set HOME to an absolute path\n"
+    refute_includes err, "no implicit conversion"
+    refute_includes err, "--help"
+  end
+
+  def test_manual_installation_needs_a_home_directory_only_for_its_default
+    out, err, status = without_home("--install-man")
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_includes err, "rich-ri: cannot find a home directory; set HOME to an absolute path\n"
+    Dir.mktmpdir("rich-ri-files-") do |dir|
+      _out, err, status = cli("--install-man=#{dir}/man1", docs: false, env: NO_HOME)
+
+      assert_predicate status, :success?, err
+      assert File.file?(File.join(dir, "man1/rich-ri.1"))
     end
   end
 end

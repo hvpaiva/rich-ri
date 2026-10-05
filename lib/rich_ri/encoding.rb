@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "errors"
+
 module RichRI
   # Labels that say nothing reliable about a string's characters. Under the C
   # locale Ruby hands over ARGV, ENV and paths as BINARY or US-ASCII, RubyGems
@@ -21,13 +23,26 @@ module RichRI
     text.dup.force_encoding(Encoding::UTF_8).scrub
   end
 
+  # The user's home directory as UTF-8, or nil when there is none to rely on:
+  # HOME is unset for a user without a passwd entry, or is not an absolute path.
+  def self.home
+    home = utf8(Dir.home)
+    home if home.start_with?("/")
+  rescue ArgumentError
+    nil
+  end
+
+  def self.home!
+    home or raise ConfigurationError, "cannot find a home directory; set HOME to an absolute path"
+  end
+
   # File.expand_path as UTF-8. It cannot be given the name directly: under the
   # C locale Ruby labels the working and home directories US-ASCII and refuses
   # to join them with any other string holding an accent. Joining bytes with an
   # explicit base and home directory never consults those labels.
   def self.expand_path(path, base = Dir.pwd)
     path = path.b
-    path = File.join(Dir.home.b, path[1..]) if path == "~" || path.start_with?("~/")
+    path = File.join(home!.b, path[1..]) if path == "~" || path.start_with?("~/")
     utf8(File.expand_path(path, base.b))
   end
 end

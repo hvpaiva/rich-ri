@@ -86,7 +86,9 @@ module RichRI
       base = variable("XDG_CONFIG_HOME")
       return [File.join(base, "rich-ri/config.yml"), "XDG_CONFIG_HOME", false] if base&.start_with?("/")
 
-      [File.join(variable("HOME") || RichRI.utf8(Dir.home), ".config/rich-ri/config.yml"), "HOME", false]
+      # Without a home directory there is no default file, which is not an error.
+      home = variable("HOME") || RichRI.home
+      [home&.start_with?("/") ? File.join(home, ".config/rich-ri/config.yml") : nil, "HOME", false]
     end
 
     # Whatever is wrong with the file is reported after its path.

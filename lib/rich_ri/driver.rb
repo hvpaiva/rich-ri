@@ -48,6 +48,9 @@ module RichRI
       @rich_ri_shell_theme = options.delete(:rich_ri_shell_theme) || "ansi"
       options = self.class.default_options.merge(options)
       optional_gem("profile", "--profile") if options[:profile]
+      # RDoc resolves ~/.rdoc as soon as its list of stores is loaded and
+      # fails there with a TypeError when the user has no home directory.
+      RichRI.home!
       # RDoc would load every store itself, as plain RDoc stores that cannot
       # say which of them failed. Start it without any and load them here.
       super(options.merge(STANDARD_SOURCES.to_h { |source| [source, false] }, extra_doc_dirs: []))
