@@ -13,6 +13,9 @@ module RichRI
     VALUE_OPTIONS = %w[-w --width -f --format -d --doc-dir --dump --completion --theme --color-depth
                        --style --bat-theme --shell-theme --pager-command].freeze
     MAX_BYTES = 65_536
+    # Rules and padding are built one column at a time, so an unbounded width
+    # is an unbounded allocation. No terminal comes near the upper limit.
+    WIDTH = 20..10_000
 
     attr_reader :path, :arguments
 
@@ -39,6 +42,12 @@ module RichRI
         index += VALUE_OPTIONS.include?(word) || word == "--config" ? 2 : 1
       end
       options
+    end
+
+    # The number written as plain decimal digits, or nil. Kernel#Integer would
+    # also take a sign, 0x20, 1_0 and surrounding spaces, and read 040 as octal.
+    def self.integer(text)
+      Integer(text, 10) if text.match?(/\A(?:0|[1-9][0-9]*)\z/)
     end
 
     # Whether a setting can be shown and passed on as it is: a nonempty string
@@ -133,7 +142,7 @@ module RichRI
         value = variable(name)
         next [] if value.nil? || value.empty?
 
-        setting(key, key == "width" && value.match?(/\A[0-9]+\z/) ? value.to_i : value)
+        setting(key, key == "width" ? self.class.integer(value) || value : value)
       end
       bat_theme = variable("BAT_THEME").to_s
       args.concat(setting("bat_theme", bat_theme)) unless bat_theme.empty? || !variable("RICH_RI_BAT_THEME").to_s.empty?
@@ -160,7 +169,9 @@ module RichRI
       return boolean("pager", value) if key == "pager" && [true, false].include?(value)
 
       if key == "width"
-        raise ConfigurationError, "width must be an integer of at least 20" unless value.is_a?(Integer) && value >= 20
+        unless value.is_a?(Integer) && WIDTH.cover?(value)
+          raise ConfigurationError, "width must be an integer from #{WIDTH.min} to #{WIDTH.max}"
+        end
       else
         text!(value, key)
       end

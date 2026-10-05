@@ -107,6 +107,21 @@ class ConfigurationTest < Minitest::Test
     end
   end
 
+  def test_width_from_file_and_environment_has_the_same_bounds_as_the_option
+    in_config({ "width" => 10_000 }) { assert_equal 10_000, options.settings.fetch("width") }
+    in_config({ "width" => 10_001 }) { assert_raises(RichRI::ConfigurationError) { options } }
+    in_config do
+      with_environment("RICH_RI_WIDTH" => "10000") { assert_equal 10_000, options.settings.fetch("width") }
+      %w[040 0x20 1_0_0 10001 99999999999999999999 19].each do |value|
+        with_environment("RICH_RI_WIDTH" => value) do
+          error = assert_raises(RichRI::ConfigurationError, value) { options }
+
+          assert_includes error.message, "width must be an integer from 20 to 10000"
+        end
+      end
+    end
+  end
+
   def test_pager_and_bat_preferences_keep_explicit_overrides
     in_config({ "pager" => "less -R", "bat_theme" => "base16", "shell_theme" => "ansi" },
               env: { "RI_PAGER" => "more", "BAT_THEME" => "Monokai Extended" }) do

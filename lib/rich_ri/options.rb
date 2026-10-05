@@ -5,6 +5,9 @@ module RichRI
   class Options
     include ConfigurationOptions
 
+    PORTS = 1..65_535
+    DEFAULT_PORT = 8214
+
     attr_reader :parser, :driver_options, :color, :action
 
     def initialize
@@ -74,6 +77,13 @@ module RichRI
       raise UsageError, e.message
     end
 
+    def integer(option, text, range)
+      number = Configuration.integer(text)
+      return number if number && range.cover?(number)
+
+      raise UsageError, "#{option} must be an integer from #{range.min} to #{range.max}, not #{text.inspect}"
+    end
+
     def presentation_options
       @parser.separator ""
       @parser.separator "Presentation:"
@@ -90,10 +100,8 @@ module RichRI
         @pager_enabled = false
         @driver_options[:use_stdout] = true
       end
-      @parser.on("-w", "--width=WIDTH", Integer, "Text width in terminal columns (at least 20).") do |width|
-        raise OptionParser::InvalidArgument, "width must be at least 20" if width < 20
-
-        @driver_options[:width] = width
+      @parser.on("-w", "--width=WIDTH", "Text width in terminal columns (20 to 10000).") do |width|
+        @driver_options[:width] = integer("--width", width, Configuration::WIDTH)
       end
       @parser.on("-f", "--format=NAME", self.class.formats,
                  "Select an original RDoc formatter: #{self.class.formats.join(', ')}.") do |name|
@@ -112,8 +120,8 @@ module RichRI
       @parser.on("--[no-]expand-refs", "Expand RDoc references at the end of a page.") do |value|
         @driver_options[:expand_refs] = value
       end
-      @parser.on("--server[=PORT]", Integer, "Serve RDoc in a browser (port: 8214; requires webrick).") do |port|
-        @driver_options[:server] = port || 8214
+      @parser.on("--server[=PORT]", "Serve RDoc in a browser (port: 8214; requires webrick).") do |port|
+        @driver_options[:server] = port ? integer("--server", port, PORTS) : DEFAULT_PORT
       end
     end
 

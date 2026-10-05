@@ -103,7 +103,7 @@ class OptionalDependencyTest < Minitest::Test
 
   def with_server(source)
     command = [RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
-               "--no-standard-docs", "--doc-dir", TestSupport::STORE, "--server=0"]
+               "--no-standard-docs", "--doc-dir", TestSupport::STORE, "--server=#{free_port}"]
     Open3.popen3(TestSupport::ENVIRONMENT, *command) do |input, output, errors, process|
       input.close
       begin
@@ -123,6 +123,13 @@ class OptionalDependencyTest < Minitest::Test
         end
       end
     end
+  end
+
+  def free_port
+    server = TCPServer.new("127.0.0.1", 0)
+    server.addr[1]
+  ensure
+    server&.close
   end
 
   def http_get(port, path)

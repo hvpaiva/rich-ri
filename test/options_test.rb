@@ -29,6 +29,42 @@ class OptionsTest < Minitest::Test
   def test_server_default_and_explicit_port
     assert_equal 8214, parse("--server").driver_options[:server]
     assert_equal 9000, parse("--server=9000").driver_options[:server]
+    assert_equal 1, parse("--server=1").driver_options[:server]
+    assert_equal 65_535, parse("--server=65535").driver_options[:server]
+  end
+
+  def test_width_accepts_the_whole_documented_range
+    assert_equal 20, parse("--width=20").driver_options[:width]
+    assert_equal 10_000, parse("--width=10000").driver_options[:width]
+    assert_equal 20, parse("-w", "20").driver_options[:width]
+  end
+
+  def test_numbers_must_be_plain_decimal_integers_within_range
+    invalid = ["", " 80", "80 ", "+80", "-80", "0x50", "080", "8_0", "80.0", "8e1", "eighty"]
+    { "--width" => invalid + %w[0 19 10001 99999999999999999999],
+      "--server" => invalid + %w[0 65536 99999 -1 99999999999999999999] }.each do |option, values|
+      values.each do |value|
+        error = assert_raises(RichRI::UsageError, "#{option}=#{value}") { parse("#{option}=#{value}") }
+
+        assert_match(/\A#{option} must be an integer from \d+ to \d+, not #{Regexp.escape(value.inspect)}\z/,
+                     error.message)
+      end
+    end
+  end
+
+  def test_out_of_range_numbers_are_refused_before_anything_runs
+    # --list keeps a refused port from ever starting the documentation server.
+    { "--width=99999999999999999999" => "--width must be an integer from 20 to 10000",
+      "--width=0x20" => "--width must be an integer from 20 to 10000",
+      "--server=99999" => "--server must be an integer from 1 to 65535",
+      "--server=-1" => "--server must be an integer from 1 to 65535" }.each do |option, message|
+      out, err, status = cli(option, "--list")
+
+      assert_equal 2, status.exitstatus, option
+      assert_empty out
+      assert_includes err, message
+      refute_match(/from .*\.rb:\d+/, err)
+    end
   end
 
   def test_color_mode_uses_equals_and_bare_flag_preserves_the_subject
