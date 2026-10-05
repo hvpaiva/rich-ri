@@ -118,6 +118,17 @@ class ProjectTest < Minitest::Test
     assert_equal ["rubocop:auto_correct"], undescribed
   end
 
+  def test_every_rake_task_a_maintenance_message_names_exists
+    out, err, status = rake("--all", "--tasks")
+    tasks = out.lines.map { |line| line.split.fetch(1)[/\A[^\[]+/] }
+    sources = Dir[File.join(TestSupport::ROOT, "{bin/*,rakelib/*.{rb,rake},Rakefile}")]
+    named = sources.flat_map { |path| File.read(path).scan(/bundle exec rake ([a-z][\w:]*)/).flatten }.uniq
+
+    assert_predicate status, :success?, err
+    assert_equal %w[check generate github:setup test:compatibility test:shells], named.sort
+    assert_empty named - tasks
+  end
+
   def test_local_release_is_refused_before_any_publish_action
     _out, err, status = rake("release", env: { "GITHUB_ACTIONS" => nil })
 
