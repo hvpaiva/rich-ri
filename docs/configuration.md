@@ -105,7 +105,9 @@ configuration does not start a pager.
 `terminal` uses your terminal's ANSI palette, preserving rich-ri's default
 appearance. `dark` and `light` supply foreground colors suited to those
 backgrounds. They do not set the terminal background or try to detect it.
-Choose explicitly if your terminal palette needs different contrast.
+Choose explicitly if your terminal palette needs different contrast. At `basic`
+color depth both presets keep the terminal palette, because sixteen colors cannot
+tell their shades apart.
 
 Each style is a colon-separated string. A bare color sets the foreground;
 `fg=COLOR` and `bg=COLOR` set foreground and background explicitly. Attributes

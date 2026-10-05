@@ -138,7 +138,8 @@ module Manual
       .TP
       .B theme
       terminal (default), dark or light. Presets change foreground colors;
-      they do not detect or set the terminal background.
+      they do not detect or set the terminal background. With basic color depth
+      dark and light keep the terminal palette.
       .TP
       .B color
       auto (default), always or never. Auto colors only terminal output, unless

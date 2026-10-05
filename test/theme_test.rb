@@ -34,6 +34,15 @@ class ThemeTest < Minitest::Test
     end
   end
 
+  def test_presets_keep_the_terminal_palette_at_basic_depth
+    terminal = RichRI::Theme.new(depth: "basic")
+    %w[dark light].each do |name|
+      theme = RichRI::Theme.new(name:, depth: "basic")
+
+      RichRI::Theme::ROLES.each { |role| assert_equal terminal.sgr(role), theme.sgr(role), "#{name} #{role}" }
+    end
+  end
+
   def test_overrides_replace_whole_role_and_none_preserves_other_roles
     theme = RichRI::Theme.new(name: "dark", styles: { title: "red", comment: "none" })
 

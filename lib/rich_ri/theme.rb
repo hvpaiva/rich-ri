@@ -35,7 +35,8 @@ module RichRI
       @name = name.dup.freeze
       @depth = (depth == "auto" ? self.class.detect_depth(env) : depth).dup.freeze
       @styles = COLORS.dup
-      apply_styles(PALETTES.fetch(name, {}))
+      # Sixteen colors cannot tell the shades of a preset apart; the terminal's own palette can.
+      apply_styles(PALETTES.fetch(name, {})) unless @depth == "basic"
       apply_styles(styles)
       @styles.transform_values!(&:freeze)
       @styles.freeze
