@@ -32,14 +32,23 @@ module Release
     private
 
     def execute(argv, stream: false)
-      return Open3.capture2e(*argv, chdir: @root) unless stream
+      return start(argv) if stream
 
+      output, diagnostics, status = Open3.capture3(*argv, chdir: @root)
+      # Only standard output is data: a warning from ssh or gh must not read as a tag or as JSON.
+      return ["#{output}#{diagnostics}", status] unless status.success?
+
+      @out.print diagnostics
+      [output, status]
+    rescue Errno::ENOENT
+      raise Error, "#{argv.first} is not installed or not on PATH"
+    end
+
+    def start(argv)
       # system answers nil, without raising, when the program cannot be started.
       raise Errno::ENOENT, argv.first if system(*argv, chdir: @root).nil?
 
       ["", $CHILD_STATUS]
-    rescue Errno::ENOENT
-      raise Error, "#{argv.first} is not installed or not on PATH"
     end
   end
 end
