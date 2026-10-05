@@ -37,12 +37,14 @@ module RichRI
       @parser.separator "RICH_RI_STYLE_<ROLE> overrides one style; --style takes precedence."
       @parser.separator "RI_PAGER/PAGER choose the pager; LESS sets its preferences."
       @parser.separator "NO_COLOR and TERM=dumb disable automatic color; COLORTERM helps detect RGB."
+      @parser.separator "RICH_RI_DEBUG adds the error class and backtrace to a failure."
       @parser.separator "Styles: ANSI name, 0-255, #RRGGBB or fg=COLOR:bg=COLOR:bold:italic."
       @parser.separator "Also supported: dim, underline, strike, reverse; none disables a role."
       @parser.separator "Style roles:"
       Theme::ROLES.each_slice(6) { |roles| @parser.separator "  #{roles.join(', ')}" }
       @parser.separator "See rich-ri --man or docs/configuration.md for all settings and examples."
       @parser.separator "Ruby highlighting is built in; bat optionally highlights other languages."
+      @parser.separator "Exit status: 0 success, 1 failure, 2 usage error, 130 interrupted."
     end
 
     def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)

@@ -13,6 +13,8 @@ class CLITest < Minitest::Test
     assert_predicate status, :success?, err
     assert_includes out, "Usage: rich-ri"
     assert_includes out, "--completion=SHELL"
+    assert_includes out, "Exit status: 0 success, 1 failure, 2 usage error, 130 interrupted."
+    assert_includes out, "RICH_RI_DEBUG adds the error class and backtrace to a failure."
     refute_includes out, "\e"
     colored, = cli("--color=always", "--help", docs: false)
 
