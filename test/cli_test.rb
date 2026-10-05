@@ -101,42 +101,6 @@ class CLITest < Minitest::Test
     end
   end
 
-  def defective_cli(*, env: {})
-    defect = <<~RUBY
-      require "rich_ri"
-      RichRI::Formatter.prepend(Module.new { def start_accepting = raise(NoMethodError, "planted defect") })
-    RUBY
-    with_planted(defect, env: env) { |planted| cli(*, env: planted) }
-  end
-
-  def test_a_defect_is_reported_in_one_line
-    [{}, { "RICH_RI_DEBUG" => "" }].each do |env|
-      out, err, status = defective_cli("RichRIExample#map", env: env)
-
-      assert_equal 1, status.exitstatus
-      assert_empty out
-      assert_equal "rich-ri: planted defect\n", err
-    end
-  end
-
-  def test_debug_variable_adds_the_exception_class_and_backtrace
-    _out, err, status = defective_cli("RichRIExample#map", env: { "RICH_RI_DEBUG" => "1" })
-
-    assert_equal 1, status.exitstatus
-    assert_equal ["rich-ri: planted defect\n", "NoMethodError\n"], err.lines.first(2)
-    assert_match(%r{\A {4}\S*/rich_ri_planted\.rb:2:in }, err.lines[2])
-    assert_includes err, "rich_ri/cli.rb"
-  end
-
-  def test_debug_variable_adds_the_cause_of_an_explained_failure
-    _out, err, status = cli("--dump=#{File.join(TestSupport::ROOT, 'LICENSE.txt')}", env: { "RICH_RI_DEBUG" => "1" })
-
-    assert_equal 1, status.exitstatus
-    assert_match(/\Arich-ri: incompatible or damaged RI data in /, err)
-    assert_includes err, "\nRichRI::StoreError\n"
-    assert_match(/^caused by TypeError: incompatible marshal file format/, err)
-  end
-
   def test_failures_are_reported_even_when_ruby_warnings_are_disabled
     _out, err, status = cli("--unknown", env: { "RUBYOPT" => "-W0" })
 
@@ -227,5 +191,54 @@ class CLITest < Minitest::Test
         assert_equal "rich-ri: --dump must be a readable regular file, not #{path.inspect}\n", err
       end
     end
+  end
+end
+
+class DebugReportTest < Minitest::Test
+  include CommandSupport
+
+  def defective_cli(*, env: {})
+    defect = <<~RUBY
+      require "rich_ri"
+      RichRI::Formatter.prepend(Module.new { def start_accepting = raise(NoMethodError, "planted defect") })
+    RUBY
+    with_planted(defect, env: env) { |planted| cli(*, env: planted) }
+  end
+
+  def test_a_defect_is_reported_in_one_line
+    [{}, { "RICH_RI_DEBUG" => "" }].each do |env|
+      out, err, status = defective_cli("RichRIExample#map", env: env)
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
+      assert_equal "rich-ri: planted defect\n", err
+    end
+  end
+
+  def test_debug_variable_adds_the_exception_class_and_backtrace
+    _out, err, status = defective_cli("RichRIExample#map", env: { "RICH_RI_DEBUG" => "1" })
+
+    assert_equal 1, status.exitstatus
+    assert_equal ["rich-ri: planted defect\n", "NoMethodError\n"], err.lines.first(2)
+    assert_match(%r{\A {4}\S*/rich_ri_planted\.rb:2:in }, err.lines[2])
+    assert_includes err, "rich_ri/cli.rb"
+  end
+
+  def test_debug_variable_adds_the_cause_of_an_explained_failure
+    _out, err, status = cli("--dump=#{File.join(TestSupport::ROOT, 'LICENSE.txt')}", env: { "RICH_RI_DEBUG" => "1" })
+
+    assert_equal 1, status.exitstatus
+    assert_match(/\Arich-ri: incompatible or damaged RI data in /, err)
+    assert_includes err, "\nRichRI::StoreError\n"
+    assert_match(/^caused by TypeError: incompatible marshal file format/, err)
+  end
+
+  def test_debug_variable_traces_a_name_not_found_from_where_it_is_reported
+    out, err, status = cli("RichRIExample#ma", env: { "RICH_RI_DEBUG" => "1" })
+
+    assert_equal 1, status.exitstatus
+    assert_includes out, "maybe you meant:"
+    assert_equal ["rich-ri: RichRIExample#ma not found\n", "RichRI::LookupError\n"], err.lines.first(2)
+    assert_match(%r{\A {4}\S*/rich_ri/driver\.rb:\d+:in 'block in RichRI::Driver#run'\n\z}, err.lines[2])
   end
 end

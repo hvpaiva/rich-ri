@@ -15,7 +15,11 @@ module RichRI
       explained = error.is_a?(Error)
       io.puts "rich-ri: #{RichRI.sanitize(summary(error))}"
       io.puts error.hint if explained && error.hint
-      trace(error, io) unless ENV.fetch(DEBUG_VARIABLE, "").empty?
+      unless ENV.fetch(DEBUG_VARIABLE, "").empty?
+        # A failure reported without being raised is traced from where it is reported.
+        error.set_backtrace(caller) unless error.backtrace
+        trace(error, io)
+      end
       explained ? error.exit_status : 1
     end
 
