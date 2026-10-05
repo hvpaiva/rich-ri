@@ -130,6 +130,11 @@ class BashCompletionTest < Minitest::Test
                  bash_answer("rich-ri --color=a", "--color", "=", "a", type: 33).first
   end
 
+  def test_bash_menu_completion_inserts_no_space_after_a_reply
+    assert_equal [["--color-depth", "--color="], ["+o filenames", "-o nospace"]],
+                 bash_answer("rich-ri --colo", "--colo", type: 37)
+  end
+
   private
 
   # The last piece is completed unless cword says otherwise; library is bash-completion, or nil

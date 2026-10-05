@@ -107,11 +107,13 @@ __rich_ri_handle_completion_types() {
     done
 
     # A second Tab (63) only lists, so it can show the names whole; a list shown along with an
-    # insertion (33 and 64) shows the replies. Both carry the descriptions.
+    # insertion (33 and 64) shows the replies. Both carry the descriptions. Menu completion (37)
+    # inserts the replies in turn, each with a space unless none gets one, and "--color=" needs none.
     case ${COMP_TYPE-}:${#replies[@]} in
         *:[01]) COMPREPLY=("${replies[@]}") ;;
         63:*) __rich_ri_describe "${names[@]}" ;;
         33:* | 64:*) __rich_ri_describe "${replies[@]}" ;;
+        37:*) compopt -o nospace 2>/dev/null; COMPREPLY=("${replies[@]}") ;;
         *) COMPREPLY=("${replies[@]}") ;;
     esac
 }
