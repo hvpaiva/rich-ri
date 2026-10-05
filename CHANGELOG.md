@@ -10,6 +10,8 @@ User-visible changes are recorded here. This project follows
 
 - Tab at the interactive prompt no longer ends the session when an installed gem
   has documentation pages.
+- An empty configuration file means no overrides, as documented, instead of
+  stopping every command.
 
 ## [0.1.0] - 2026-10-05
 

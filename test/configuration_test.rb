@@ -76,6 +76,12 @@ class ConfigurationTest < Minitest::Test
     end
   end
 
+  def test_empty_and_comment_only_files_have_no_overrides
+    ["", "# no preferences yet\n"].each do |data|
+      in_config(data) { assert_empty RichRI::Configuration.new([]).arguments }
+    end
+  end
+
   def test_invalid_documents_fail_without_evaluating_yaml
     invalid = ["theme: [dark]", "width: 12", "width: '80'", "pager: 0", "sources: []", "sources: {gmes: true}",
                "sources: {gems: 'yes'}", "doc_dirs: docs", "doc_dirs: [false]", "unknown: true", "--- []",
