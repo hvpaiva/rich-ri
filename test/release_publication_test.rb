@@ -15,9 +15,14 @@ class ReleasePublicationTest < Minitest::Test
   end
 
   def test_a_dry_run_reports_the_release_run_of_a_tag_already_on_origin
+    recovery = "run bin/release 0.2.0 for the recovery steps"
     { {} => "Release run 123 succeeded; nothing is left to do",
-      { run_status: "in_progress" } => "Release run 123 is in_progress; run bin/release 0.2.0 to watch it",
-      { conclusion: "failure" } => "Release run 123 ended with failure; run bin/release 0.2.0 for the recovery steps",
+      { run_status: "in_progress" } => "Release run 123 is still running; run bin/release 0.2.0 to watch it",
+      { run_status: "queued" } => "Release run 123 is waiting to start; run bin/release 0.2.0 to watch it",
+      { conclusion: "failure" } => "Release run 123 failed; #{recovery}",
+      { conclusion: "cancelled" } => "Release run 123 was cancelled; #{recovery}",
+      { conclusion: "timed_out" } => "Release run 123 timed out; #{recovery}",
+      { conclusion: "startup_failure" } => "Release run 123 ended with conclusion: startup_failure; #{recovery}",
       { runs: [] } => "no Release run was found; inspect Actions before dispatching one" }.each do |run, state|
       output = dry_run(pr: release_pr, local_tag: true, remote_tag: "b" * 40, **run)
 

@@ -7,6 +7,8 @@ module Release
   # An existing remote tag is observation-only: retries must not move it or
   # trigger another publication when RubyGems may already have accepted the gem.
   class Publication
+    ENDINGS = { "failure" => "failed", "cancelled" => "was cancelled", "timed_out" => "timed out" }.freeze
+
     def initialize(version, commands:, out: $stdout, sleeper: Kernel, branch: "main")
       @version = version
       @commands = commands
@@ -74,10 +76,14 @@ module Release
 
     def run_state(run)
       name = "Release run #{run.fetch('databaseId')}"
-      return "#{name} is #{run['status']}; run #{command} to watch it" unless run["status"] == "completed"
+      unless run["status"] == "completed"
+        progress = run["status"] == "in_progress" ? "is still running" : "is waiting to start"
+        return "#{name} #{progress}; run #{command} to watch it"
+      end
       return "#{name} succeeded; nothing is left to do" if run["conclusion"] == "success"
 
-      "#{name} ended with #{run['conclusion']}; run #{command} for the recovery steps"
+      ending = ENDINGS.fetch(run["conclusion"]) { "ended with conclusion: #{run['conclusion']}" }
+      "#{name} #{ending}; run #{command} for the recovery steps"
     end
 
     def missing_run = "no Release run was found; inspect Actions before dispatching one"
