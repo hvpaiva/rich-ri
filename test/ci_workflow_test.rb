@@ -7,6 +7,8 @@ require_relative "../rakelib/github_configuration"
 require_relative "../rakelib/tools"
 
 class CIWorkflowTest < Minitest::Test
+  PUBLISH = "needs.verify.outputs.publish == 'true'"
+
   def test_required_check_covers_every_ci_job
     jobs = ci.fetch("jobs")
     gate = jobs.fetch("ci")
@@ -74,16 +76,19 @@ class CIWorkflowTest < Minitest::Test
     assert_equal [["macos-latest", "4.0"], ["ubuntu-latest", "3.4"], ["ubuntu-latest", "4.0"]], platforms.sort
   end
 
-  def test_a_rehearsal_checks_the_artifact_but_only_a_publication_attests_it
-    jobs = release.fetch("jobs")
-    steps = jobs.fetch("attest").fetch("steps")
-    attestation = steps.find { |step| step["uses"].to_s.start_with?("actions/attest@") }
+  def test_only_a_run_that_publishes_receives_an_identity_token
+    jobs = release.fetch("jobs").select { |_name, job| job.dig("permissions", "id-token") == "write" }
 
-    assert_equal "needs.verify.outputs.publish == 'true'", attestation.fetch("if")
-    assert_equal([attestation], steps.select { |step| step.key?("if") })
-    refute jobs.fetch("attest").key?("if")
-    assert_equal "needs.verify.outputs.publish == 'true'", jobs.fetch("publish").fetch("if")
-    assert_equal %w[verify attest], jobs.fetch("publish").fetch("needs")
+    refute_empty jobs
+    jobs.each { |name, job| assert_equal PUBLISH, job["if"], name }
+  end
+
+  def test_a_rehearsal_still_verifies_the_transferred_artifact
+    rehearsals = release.fetch("jobs").values.select { |job| job["if"] == PUBLISH.sub("==", "!=") }
+    commands = rehearsals.flat_map { |job| job.fetch("steps").filter_map { |step| step["run"] } }
+
+    assert(commands.any? { |command| command.include?("sha256sum --check SHA256SUMS") })
+    assert(rehearsals.none? { |job| job.key?("permissions") })
   end
 
   # mise installs the latest release of an unpinned tool, so CI would drift without failing.
