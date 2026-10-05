@@ -45,6 +45,14 @@ module Manual
       that bundle. Missing optional gems produce an installation hint and status 1.
       .SH OPTIONS
       Write long options in full; abbreviations are not accepted.
+      Options may follow names; -- ends them.
+      .PP
+      A command does one thing. --help answers before anything else and
+      --version before the rest, so either can be added to any command line.
+      No two of --config-path, --show-config, --completion, --man, --man-path,
+      --install-man, --dump, --list, --list-doc-dirs, --server and --interactive
+      can be combined. --interactive takes no names; --no-interactive requires one.
+      An action given on the command line replaces one set in RI.
       #{options}
       .SH EXAMPLES
       .nf

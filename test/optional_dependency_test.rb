@@ -20,7 +20,7 @@ class OptionalDependencyTest < Minitest::Test
     {
       ["--no-profile", "RichRIExample#map"] => "Return transformed values.",
       ["--complete", "RichRIExample#ma"] => "RichRIExample#map\t\n",
-      ["--server", "--list"] => "RichRIExample"
+      ["--server", "--help"] => "Usage: rich-ri"
     }.each do |args, expected|
       out, err, status = without_optional_gems(*args)
 

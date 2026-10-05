@@ -68,6 +68,21 @@ class CompletionTest < Minitest::Test
     assert_includes values(*args, "--color", "RichRIExample#ma"), "RichRIExample#map"
   end
 
+  def test_names_are_offered_only_where_the_command_line_takes_them
+    args = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
+
+    assert_includes values(*args, "--no-interactive", "RichRIExample#ma"), "RichRIExample#map"
+    assert_includes values(*args, "--no-interactive", ""), "RichRIExample"
+    assert_includes values(*args, "--list", "Rich"), "RichRIExample"
+    assert_raises(RichRI::UsageError) { values(*args, "--interactive", "RichRIExample#ma") }
+    assert_raises(RichRI::UsageError) { values(*args, "--man", "--list", "Rich") }
+    out, err, status = cli("--complete", *args, "--interactive", "RichRIExample#ma", docs: false)
+
+    assert_predicate status, :success?, err
+    assert_empty out
+    assert_empty err
+  end
+
   def test_ri_source_defaults_match_lookup_and_ignore_actions_during_completion
     defaults = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].shelljoin
     lookup, err, status = cli("RichRIExample#map", docs: false, env: { "RI" => defaults })

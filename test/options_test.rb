@@ -18,9 +18,11 @@ class OptionsTest < Minitest::Test
   end
 
   def test_lookup_switches_and_stock_format
-    options = parse("-i", "-a", "-l", "-T", "--no-expand-refs", "-f", "markdown", "-w", "44")
+    options = parse("-a", "-l", "-T", "--no-expand-refs", "-f", "markdown", "-w", "44")
 
-    %i[interactive show_all list use_stdout].each { |key| assert options.driver_options[key] }
+    %i[show_all list use_stdout].each { |key| assert options.driver_options[key] }
+    refute options.driver_options[:interactive]
+    assert parse("-i").driver_options[:interactive]
     refute options.driver_options[:expand_refs]
     assert_equal RDoc::Markup::ToMarkdown, options.driver_options[:formatter]
     assert_equal 44, options.driver_options[:width]

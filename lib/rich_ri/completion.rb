@@ -103,7 +103,9 @@ module RichRI
 
     def names(words, prefix)
       defaults = Shellwords.split(RichRI.utf8(ENV.fetch("RI", "")))
-      configured = Configuration.new(Options.new.command_line(words).configuration_file).arguments
+      # The name being typed is part of the command line: -i takes none.
+      command = Options.new.command_line([*words, prefix])
+      configured = Configuration.new(command.configuration_file).arguments
       args = [defaults, configured, words].flat_map { |layer| source_arguments(layer) }
       options = Options.new.parse(args, defaults: "", configuration: false).driver_options
       Driver.new(options.merge(use_stdout: true, interactive: false)).complete(prefix)

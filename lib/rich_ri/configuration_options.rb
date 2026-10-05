@@ -27,10 +27,10 @@ module RichRI
         @configuration_file = :none
       end
       @parser.on("--config-path", "Print the selected configuration path; blank when disabled.") do
-        @action = [:config_path]
+        @actions.choose("--config-path", :config_path)
       end
       @parser.on("--show-config", "Print effective preferences as YAML without opening documentation.") do
-        @action = [:show_config]
+        @actions.choose("--show-config", :show_config)
       end
       theme_options
     end
@@ -110,7 +110,7 @@ module RichRI
     # RI and the configuration go through the command-line parser, but a value
     # refused there is not a mistake in the command line: say where it is.
     def parse_defaults(words, origin)
-      @parser.permute!(words)
+      read(words)
     rescue OptionParser::ParseError, UsageError => e
       raise ConfigurationError, "#{origin}: #{e.message}"
     end

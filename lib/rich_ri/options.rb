@@ -9,12 +9,20 @@ module RichRI
     PORTS = 1..65_535
     DEFAULT_PORT = 8214
     RECOVERY_ACTIONS = %i[help version config_path completion].freeze
+    # The actions the driver performs, by the driver option that asks for each.
+    LOOKUPS = { interactive: :interactive, list: :list, list_doc_dirs: :list_doc_dirs, server: :server,
+                dump: :dump_path }.freeze
 
-    attr_reader :parser, :driver_options, :color, :action
+    attr_reader :parser, :driver_options, :color
+
+    # What the command does instead of a lookup, as a name and its arguments,
+    # or nil when the driver is to run.
+    attr_reader :action
 
     def initialize
       @driver_options = Driver.default_options
       @color = "auto"
+      @actions = Actions.new
       @action = nil
       @parser = OptionParser.new
       # Completion inspects flags before parsing and takes them by full name.
@@ -53,7 +61,7 @@ module RichRI
 
     def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)
       names = configured_defaults(self.class.new.command_line(argv), defaults, configuration)
-      @driver_options[:names] = names + arguments(argv)
+      finish(names + arguments(argv))
       @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
       @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
@@ -63,7 +71,7 @@ module RichRI
     # file it selects and what it asks for decide what else is read, and only
     # the parser that will read it again can tell an option from a value.
     def command_line(argv)
-      @driver_options[:names] = arguments(argv)
+      finish(arguments(argv))
       self
     end
 
@@ -94,9 +102,35 @@ module RichRI
     # Options are read wherever they stand, up to "--". OptionParser#parse!
     # would stop at the first name instead whenever POSIXLY_CORRECT is set.
     def arguments(argv)
-      @parser.permute!(argv.dup)
+      read(argv.dup)
     rescue OptionParser::ParseError => e
       raise UsageError, e.message
+    end
+
+    # Reads one layer of options and returns the words that are not options.
+    def read(words)
+      names = @parser.permute!(words)
+      @actions.settle
+      names
+    end
+
+    # Hands the action that stands to whichever of the command and the driver
+    # performs it, once every layer and the names are known.
+    def finish(names)
+      name, value = @actions.current
+      if name == :interactive && !names.empty?
+        raise UsageError, "--interactive does not accept lookup names; enter them at its prompt"
+      elsif name.nil? && names.empty? && @actions.declined?(:interactive)
+        raise UsageError, "--no-interactive requires a name to look up"
+      end
+
+      LOOKUPS.each { |action, key| @driver_options[key] = action == name && (value || true) }
+      @action = (@actions.current unless LOOKUPS.key?(name))
+      @driver_options[:names] = names
+    end
+
+    def toggle(option, name, chosen)
+      chosen ? @actions.choose(option, name) : @actions.decline(name)
     end
 
     def presentation_options
@@ -127,16 +161,18 @@ module RichRI
     def lookup_options
       @parser.separator ""
       @parser.separator "Lookup:"
-      { "interactive" => ["-i", :interactive, "Repeated lookup with Tab completion."],
-        "all" => ["-a", :show_all, "Include all methods in a class page."],
-        "list" => ["-l", :list, "List known classes and modules."] }.each do |name, (short, key, desc)|
-        @parser.on(short, "--[no-]#{name}", desc) { |value| @driver_options[key] = value }
+      @parser.on("-i", "--[no-]interactive", "Repeated lookup with Tab completion.") do |value|
+        toggle("--interactive", :interactive, value)
       end
+      @parser.on("-a", "--[no-]all", "Include all methods in a class page.") do |value|
+        @driver_options[:show_all] = value
+      end
+      @parser.on("-l", "--[no-]list", "List known classes and modules.") { |value| toggle("--list", :list, value) }
       @parser.on("--[no-]expand-refs", "Expand RDoc references at the end of a page.") do |value|
         @driver_options[:expand_refs] = value
       end
       @parser.on("--server[=PORT]", "Serve RDoc in a browser (port: 8214; requires webrick).") do |port|
-        @driver_options[:server] = port ? integer("--server", port, PORTS) : DEFAULT_PORT
+        @actions.choose("--server", :server, port ? integer("--server", port, PORTS) : DEFAULT_PORT)
       end
     end
 
@@ -155,7 +191,7 @@ module RichRI
         end
       end
       @parser.on("--[no-]list-doc-dirs", "List the directories searched for RI documentation.") do |value|
-        @driver_options[:list_doc_dirs] = value
+        toggle("--list-doc-dirs", :list_doc_dirs, value)
       end
     end
 
@@ -163,23 +199,23 @@ module RichRI
       @parser.separator ""
       @parser.separator "Tools:"
       @parser.on("--completion=SHELL", "Print a completion script for bash, zsh or fish.") do |shell|
-        @action = [:completion, choice("--completion", shell, Completion::SHELLS)]
+        @actions.choose("--completion", :completion, choice("--completion", shell, Completion::SHELLS))
       end
-      @parser.on("--man", "Open the bundled manual with man.") { @action = [:man] }
-      @parser.on("--man-path", "Print the path to the bundled manual.") { @action = [:man_path] }
+      @parser.on("--man", "Open the bundled manual with man.") { @actions.choose("--man", :man) }
+      @parser.on("--man-path", "Print the path to the bundled manual.") { @actions.choose("--man-path", :man_path) }
       @parser.on("--install-man[=DIR]", "Install or update the manual in a user man1 directory.") do |directory|
-        @action = [:install_man, directory]
+        @actions.choose("--install-man", :install_man, directory)
       end
       @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") do |path|
         raise UsageError, "--dump requires a nonempty file path" if path.empty?
 
-        @driver_options[:dump_path] = path
+        @actions.choose("--dump", :dump, path)
       end
       @parser.on("--[no-]profile", "Run Ruby's profiler (requires the profile gem).") do |value|
         @driver_options[:profile] = value
       end
-      @parser.on("-h", "--help", "Show this help.") { @action = [:help] }
-      @parser.on("-v", "--version", "Show the rich-ri version.") { @action = [:version] }
+      @parser.on("-h", "--help", "Show this help.") { @actions.choose("--help", :help) }
+      @parser.on("-v", "--version", "Show the rich-ri version.") { @actions.choose("--version", :version) }
     end
   end
 end
