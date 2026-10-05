@@ -4,7 +4,7 @@ PATH
     rich-ri (0.1.0)
       io-console (~> 0.8)
       open3 (~> 0.2)
-      prism (~> 1.0)
+      prism (~> 1.6)
       psych (~> 5.2)
       rdoc (~> 8.1)
       readline (~> 0.0.4)

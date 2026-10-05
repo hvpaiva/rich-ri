@@ -17,6 +17,18 @@ class ProjectTest < Minitest::Test
     refute(spec.files.any? { |file| file.include?("/home/") || file.start_with?("test/", "tmp/", ".") })
   end
 
+  def test_the_minimum_bundle_pins_every_runtime_dependency_at_its_declared_floor
+    spec = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec"))
+    pins = File.read(File.join(TestSupport::ROOT, "gemfiles/minimum.gemfile")).scan(/^gem "([^"]+)", "([^"]+)"$/).to_h
+    floors = spec.runtime_dependencies.to_h do |dependency|
+      [dependency.name, dependency.requirement.requirements.map(&:last).min.to_s]
+    end
+
+    assert_empty floors.keys - pins.keys
+    assert_empty(floors.reject { |name, floor| Gem::Version.new(pins.fetch(name)) == Gem::Version.new(floor) })
+    assert(spec.runtime_dependencies.all? { |dependency| dependency.requirement.to_s.start_with?("~> ") })
+  end
+
   def test_release_requires_matching_version_tag_and_dated_changelog
     changelog = <<~TEXT
       ## [Unreleased]
