@@ -29,10 +29,13 @@ module Release
     private
 
     def execute(argv, stream: false)
-      return Open3.capture2e(*argv, chdir: @root) unless stream
+      if stream
+        system(*argv, chdir: @root)
+        return ["", $CHILD_STATUS]
+      end
 
-      system(*argv, chdir: @root)
-      ["", $CHILD_STATUS]
+      output, error, status = Open3.capture3(*argv, chdir: @root)
+      [status.success? ? output : output + error, status]
     end
   end
 end

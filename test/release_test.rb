@@ -33,6 +33,17 @@ class ReleaseTest < Minitest::Test
     end
   end
 
+  def test_commands_parse_standard_output_only_and_report_failures_with_both_streams
+    commands = Release::Commands.new(root: TestSupport::ROOT, out: StringIO.new)
+    noisy = [RbConfig.ruby, "-e", "warn 'noise'; puts '{\"ok\": true}'"]
+
+    assert_equal({ "ok" => true }, commands.json(noisy))
+    error = assert_raises(RuntimeError) { commands.call([RbConfig.ruby, "-e", "puts 'partial'; warn 'why'; exit 1"]) }
+
+    assert_includes error.message, "partial"
+    assert_includes error.message, "why"
+  end
+
   def test_dry_run_checks_remote_but_never_writes_or_pushes
     repository do |root|
       commands = []
