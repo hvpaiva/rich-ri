@@ -3,6 +3,7 @@
 
 require "optparse"
 require_relative "../rakelib/changelog_lint"
+require_relative "../rakelib/untrusted"
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby bin/lint-changelog [BASE]"
