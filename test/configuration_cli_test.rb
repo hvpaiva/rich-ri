@@ -125,6 +125,20 @@ class ConfigurationCLITest < Minitest::Test
     end
   end
 
+  def test_show_config_refuses_to_print_anything_but_plain_data
+    source = <<~RUBY
+      require "rich_ri"
+      RichRI::Options.prepend(Module.new { def settings = super.merge("pager" => Object.new) })
+      exit RichRI::CLI.run(ARGV)
+    RUBY
+    out, err, status = Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib",
+                                      "-e", source, "--", "--no-config", "--show-config")
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_includes err, "rich-ri: Tried to dump unspecified class: Object"
+  end
+
   def test_explicit_themes_and_color_depth_reach_help_and_errors_are_controlled
     out, err, status = cli("--no-config", "--theme=light", "--color-depth=truecolor", "--color", "--help", docs: false)
 

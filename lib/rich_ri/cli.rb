@@ -55,7 +55,7 @@ module RichRI
       when :help then help(options)
       when :version then puts "rich-ri #{VERSION}"
       when :config_path then puts options.configuration_path
-      when :show_config then puts Psych.dump(options.settings)
+      when :show_config then puts Psych.safe_dump(options.settings)
       when :completion then puts File.read(File.expand_path("../../completions/rich-ri.#{value}", __dir__))
       when :man_path then puts Manual.new.path
       when :man then return Manual.new.show(color: color?(options.color), theme: options.theme)
