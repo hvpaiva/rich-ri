@@ -53,6 +53,38 @@ class ReleasePullRequestTest < Minitest::Test
     end
   end
 
+  def test_a_local_branch_left_by_a_closed_pull_request_is_prepared_again_from_main
+    repository do |root|
+      commands = []
+      release(root, commands, prs: [release_pr("CLOSED")], local_branch: "a" * 40)
+
+      assert_includes commands, %w[git switch -C release/v0.2.0]
+      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+    end
+  end
+
+  def test_a_remote_branch_left_by_a_closed_pull_request_is_replaced_only_at_the_closed_head
+    repository do |root|
+      commands = []
+      release(root, commands, prs: [release_pr("CLOSED").merge("headRefOid" => "c" * 40)], remote_branch: "c" * 40)
+
+      assert_includes commands, ["git", "push", "--force-with-lease=refs/heads/release/v0.2.0:#{'c' * 40}", "-u",
+                                 "origin", "release/v0.2.0"]
+      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+    end
+  end
+
+  def test_a_local_branch_with_other_commits_is_never_overwritten
+    repository do |root|
+      commands = []
+      assert_release_error(%r{\Alocal release/v0\.2\.0 has commits outside its closed pull request; }) do
+        release(root, commands, prs: [release_pr("CLOSED")], local_branch: "e" * 40)
+      end
+
+      refute(commands.any? { |args| args.first(2) == %w[git switch] })
+    end
+  end
+
   def test_two_live_pull_requests_for_one_release_are_refused
     repository do |root|
       commands = []
@@ -68,9 +100,24 @@ class ReleasePullRequestTest < Minitest::Test
 
   private
 
-  def release(root, commands, **state)
+  def release(root, commands, local_branch: nil, remote_branch: nil, **state)
     output = StringIO.new
-    workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state), out: output).run
+    runner = branches(workflow_runner(commands, state: state), local_branch, remote_branch)
+    workflow("0.2.0", root: root, push: true, runner: runner, out: output).run
     output.string
+  end
+
+  # Git refuses to create a branch that exists or to replace a remote branch without a lease.
+  def branches(runner, local, remote)
+    lambda do |argv, **options|
+      output, status = runner.call(argv, **options)
+      case argv.first(3)
+      when %w[git for-each-ref --format=%(objectname)] then [local ? "#{local}\n" : "", status]
+      when %w[git ls-remote --heads] then [remote ? "#{remote}\trefs/heads/release/v0.2.0\n" : "", status]
+      when %w[git switch -c] then [output, Struct.new(:success?).new(local.nil?)]
+      when %w[git push -u] then [output, Struct.new(:success?).new(remote.nil?)]
+      else [output, status]
+      end
+    end
   end
 end

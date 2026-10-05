@@ -73,6 +73,8 @@ module Release
                                  "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
       ignored, candidates = requests.partition { |request| reason_to_ignore(request) }
       ignored.each { |request| @out.puts "Ignoring #{request['url']}: #{reason_to_ignore(request)}." }
+      @closed_heads = ignored.select { |request| request["isCrossRepository"] == false }
+                             .map { |request| request["headRefOid"] }
       raise Error, "several pull requests use #{branch}; reconcile them before releasing" if candidates.length > 1
 
       candidates.first
@@ -112,7 +114,7 @@ module Release
           return @out.puts changes.fetch(Changelog::PATH), "Dry run: no working files or GitHub state changed."
         end
 
-        command(["git", "switch", "-c", branch])
+        create_branch
       else
         changes = resumed_changes
         return @out.puts "Would resume preparation on #{branch}; no working files or GitHub state changed." if @dry_run
@@ -120,8 +122,27 @@ module Release
       prepare(changes) if changes
       @commit = command(%w[git rev-parse HEAD]).strip
       command(%w[git verify-commit HEAD])
-      command(["git", "push", "-u", "origin", branch], stream: true)
+      push_branch
       finish_pull_request(open_pull_request)
+    end
+
+    # A pull request closed without merging leaves its branch behind; only its exact head may be replaced.
+    def create_branch
+      local = command(["git", "for-each-ref", "--format=%(objectname)", "refs/heads/#{branch}"]).strip
+      if local.empty?
+        command(["git", "switch", "-c", branch])
+      elsif @closed_heads.include?(local)
+        command(["git", "switch", "-C", branch])
+      else
+        raise Error, "local #{branch} has commits outside its closed pull request; delete or rename it, then rerun"
+      end
+    end
+
+    def push_branch
+      remote = command(["git", "ls-remote", "--heads", "origin", "refs/heads/#{branch}"]).split.first
+      replace = remote != @commit && @closed_heads.include?(remote)
+      lease = ["--force-with-lease=refs/heads/#{branch}:#{remote}"] if replace
+      command(["git", "push", *lease, "-u", "origin", branch], stream: true)
     end
 
     def resumed_changes
