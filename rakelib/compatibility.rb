@@ -10,12 +10,12 @@ module Compatibility
   ROOT = File.expand_path("..", __dir__)
   HOME = File.join(ROOT, "tmp/compatibility")
   # Release, CI and repository tooling is tested with the development bundle only.
-  MAINTENANCE = %w[benchmark changelog commit_policy compatibility github project setup shell_runner
-                   test_environment tools].freeze
+  MAINTENANCE = %w[benchmark changelog commit_policy compatibility project setup shell_runner test_environment
+                   tools].freeze
 
   class Error < StandardError; end
 
-  def self.maintenance?(name) = MAINTENANCE.include?(name) || name.match?(/\A(?:ci|release)(?:_|\z)/)
+  def self.maintenance?(name) = MAINTENANCE.include?(name) || name.match?(/\A(?:ci|github|release)(?:_|\z)/)
 
   def self.runtime_tests
     Dir[File.join(ROOT, "test/*_test.rb")].reject { |path| maintenance?(File.basename(path, "_test.rb")) }

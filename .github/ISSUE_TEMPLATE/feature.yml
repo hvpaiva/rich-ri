@@ -1,12 +1,26 @@
 name: Feature request
-description: Describe a documentation-reading workflow that could work better.
+description: A way of reading documentation that could work better
+title: "feat: "
+labels: [enhancement]
 body:
   - type: textarea
+    id: problem
     attributes:
-      label: Use case
-      description: What are you trying to do, and what gets in the way?
+      label: Problem
+      description: What you are trying to do and where rich-ri gets in the way today.
     validations:
       required: true
   - type: textarea
+    id: proposal
     attributes:
-      label: Proposed behavior and alternatives
+      label: Proposal
+      description: The command line, option, setting or output you have in mind.
+      placeholder: |
+        $ rich-ri --theme=light Array#map
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways to get the same result, in rich-ri, ri or another tool, and why they fall short.

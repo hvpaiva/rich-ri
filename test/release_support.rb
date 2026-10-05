@@ -34,7 +34,7 @@ module ReleaseFixtures
 
   def workflow(version, **)
     configuration = Object.new
-    def configuration.verify! = nil
+    def configuration.verify!(**) = nil
     Release::Workflow.new(version, configuration: configuration, **)
   end
 

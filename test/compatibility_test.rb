@@ -37,8 +37,8 @@ class CompatibilityTest < Minitest::Test
     names = Compatibility.runtime_tests.map { |path| File.basename(path, "_test.rb") }
 
     assert_empty %w[cli completion legacy_store manual rendering shell] - names
-    assert_empty names & %w[benchmark changelog ci ci_result ci_workflow compatibility github release
-                            release_commands setup tools]
+    assert_empty names & %w[benchmark changelog ci ci_result ci_workflow compatibility github github_templates
+                            release release_commands setup tools]
   end
 
   def test_a_failed_step_stops_the_run_and_names_the_bundle

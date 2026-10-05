@@ -1,19 +1,73 @@
 name: Bug report
-description: Report a lookup, rendering, completion or installation problem.
+description: A lookup, rendering, completion or installation problem
+title: "bug: "
+labels: [bug]
 body:
   - type: textarea
+    id: what-happened
     attributes:
-      label: What happened?
-      description: Include the exact command, expected behavior and actual behavior.
+      label: What happened
+      description: The command you ran and its exact output, including error messages and the exit status.
+      placeholder: |
+        $ rich-ri Array#map
+        ...
+      render: console
     validations:
       required: true
   - type: textarea
+    id: expected
     attributes:
-      label: Environment
-      description: Include rich-ri --version, ruby --version, RDoc version, OS, shell and terminal.
+      label: What you expected
+      description: What the command should have printed or done instead.
     validations:
       required: true
   - type: textarea
+    id: reproduction
     attributes:
-      label: Reproduction
-      description: Include a small document or example when possible. Remove private paths and secrets.
+      label: Steps to reproduce
+      description: >-
+        The shortest sequence of commands that shows the problem. For a rendering problem, name
+        the page or attach a small document. Remove private paths and secrets.
+      placeholder: |
+        1. rich-ri --no-config --theme=light String#scan
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rich-ri version
+      description: The output of `rich-ri --version`.
+      placeholder: rich-ri 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: ruby
+    attributes:
+      label: Ruby and documentation libraries
+      description: The output of `ruby --version` and `gem list --local rdoc prism reline`.
+      render: console
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system, shell and terminal
+      placeholder: Arch Linux, bash 5.3, Ghostty
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration
+      description: >-
+        The output of `rich-ri --show-config`, if the problem depends on your settings, and the
+        values of `RI`, `PAGER` and `NO_COLOR` when they are set. Remove anything private.
+      render: yaml
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this problem has not been reported yet.
+          required: true

@@ -10,7 +10,7 @@ class ReleaseRecoveryTest < Minitest::Test
   def test_preflight_failure_prevents_worktree_or_remote_changes
     repository do |root|
       configuration = Object.new
-      def configuration.verify! = raise(GitHub::Error, "missing release environment")
+      def configuration.verify!(**) = raise(GitHub::Error, "missing release environment")
       commands = []
       error = assert_raises(GitHub::Error) do
         Release::Workflow.new("0.2.0", root: root, configuration: configuration,

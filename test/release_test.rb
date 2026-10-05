@@ -92,7 +92,11 @@ class ReleaseTest < Minitest::Test
 
       assert_includes commands, ["git", "commit", "-S", "-m", "chore: release v0.2.0"]
       refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
-      assert(commands.any? { |args| args.first(3) == %w[gh pr create] && args.include?("--body-file") })
+      create = commands.find { |args| args.first(3) == %w[gh pr create] }
+
+      assert_includes create, "--body-file"
+      assert_equal %w[@me release], [create.fetch(create.index("--assignee") + 1),
+                                     create.fetch(create.index("--label") + 1)]
     end
     repository do |root|
       commands = []

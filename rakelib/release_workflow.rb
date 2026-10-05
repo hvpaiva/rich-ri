@@ -59,7 +59,7 @@ module Release
         raise Error, "The origin repository must be #{GitHub::REPOSITORY}"
       end
 
-      @configuration.verify!
+      @configuration.verify!(release: true)
       command(%w[git fetch origin --tags])
       @current_branch = command(%w[git branch --show-current]).strip
       raise Error, "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
@@ -170,7 +170,7 @@ module Release
                    "Validation: `bundle exec rake check`. Release notes are in CHANGELOG.md.\n")
         body.flush
         command(["gh", "pr", "create", "--base", @base, "--head", branch, "--title", "chore: release #{tag}",
-                 "--body-file", body.path]).strip
+                 "--assignee", "@me", "--label", "release", "--body-file", body.path]).strip
       end
     end
 

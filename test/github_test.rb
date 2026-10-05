@@ -13,17 +13,21 @@ class GitHubTest < Minitest::Test
       scanning = %w[secret_scanning secret_scanning_push_protection].to_h { |key| [key, { "status" => "enabled" }] }
       policies = { "branch_policies" => [GitHub::Configuration::TAG_POLICY.merge("id" => 1)] }
       @state = {
-        "" => GitHub::Configuration::MERGE_SETTINGS.merge("permissions" => { "admin" => true },
-                                                          "security_and_analysis" => scanning),
+        "" => GitHub::Configuration::MERGE_SETTINGS.merge(GitHub::Configuration::REPOSITORY_SETTINGS).merge(
+          "permissions" => { "admin" => true }, "security_and_analysis" => scanning,
+          "topics" => GitHub::Configuration::TOPICS.reverse
+        ),
         "/rulesets" => [{ "id" => 1, "name" => "main" }, { "id" => 2, "name" => "tags" }],
         "/rulesets/1" => GitHub::Configuration.main_ruleset,
         "/rulesets/2" => GitHub::Configuration.tags_ruleset,
         "/environments/release" => { "deployment_branch_policy" => GitHub::Configuration::ENVIRONMENT_POLICY },
         "/environments/release/deployment-branch-policies" => policies,
         "/vulnerability-alerts" => {}, "/automated-security-fixes" => { "enabled" => true },
-        "/private-vulnerability-reporting" => { "enabled" => true }, "/immutable-releases" => { "enabled" => true },
-        "/labels/skip-changelog" => { "name" => "skip-changelog", "color" => "123456" }
+        "/private-vulnerability-reporting" => { "enabled" => true }, "/immutable-releases" => { "enabled" => true }
       }
+      GitHub::Configuration::LABELS.each do |label|
+        @state["/labels/#{label.fetch('name')}"] = label.merge("color" => "123456")
+      end
     end
 
     def request(path, method: "GET", body: nil, missing: false)
@@ -51,7 +55,8 @@ class GitHubTest < Minitest::Test
         state[path]["branch_policies"] << body.merge("id" => 1)
       when %r{/deployment-branch-policies/\d+\z}
         state[path.sub(%r{/\d+\z}, "")]["branch_policies"].reject! { |entry| entry["id"].to_s == path.split("/").last }
-      when "/labels" then state["/labels/skip-changelog"] = body
+      when "/labels" then state["/labels/#{body.fetch('name')}"] = body
+      when "/topics" then state[""]["topics"] = body.fetch("names")
       else state[path] = method == "DELETE" ? nil : body || { "enabled" => true }
       end
     end
@@ -114,6 +119,38 @@ class GitHubTest < Minitest::Test
     config.setup
 
     assert_empty config.changes
+  end
+
+  def test_presentation_settings_are_reconciled_without_holding_up_a_release
+    client = MemoryClient.new
+    client.state[""].merge!("homepage" => nil, "has_wiki" => true, "has_projects" => true, "topics" => ["ruby"])
+    client.state.delete("/labels/bug")
+    config = GitHub::Configuration.new(client: client, out: StringIO.new)
+    config.verify!(release: true)
+    error = assert_raises(GitHub::Error) { config.verify! }
+
+    assert_equal "- homepage, issues, wiki and projects\n- topics\n- bug label\n", error.message.lines[1..3].join
+    config.setup
+
+    assert_equal GitHub::Configuration::TOPICS, client.state[""].fetch("topics")
+    assert_equal [false, false], client.state[""].values_at("has_wiki", "has_projects")
+    assert_equal "bug", client.state.dig("/labels/bug", "name")
+  end
+
+  def test_a_release_still_needs_its_protections_and_the_labels_it_applies
+    defects = { "release label" => ->(state) { state.delete("/labels/release") },
+                "skip-changelog label" => ->(state) { state.delete("/labels/skip-changelog") },
+                "merge settings" => ->(state) { state[""]["allow_squash_merge"] = true },
+                "immutable releases" => ->(state) { state["/immutable-releases"] = { "enabled" => false } } }
+    defects.each do |name, change|
+      client = MemoryClient.new
+      change.call(client.state)
+      error = assert_raises(GitHub::Error) do
+        GitHub::Configuration.new(client: client, out: StringIO.new).verify!(release: true)
+      end
+
+      assert_includes error.message, "- #{name}\n"
+    end
   end
 
   def test_client_distinguishes_disabled_endpoint_from_forbidden_access
