@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "yaml"
 require_relative "../rakelib/tools"
 
 class ToolsTest < Minitest::Test
@@ -29,18 +28,6 @@ class ToolsTest < Minitest::Test
 
     assert_empty required - Tools.required
     assert_empty Tools.required - required
-  end
-
-  # mise installs the latest release of an unpinned tool, so CI would drift without failing.
-  def test_ci_installs_through_mise_only_the_versions_mise_toml_pins
-    jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml")).fetch("jobs")
-    installs = jobs.transform_values do |job|
-      mise = job.fetch("steps").select { |step| step["uses"].to_s.start_with?("jdx/mise-action@") }
-      mise.flat_map { |step| step.dig("with", "install_args").split }
-    end
-
-    assert_equal (Tools.pinned.keys - ["ruby"]).sort, installs.fetch("quality").sort
-    assert_empty installs.values.flatten - Tools.pinned.keys
   end
 
   def test_advice_distinguishes_pinned_inactive_and_system_programs

@@ -4,6 +4,7 @@ require "test_helper"
 require "yaml"
 require_relative "../rakelib/ci"
 require_relative "../rakelib/github_configuration"
+require_relative "../rakelib/tools"
 
 class CIWorkflowTest < Minitest::Test
   def test_required_check_covers_every_ci_job
@@ -83,6 +84,17 @@ class CIWorkflowTest < Minitest::Test
     refute jobs.fetch("attest").key?("if")
     assert_equal "needs.verify.outputs.publish == 'true'", jobs.fetch("publish").fetch("if")
     assert_equal %w[verify attest], jobs.fetch("publish").fetch("needs")
+  end
+
+  # mise installs the latest release of an unpinned tool, so CI would drift without failing.
+  def test_ci_installs_through_mise_only_the_versions_mise_toml_pins
+    installs = ci.fetch("jobs").transform_values do |job|
+      mise = job.fetch("steps").select { |step| step["uses"].to_s.start_with?("jdx/mise-action@") }
+      mise.flat_map { |step| step.dig("with", "install_args").split }
+    end
+
+    assert_equal (Tools.pinned.keys - ["ruby"]).sort, installs.fetch("quality").sort
+    assert_empty installs.values.flatten - Tools.pinned.keys
   end
 
   def test_reusable_ci_and_release_explicitly_require_the_full_suite

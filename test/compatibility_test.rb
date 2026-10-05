@@ -5,9 +5,7 @@ require_relative "../rakelib/compatibility"
 
 class CompatibilityTest < Minitest::Test
   def test_both_bundles_stay_in_a_private_directory_and_never_reach_the_active_gem_home
-    Dir.mktmpdir("rich-ri-compatibility-") do |home|
-      calls = []
-      Compatibility.run(home: home, runner: ->(environment, *command) { calls << [environment, command] })
+    recorded_run do |home, calls|
       environments = calls.map(&:first)
 
       assert_equal(%w[legacy legacy minimum minimum],
@@ -21,9 +19,7 @@ class CompatibilityTest < Minitest::Test
   end
 
   def test_the_minimum_bundle_reads_the_store_the_legacy_bundle_wrote
-    Dir.mktmpdir("rich-ri-compatibility-") do |home|
-      calls = []
-      Compatibility.run(home: home, runner: ->(environment, *command) { calls << [environment, command] })
+    recorded_run do |home, calls|
       store = File.join(home, "legacy-ri")
       _environment, generate = calls.fetch(1)
       environment, _tests = calls.fetch(3)
@@ -48,5 +44,15 @@ class CompatibilityTest < Minitest::Test
     end
 
     assert_match(/\Alegacy bundle: .+ -e exit 3 failed\z/, error.message)
+  end
+
+  private
+
+  def recorded_run
+    Dir.mktmpdir("rich-ri-compatibility-") do |home|
+      calls = []
+      Compatibility.run(home: home, runner: ->(environment, *command) { calls << [environment, command] })
+      yield home, calls
+    end
   end
 end

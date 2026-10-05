@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "program_support"
 require_relative "../rakelib/tools"
 
 class SetupTest < Minitest::Test
+  include ProgramSupport
+
   def setup
     @bin = Dir.mktmpdir("rich-ri-setup-")
     @log = File.join(@bin, "mise.log")
     program("bundle")
-    File.symlink(which("dirname"), File.join(@bin, "dirname"))
+    link_program(@bin, "dirname")
   end
 
   def teardown
@@ -54,16 +57,7 @@ class SetupTest < Minitest::Test
 
   private
 
-  def which(name)
-    ENV.fetch("PATH").split(File::PATH_SEPARATOR).map { |directory| File.join(directory, name) }
-       .find { |path| File.executable?(path) }
-  end
-
-  def program(name, body = "exit 0")
-    path = File.join(@bin, name)
-    File.write(path, "#!/bin/sh\n#{body}\n")
-    FileUtils.chmod(0o755, path)
-  end
+  def program(name, body = "exit 0") = write_program(@bin, name, body)
 
   def run_setup
     path = [@bin, File.dirname(RbConfig.ruby)].join(File::PATH_SEPARATOR)
