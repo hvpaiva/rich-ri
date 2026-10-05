@@ -97,6 +97,15 @@ module RichRI
       raise UsageError, "#{option} must be an integer from #{range.min} to #{range.max}, not #{text.inspect}"
     end
 
+    # Prefer an existing literal path, including commas, over RI's list form.
+    def directories(value)
+      listed = File.directory?(value) ? [value] : value.split(",")
+      refused = listed.empty? ? value : listed.find { |directory| !File.directory?(directory) }
+      raise UsageError, "--doc-dir must be a directory, not #{refused.inspect}" if refused
+
+      listed.map { |directory| RichRI.expand_path(directory) }
+    end
+
     def presentation_options
       @parser.separator ""
       @parser.separator "Presentation:"
@@ -142,13 +151,7 @@ module RichRI
       @parser.separator ""
       @parser.separator "Documentation sources:"
       @parser.on("-d", "--doc-dir=DIRS", "Read RI stores from these directories; repeatable.") do |value|
-        # Prefer an existing literal path, including commas, over RI's list form.
-        directories = File.directory?(value) ? [value] : value.split(",")
-        directories.each do |dir|
-          raise UsageError, "--doc-dir must be a directory, not #{dir.inspect}" unless File.directory?(dir)
-
-          @driver_options[:extra_doc_dirs] << RichRI.expand_path(dir)
-        end
+        @driver_options[:extra_doc_dirs].concat(directories(value))
       end
       @parser.on("--no-standard-docs", "Use only directories provided with --doc-dir.") do
         %i[system site home gems].each { |key| @driver_options[:"use_#{key}"] = false }
@@ -174,7 +177,11 @@ module RichRI
       @parser.on("--install-man[=DIR]", "Install or update the manual in a user man1 directory.") do |directory|
         @action = [:install_man, directory]
       end
-      @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") { |path| @driver_options[:dump_path] = path }
+      @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") do |path|
+        raise UsageError, "--dump requires a nonempty file path" if path.empty?
+
+        @driver_options[:dump_path] = path
+      end
       @parser.on("--[no-]profile", "Run Ruby's profiler (requires the profile gem).") do |value|
         @driver_options[:profile] = value
       end

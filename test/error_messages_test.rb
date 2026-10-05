@@ -16,6 +16,9 @@ class ErrorMessagesTest < Minitest::Test
     width = '--width must be an integer from 20 to 10000, not "19"'
     { %w[--doc-dir=/no/such/directory] => directory, %w[--doc-dir /no/such/directory] => directory,
       %w[-d /no/such/directory] => directory, %w[--width=19] => width, %w[--width 19] => width, %w[-w 19] => width,
+      %w[--doc-dir=] => '--doc-dir must be a directory, not ""',
+      %w[--doc-dir ,] => '--doc-dir must be a directory, not ","',
+      %w[--dump=] => "--dump requires a nonempty file path", ["--dump", ""] => "--dump requires a nonempty file path",
       %w[--bat-theme=] => "--bat-theme must be a nonempty string without control characters",
       %w[--pager-command=] => "--pager-command must be a nonempty string without control characters",
       %w[--style=method=wat] => 'style "method": invalid color "wat"' }.each do |args, message|
