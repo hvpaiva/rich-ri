@@ -1,65 +1,46 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "terminal_helper"
-require "shell_support"
+require "shell_harness"
 
-class ShellTest < Minitest::Test
-  include TerminalTestSupport
+class BashCompletionTest < Minitest::Test
+  include ShellHarness
 
-  def setup
-    @bin = Dir.mktmpdir("rich-ri-bin-")
-    File.write(File.join(@bin, "rich-ri"), <<~RUBY)
-      #!#{RbConfig.ruby}
-      $LOAD_PATH.unshift(#{File.join(TestSupport::ROOT, 'lib').inspect})
-      require "rich_ri"
-      exit RichRI::CLI.run(ARGV)
-    RUBY
-    FileUtils.chmod(0o755, File.join(@bin, "rich-ri"))
-    @env = TestSupport::ENVIRONMENT.merge(ShellSupport::ENVIRONMENT)
-                                   .merge("PATH" => "#{@bin}:#{ENV.fetch('PATH', '')}")
-  end
-
-  def teardown
-    FileUtils.remove_entry(@bin)
-  end
-
-  def shell(name, script, *)
-    flags = { "bash" => %w[--noprofile --norc], "zsh" => ["-f"], "fish" => ["--no-config"] }.fetch(name)
-    out, err, status = Open3.capture3(@env, name, *flags, "-c", script, "harness", *)
-
-    assert_predicate status, :success?, err
-    assert_empty err
-    out.lines.map(&:chomp)
-  rescue Errno::ENOENT
-    flunk "#{name} is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
-    skip "#{name} is not installed; CI runs all shell tests"
-  end
+  # What the function answers when bash calls it: its replies, each between
+  # brackets, then what it asked of compopt. bash breaks a word at each ":"
+  # and "=" outside quotes, hands over the pieces in COMP_WORDS and names, as
+  # the second argument, the text it is going to replace.
+  ANSWER = <<~'BASH'
+    source "$1"
+    source "$2/completions/rich-ri.bash"
+    asked=()
+    compopt() { asked+=("$*"); }
+    COMP_TYPE=$3 COMP_LINE=$4 COMP_POINT=$5 COMP_CWORD=$6 COLUMNS=100
+    typed=$7
+    shift 7
+    COMP_WORDS=("$@")
+    _rich_ri "${COMP_WORDS[0]}" "$typed" "${COMP_WORDS[COMP_CWORD - 1]}"
+    for reply in "${COMPREPLY[@]}"; do printf '[%s]\n' "$reply"; done
+    printf -- '--\n'
+    for option in "${asked[@]}"; do printf '%s\n' "$option"; done
+  BASH
 
   def test_bash_queries_instance_methods
-    result = shell("bash", <<~'BASH', bash_completion, TestSupport::ROOT, TestSupport::STORE)
-      source "$1"
-      source "$2/completions/rich-ri.bash"
-      COMP_WORDS=(rich-ri --no-standard-docs --doc-dir "$3" RichRIExample#ma)
-      COMP_CWORD=4 COMP_LINE="rich-ri --no-standard-docs --doc-dir $3 RichRIExample#ma"
-      COMP_POINT=${#COMP_LINE}
-      _rich_ri
-      printf '%s\n' "${COMPREPLY[@]}"
-    BASH
-    assert_equal ["RichRIExample#map"], result
+    replies, = bash_answer("rich-ri --no-standard-docs --doc-dir #{TestSupport::STORE} RichRIExample#ma",
+                           "--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#ma")
+
+    assert_equal ["RichRIExample#map"], replies
   end
 
   def test_bash_preserves_page_prefixes_split_by_wordbreaks
-    result = shell("bash", <<~'BASH', bash_completion, TestSupport::ROOT, TestSupport::STORE)
-      source "$1"
-      source "$2/completions/rich-ri.bash"
-      COMP_WORDS=(rich-ri --no-standard-docs --doc-dir "$3" "$3" : G)
-      COMP_CWORD=6 COMP_LINE="rich-ri --no-standard-docs --doc-dir $3 $3:G"
-      COMP_POINT=${#COMP_LINE}
-      _rich_ri
-      printf '%s\n' "${COMPREPLY[@]}"
-    BASH
-    assert_equal ["GUIDE.rdoc"], result
+    store = TestSupport::STORE
+    replies, = bash_answer("rich-ri #{store}:G", store, ":", "G")
+
+    assert_equal ["GUIDE.rdoc"], replies
+    replies, asked = bash_answer("rich-ri #{store[0..-2]}", store[0..-2])
+
+    assert_equal ["#{store}:"], replies
+    assert_includes asked, "-o nospace"
   end
 
   def test_bash_supports_equals_values_and_aliases
@@ -70,23 +51,71 @@ class ShellTest < Minitest::Test
       complete -F _rich_ri ri
       COMP_WORDS=(ri --color = a)
       COMP_CWORD=3 COMP_LINE='ri --color=a' COMP_POINT=12
-      _rich_ri
+      _rich_ri ri a =
       printf '%s\n' "${COMPREPLY[@]}"
     BASH
     assert_equal %w[always auto], result
   end
 
-  def test_zsh_handles_method_names_and_descriptions
-    result = shell("zsh", <<~'ZSH', TestSupport::ROOT, TestSupport::STORE)
-      compdef() { :; }
-      source "$1/completions/rich-ri.zsh"
-      compadd() { local arg; while [[ $1 != -- ]]; do shift; done; shift; printf '%s\n' "$@"; }
-      words=(rich-ri --no-standard-docs --doc-dir "$2" RichRIExample#ma)
-      CURRENT=5
-      _rich_ri
-    ZSH
-    assert_equal ["RichRIExample#map"], result
+  def test_bash_leaves_paths_to_readline
+    assert_equal [[], ["-o default"]], bash_answer("rich-ri --config ~/", "--config", "~/")
+    assert_equal [[], ["-o dirnames"]], bash_answer("rich-ri --doc-dir=do", "--doc-dir", "=", "do")
+    assert_equal [[], []], bash_answer("rich-ri NoSuchExample", "NoSuchExample")
+    assert_equal [["method="], ["-o nospace"]], bash_answer("rich-ri --style met", "--style", "met")
   end
+
+  private
+
+  # The replies and the compopt calls for a line whose pieces are the ones bash
+  # would break it into, the last being completed unless cword says otherwise.
+  def bash_answer(line, *pieces, typed: pieces.last, **at)
+    lines = shell("bash", ANSWER, bash_completion, TestSupport::ROOT, at.fetch(:type, 9).to_s, line,
+                  at.fetch(:point, line.length).to_s, at.fetch(:cword, pieces.length).to_s, typed, "rich-ri", *pieces)
+    replies, asked = lines.slice_after("--").to_a
+    [replies[0...-1].map { |reply| reply[1..-2] }, asked.to_a]
+  end
+end
+
+class ZshCompletionTest < Minitest::Test
+  include ShellHarness
+
+  # What the function hands to the completion system of zsh.
+  ANSWER = <<~ZSH
+    compdef() { :; }
+    source "$1/completions/rich-ri.zsh"
+    compadd() { print -r -- "compadd ${(j: :)${(@q-)@}}" }
+    compset() { print -r -- "compset ${(j: :)${(@q-)@}}" }
+    _files() { print -r -- "_files $*" }
+    shift
+    words=(rich-ri "$@")
+    CURRENT=${#words}
+    _rich_ri
+  ZSH
+
+  def test_zsh_handles_method_names_and_descriptions
+    assert_equal ["compadd -d descriptions -- 'RichRIExample#map'"], zsh_answer("RichRIExample#ma")
+    assert_equal ["compadd -d descriptions -- 'Inkwell#name='"], zsh_answer("Inkwell#name=")
+    assert_equal ["compadd -d descriptions -- 'Inkwell#<=' 'Inkwell#<=>'"], zsh_answer("'Inkwell#<=")
+    assert_equal ["compadd -d descriptions -- --color=always --color=auto"], zsh_answer("--color=a")
+    assert_equal ["compadd -d descriptions --"], zsh_answer("NoSuchExample")
+  end
+
+  def test_zsh_adds_no_space_to_a_word_to_be_continued_and_leaves_paths_to_the_shell
+    assert_equal ["compadd -S '' -d descriptions -- method="], zsh_answer("--style", "met")
+    assert_equal ["compadd -S '' -d descriptions -- #{TestSupport::STORE}:"], zsh_answer(TestSupport::STORE[0..-2])
+    assert_equal ["compset -P '--[^=]#='", "_files "], zsh_answer("--config", "~/")
+    assert_equal ["compset -P '--[^=]#='", "_files -/"], zsh_answer("--doc-dir=do")
+  end
+
+  private
+
+  def zsh_answer(*)
+    shell("zsh", ANSWER, TestSupport::ROOT, *)
+  end
+end
+
+class FishCompletionTest < Minitest::Test
+  include ShellHarness
 
   def test_fish_runs_actual_completion_with_descriptions
     result = shell("fish", <<~FISH, TestSupport::ROOT)
@@ -110,6 +139,27 @@ class ShellTest < Minitest::Test
     assert_equal ["RichRIExample#[]"], result
   end
 
+  def test_fish_completes_paths_by_itself_and_offers_nothing_for_an_unknown_name
+    FileUtils.mkdir_p(File.join(@bin, "docs spaced"))
+    File.write(File.join(@bin, "settings.yml"), "theme: terminal\n")
+    result = shell("fish", <<~FISH, TestSupport::ROOT, @bin)
+      source "$argv[2]/completions/rich-ri.fish"
+      cd $argv[3]
+      complete -C 'rich-ri --doc-dir do'
+      complete -C 'rich-ri --doc-dir=do'
+      complete -C 'rich-ri --config se'
+      complete -C 'rich-ri --doc-dir se'
+      complete -C 'rich-ri NoSuchExample'
+      complete -C 'rich-ri setti'
+    FISH
+    assert_equal(["docs spaced/", "--doc-dir=docs spaced/", "settings.yml"],
+                 result.map { |line| line.split("\t").first })
+  end
+end
+
+class ShellInsertionTest < Minitest::Test
+  include ShellInsertion
+
   def test_bash_inserts_completed_alias_method_and_quoted_directory
     check_insertion("bash")
   end
@@ -122,94 +172,52 @@ class ShellTest < Minitest::Test
     check_insertion("fish")
   end
 
+  def test_zsh_inserts_names_that_no_shell_takes_unquoted
+    check_names("zsh")
+  end
+
+  def test_fish_inserts_names_that_no_shell_takes_unquoted
+    check_names("fish")
+  end
+
   private
 
   def check_insertion(name)
-    result = inserted_arguments(name, "ri RichRIExample#rea")
-
-    assert_equal ["RichRIExample#ready?"], result, @terminal_output
-    result = inserted_arguments(name, "ri 'RichRIExample#[")
-
-    assert_equal ["RichRIExample#[]"], result, @terminal_output
+    assert_equal ["RichRIExample#ready?"], inserted_arguments(name, "ri RichRIExample#rea"), @terminal_output
+    assert_equal ["RichRIExample#[]"], inserted_arguments(name, "ri 'RichRIExample#["), @terminal_output
     directory = File.join(@bin, "docs spaced")
-    FileUtils.mkdir_p(directory)
 
-    result = inserted_arguments(name, "rich-ri --doc-dir '#{@bin}/docs s'")
-
-    assert_equal ["--doc-dir", "#{directory}/"], result, @terminal_output
+    ["rich-ri --doc-dir '#{@bin}/docs s'", "rich-ri --doc-dir ~/doc"].each do |line|
+      assert_equal ["--doc-dir", directory], inserted_arguments(name, line).map { |word| word.delete_suffix("/") },
+                   @terminal_output
+    end
     FileUtils.cp_r(Dir["#{TestSupport::STORE}/*"], directory)
     result = inserted_arguments(name, "ri --no-standard-docs --doc-dir '#{directory}' RichRIExample#rea")
 
     assert_equal ["--no-standard-docs", "--doc-dir", directory, "RichRIExample#ready?"], result, @terminal_output
-    config = File.join(@bin, "settings spaced.yml")
-    File.write(config, "theme: terminal\n")
     result = inserted_arguments(name, "rich-ri --config '#{@bin}/settings s'")
 
-    assert_equal ["--config", config], result, @terminal_output
-    result = inserted_arguments(name, "rich-ri --theme=da")
-
-    assert_equal ["--theme=dark"], result, @terminal_output
-    result = inserted_arguments(name, "rich-ri --style met")
-
-    assert_equal ["--style", "method="], result, @terminal_output
-    result = inserted_arguments(name, "rich-ri --style=met")
-
-    assert_equal ["--style=method="], result, @terminal_output
-  end
-
-  def inserted_arguments(name, line)
-    environment = @env.merge("RI" => ["--no-standard-docs", "--doc-dir", TestSupport::STORE].shelljoin,
-                             "HOME" => @bin, "HISTFILE" => File::NULL,
-                             "XDG_CONFIG_HOME" => File.join(@bin, "config"),
-                             "XDG_DATA_HOME" => File.join(@bin, "data"))
-    command = interactive_command(name, environment)
-    input = "#{line}\t\nexit\n"
-    output, status = terminal(*command, env: environment, prompt: "RICH_READY> ", input: input)
-    @terminal_output = output
-
-    assert_equal 0, status, output
-    output.scan(/__RICH_ARG__([^\r\n]*)/).flatten
-  rescue Errno::ENOENT
-    flunk "#{name} is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
-    skip "#{name} is not installed; CI runs all shell tests"
-  end
-
-  def interactive_command(name, environment)
-    completion = File.join(TestSupport::ROOT, "completions", "rich-ri.#{name}").shellescape
-    setup = File.join(@bin, name == "zsh" ? ".zshrc" : "#{name}rc")
-    if name == "fish"
-      script = <<~FISH
-        function fish_prompt; printf 'RICH_READY> '; end
-        function fish_greeting; end
-        source #{completion}
-        function rich-ri; printf '__RICH_ARG__%s\\n' $argv; end
-        alias ri rich-ri
-      FISH
-      return [name, "--private", "--no-config", "--interactive", "--init-command", script]
+    assert_equal ["--config", File.join(@bin, "settings spaced.yml")], result, @terminal_output
+    { "rich-ri --theme=da" => ["--theme=dark"], "rich-ri --style met" => ["--style", "method="],
+      "rich-ri --style=met" => ["--style=method="] }.each do |line, arguments|
+      assert_equal arguments, inserted_arguments(name, line), @terminal_output
     end
-
-    script = +"PS1='RICH_READY> '\n"
-    script << if name == "bash"
-                "source #{bash_completion.shellescape}\n"
-              else
-                "autoload -Uz compinit\ncompinit -D -u\nbindkey '^I' complete-word\n"
-              end
-    script << "source #{completion}\nrich-ri() { printf '__RICH_ARG__%s\\n' \"$@\"; }\nalias ri=rich-ri\n"
-    script << "complete -o filenames -F _rich_ri ri\n" if name == "bash"
-    File.write(setup, script)
-    return [name, "--noprofile", "--rcfile", setup, "-i"] if name == "bash"
-
-    environment["ZDOTDIR"] = @bin
-    # Ubuntu's global zshrc runs compinit before this fixture and may prompt
-    # about system directory permissions. Load only our controlled user rc.
-    [name, "-d", "-i"]
   end
 
-  def bash_completion
-    completion = ShellSupport.bash_completion
-    return completion if completion
+  # Operators end in characters at which a shell breaks words or that it reads
+  # as its own; a class can have the name of a directory, and a gem be given in
+  # two steps, before and after its colon.
+  def check_names(name)
+    { "rich-ri Inkwell#name=" => "Inkwell#name=", "rich-ri 'Inkwell#name=" => "Inkwell#name=",
+      "rich-ri Inkwell#=~" => "Inkwell#=~", "rich-ri 'Inkwell#<=>" => "Inkwell#<=>",
+      "rich-ri Inkwell#fil" => "Inkwell#fill", "rich-ri RichRIExam" => "RichRIExample",
+      "rich-ri #{TestSupport::STORE[0..-2]}\tG" => "#{TestSupport::STORE}:GUIDE.rdoc",
+      "rich-ri NoSuchExam" => "NoSuchExam" }.each do |line, argument|
+      assert_equal [argument], inserted_arguments(name, line), "#{line.inspect}\n#{@terminal_output}"
+    end
+    environment = TestSupport.gem_environment.merge("RI" => "--no-system --no-site --no-home")
+    result = inserted_arguments(name, "rich-ri inkwell-n\tB", env: environment)
 
-    flunk "bash-completion 2.x with a compatible bash is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
-    skip "bash-completion 2.x with a compatible bash is unavailable; CI runs all shell tests"
+    assert_equal ["inkwell-native:BUILDING.rdoc"], result, @terminal_output
   end
 end

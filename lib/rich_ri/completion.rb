@@ -1,57 +1,80 @@
 # frozen_string_literal: true
 
 module RichRI
-  # The protocol is tab-separated value/description pairs. The words are read
-  # by the parser of the command itself, so that what is offered is what the
-  # command accepts, but only the choice of sources reaches the driver:
-  # pressing Tab can never start a pager, server or cache dump.
+  # Answers a shell that asks what may follow the words typed so far. The
+  # answer is one candidate a line, as "value<TAB>description", and a last
+  # line saying what the script is to do: ":" offers the candidates,
+  # ":nospace" offers the only one as the start of a longer word, and
+  # ":files" or ":directories" leave the word to the shell, which completes
+  # the name of a file better than this could: it knows "~", its variables and
+  # its own quoting.
+  #
+  # The words are read by the parser of the command itself, so that what is
+  # offered is what the command accepts, but only the choice of sources
+  # reaches the driver: pressing Tab can never start a pager, server or cache dump.
   class Completion
     SHELLS = %w[bash zsh fish].freeze
+    # The options whose value is a path, and what the shell completes there.
+    PATHS = { "--config" => "files", "--dump" => "files", "--doc-dir" => "directories", "-d" => "directories",
+              "--install-man" => "directories" }.freeze
+    # A candidate that only starts a word: a class before its method, a source
+    # before its page, an option or a style role before its value. A method
+    # name may itself end in "=", after one of the other marks.
+    UNFINISHED = /[:#.]\z|\A[^:#.]*=\z/
+
+    # Candidates, each a value and its description, and what to do with them.
+    Answer = Struct.new(:candidates, :action)
 
     def write(words, io)
-      # Bound discovery even when a documentation store is unusually large.
-      Timeout.timeout(4) do
-        words = words.drop(1).map { |word| shell_word(word) } if %w[--shell=bash --shell=zsh].include?(words.first)
-        candidates(words).each do |value, description|
-          next if [value, description].any? { |text| text.match?(/[\t\r\n]/) || !RichRI.printable?(text) }
-
-          io.puts "#{value}\t#{description}"
-        end
-      end
-    rescue StandardError
-      # A broken/missing RI store must not interrupt shell input.
-      nil
+      io.puts lines(words)
     end
 
-    def candidates(words)
-      return [] if words[0...-1].include?("--install-man")
+    def answer(words)
+      return Answer.new([], nil) if words[0...-1].include?("--install-man")
 
       current, option, prefix = context(words)
-      values = option_values(option, current)
-      values ||= if current.start_with?("-") && !words[0...-1].include?("--")
-                   Options.new.entries
-                 else
-                   names(words[0...-1], current).map { |v| [v, ""] }
-                 end
-      values.select { |value, _| value.start_with?(current) }
-            .map { |value, desc| [prefix + value, desc] }.uniq.sort
+      return Answer.new([], PATHS.fetch(option)) if PATHS.key?(option)
+
+      values = option ? option_values(option, current) : word_values(words[0...-1], current)
+      found = values.select { |value, _| value.start_with?(current) }
+                    .map { |value, description| [prefix + value, description] }.uniq.sort
+      Answer.new(found, ("nospace" if found.one? && found.first.first.match?(UNFINISHED)))
     end
 
     private
 
+    def lines(words)
+      # Bound discovery even when a documentation store is unusually large.
+      Timeout.timeout(4) do
+        words = words.drop(1).map { |word| shell_word(word) } if %w[--shell=bash --shell=zsh].include?(words.first)
+        found = answer(words)
+        # A line break or a tab inside a candidate would pass for the protocol's own.
+        shown = found.candidates.reject do |pair|
+          pair.any? { |text| text.match?(/[\t\r\n]/) || !RichRI.printable?(text) }
+        end
+        [*shown.map { |value, description| "#{value}\t#{description}" }, ":#{found.action}"]
+      end
+    rescue StandardError
+      # A broken/missing RI store must not interrupt shell input.
+      [":"]
+    end
+
     def option_values(option, current)
       case option
-      when nil then nil
       when "--color" then Configuration::COLOR_MODES.map { |v| [v, "Color mode"] }
       when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
       when "--completion" then SHELLS.map { |v| [v, "Shell completion script"] }
       when "--theme" then Theme::NAMES.map { |v| [v, "Page theme"] }
       when "--color-depth" then Theme::DEPTHS.map { |v| [v, "Terminal color depth"] }
       when "--style" then styles(current)
-      when "--config" then paths(current)
-      when "--doc-dir", "-d", "--install-man" then directories(current)
       else []
       end
+    end
+
+    def word_values(before, current)
+      return Options.new.entries if current.start_with?("-") && !before.include?("--")
+
+      names(before, current).map { |name| [name, ""] }
     end
 
     def shell_word(word)
@@ -92,22 +115,6 @@ module RichRI
       return [] if prefix.include?("=")
 
       RichRI::COLORS.keys.map { |role| ["#{role}=", "Override #{role} style"] }
-    end
-
-    def directories(prefix)
-      paths(prefix, directories_only: true).map { |path, _description| [path, "Documentation directory"] }
-    end
-
-    def paths(prefix, directories_only: false)
-      # Escape glob metacharacters typed by the user; do not interpret patterns.
-      escaped = prefix.gsub(/[\[\]{}*?\\]/) { |char| "\\#{char}" }
-      Dir.glob("#{escaped}*").filter_map do |path|
-        directory = File.directory?(path)
-        next if directories_only && !directory
-        next unless directory || File.file?(path)
-
-        [directory ? "#{path}/" : path, directory ? "Directory" : "Configuration file"]
-      end
     end
 
     # A command line the reader refuses has no names to offer: it is read

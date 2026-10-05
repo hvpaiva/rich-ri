@@ -14,11 +14,11 @@ class CompletionTest < Minitest::Test
   end
 
   def values(*words)
-    RichRI::Completion.new.candidates(words).map(&:first)
+    RichRI::Completion.new.answer(words).candidates.map(&:first)
   end
 
   def test_options_have_descriptions_for_both_boolean_forms
-    candidates = RichRI::Completion.new.candidates(["--"])
+    candidates = RichRI::Completion.new.answer(["--"]).candidates
 
     assert(candidates.all? { |_value, desc| !desc.empty? })
     %w[--all --no-all --interactive --no-interactive --color= --completion --man
@@ -50,7 +50,7 @@ class CompletionTest < Minitest::Test
       out, err, status = cli("--complete", *arguments, "RichRIExample#ma", docs: false, env: { "RI" => ri })
 
       assert_predicate status, :success?, err
-      assert_empty out
+      assert_equal ":\n", out
       assert_empty err
     end
     assert_includes values("--no-standard-docs", "--doc-dir", TestSupport::STORE,
@@ -79,7 +79,7 @@ class CompletionTest < Minitest::Test
     out, err, status = cli("--complete", *args, "--interactive", "RichRIExample#ma", docs: false)
 
     assert_predicate status, :success?, err
-    assert_empty out
+    assert_equal ":\n", out
     assert_empty err
   end
 
@@ -94,7 +94,7 @@ class CompletionTest < Minitest::Test
 
       assert_predicate status, :success?, err
       assert_empty err
-      assert_equal "RichRIExample#map\t\n", out, action
+      assert_equal "RichRIExample#map\t\n:\n", out, action
     end
   end
 
@@ -103,26 +103,14 @@ class CompletionTest < Minitest::Test
     out, err, status = cli("--complete", "inkwell-n", docs: false, env: environment)
 
     assert_predicate status, :success?, err
-    assert_empty out
+    assert_equal ":\n", out
     out, err, status = cli("--complete", "--gems", "inkwell-n", docs: false, env: environment)
 
     assert_predicate status, :success?, err
-    assert_equal "inkwell-native:\t\n", out
+    assert_equal "inkwell-native:\t\n:nospace\n", out
     with_environment("RI" => "--no-standard-docs --no-gems") do
       assert_includes values("--doc-dir", TestSupport::STORE, "RichRIExample#ma"), "RichRIExample#map"
     end
-  end
-
-  def test_protocol_discards_terminal_controls_in_values_and_descriptions
-    completion_class = Class.new(RichRI::Completion) do
-      def candidates(_words)
-        [["Valid", "Description"], ["Bad\u009bName", ""], ["Bad\u202eName", ""], ["Other", "bad\ttext"]]
-      end
-    end
-    output = StringIO.new
-    completion_class.new.write([], output)
-
-    assert_equal "Valid\tDescription\n", output.string
   end
 
   def test_names_holding_terminal_controls_are_not_candidates
@@ -144,23 +132,67 @@ class CompletionTest < Minitest::Test
     assert_includes instance.complete("rub"), "ruby:"
     assert_empty instance.complete("missing:GUIDE")
   end
+end
 
-  def test_directory_completion_keeps_spaces_and_handles_glob_characters
-    Dir.mktmpdir do |dir|
-      FileUtils.mkdir_p(File.join(dir, "docs [one]"))
+# The answer as the shell scripts read it: candidates, then what to do with them.
+class CompletionProtocolTest < Minitest::Test
+  def test_protocol_discards_terminal_controls_in_values_and_descriptions
+    completion_class = Class.new(RichRI::Completion) do
+      def answer(_words)
+        RichRI::Completion::Answer.new([["Valid", "Description"], ["Bad\u009bName", ""], ["Bad\u202eName", ""],
+                                        ["Other", "bad\ttext"], ["Two\nlines", ""]], "nospace")
+      end
+    end
+    output = StringIO.new
+    completion_class.new.write([], output)
 
-      assert_equal ["#{dir}/docs [one]/"], values("-d", "#{dir}/docs [")
-      assert_equal ["--doc-dir=#{dir}/docs [one]/"], values("--doc-dir=#{dir}/do")
-      assert_equal ["--install-man=#{dir}/docs [one]/"], values("--install-man=#{dir}/do")
-      assert_empty values("--no-standard-docs", "--install-man", "#{dir}/do")
-      assert_empty values("--doc-dir", TestSupport::STORE, "--install-man", "RichRIExample")
+    assert_equal "Valid\tDescription\n:nospace\n", output.string
+  end
+
+  def test_the_name_of_a_file_or_directory_is_left_to_the_shell
+    { ["--config", ""] => "files", ["--config", "~/.config/ri"] => "files", ["--config=$HOME/"] => "files",
+      ["--dump", "cache"] => "files", ["--dump="] => "files", ["-d", "~/"] => "directories",
+      ["--doc-dir", "docs [one"] => "directories", ["--doc-dir=do"] => "directories",
+      ["-ad", ""] => "directories", ["--install-man=/usr/"] => "directories" }.each do |words, action|
+      answer = RichRI::Completion.new.answer(words)
+
+      assert_empty answer.candidates, words.inspect
+      assert_equal action, answer.action, words.inspect
+    end
+    assert_equal ":directories\n", cli("--complete", "--shell=bash", "--doc-dir", "'docs d", docs: false).first
+    assert_equal ":files\n", cli("--complete", "--config=", docs: false).first
+  end
+
+  def test_nothing_follows_install_man_and_a_plain_value_has_no_candidates
+    assert_equal ":\n", cli("--complete", "--no-standard-docs", "--install-man", "/usr/do", docs: false).first
+    assert_equal ":\n", cli("--complete", "--doc-dir", TestSupport::STORE, "--install-man", "Rich", docs: false).first
+    assert_equal ":\n", cli("--complete", "--width", "", docs: false).first
+    assert_equal ":\n", cli("--complete", "--pager-command", "RichRIExample", docs: false).first
+  end
+
+  def test_a_lone_candidate_that_only_starts_a_word_asks_for_no_space
+    sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
+    { ["--style", "met"] => "nospace", ["--style=hea"] => "nospace", ["--color="] => nil, ["--color-d"] => nil,
+      [*sources, "RichRIExample#rea"] => nil, [*sources, "RichRIExample::N"] => nil, [*sources, "RichRIExample"] => nil,
+      [*sources, "RichRIExample.bu"] => nil, [*sources, TestSupport::STORE[0..-3]] => "nospace",
+      [*sources, "RichRIEx"] => nil, ["--completion=ba"] => nil }.each do |words, action|
+      answer = RichRI::Completion.new.answer(words)
+
+      refute_empty answer.candidates, words.inspect
+      action ? assert_equal(action, answer.action, words.inspect) : assert_nil(answer.action, words.inspect)
+    end
+    gems = ["--no-system", "--no-site", "--no-home"]
+
+    { "Inkwell#name=" => "Inkwell#name=\t\n:\n", "Inkwell#[]" => "Inkwell#[]\t\nInkwell#[]=\t\n:\n",
+      "Inkwell#=~" => "Inkwell#=~\t\n:\n", "inkwell-2" => "inkwell-2:\t\n:nospace\n" }.each do |name, expected|
+      assert_equal expected, cli("--complete", *gems, name, docs: false, env: TestSupport.gem_environment).first
     end
   end
 
   def test_bash_dequoting_handles_unclosed_quotes_without_evaluating_substitutions
     completion_class = Class.new(RichRI::Completion) do
-      def candidates(words)
-        words.map { |word| [word, ""] }
+      def answer(words)
+        RichRI::Completion::Answer.new(words.map { |word| [word, ""] }, nil)
       end
     end
     Dir.mktmpdir do |dir|
@@ -169,7 +201,7 @@ class CompletionTest < Minitest::Test
       words = ["--shell=bash", "'open quote", '"double quote"', "path\\ with\\ spaces", "$(touch #{marker})"]
       completion_class.new.write(words, output)
 
-      assert_equal(["open quote", "double quote", "path with spaces", "$(touch #{marker})"],
+      assert_equal(["open quote", "double quote", "path with spaces", "$(touch #{marker})", ":\n"],
                    output.string.lines.map { |line| line.split("\t").first })
       refute_path_exists marker
     end
@@ -179,27 +211,27 @@ class CompletionTest < Minitest::Test
     out, err, status = cli("--complete", "--doc-dir=/no/such/directory", "X", docs: false)
 
     assert_predicate status, :success?, err
-    assert_empty out
+    assert_equal ":\n", out
     assert_empty err
     hostile_defaults = { "RI" => "--server --dump=/no/such/cache" }
     out, err, status = cli("--complete", "--no-standard-docs", "--", "--h", docs: false, env: hostile_defaults)
 
     assert_predicate status, :success?, err
-    assert_empty out
+    assert_equal ":\n", out
   end
 
   def test_flag_protocol_includes_descriptions
     out, err, status = cli("--complete", "--no-all", docs: false)
 
     assert_predicate status, :success?, err
-    assert_equal "--no-all\tInclude all methods in a class page.\n", out
+    assert_equal "--no-all\tInclude all methods in a class page.\n:\n", out
   end
 end
 
 # What is offered follows what the command itself would accept.
 class CommandLineCompletionTest < Minitest::Test
   def values(*words)
-    RichRI::Completion.new.candidates(words).map(&:first)
+    RichRI::Completion.new.answer(words).candidates.map(&:first)
   end
 
   def test_names_are_not_offered_for_a_command_line_the_lookup_refuses
@@ -215,10 +247,10 @@ class CommandLineCompletionTest < Minitest::Test
       out, err, status = cli("--complete", *sources, *words, "RichRIExample#ma", docs: false, env: environment)
 
       assert_predicate status, :success?, err
-      assert_empty out, [words, environment].inspect
+      assert_equal ":\n", out, [words, environment].inspect
       assert_empty err
     end
-    assert_equal "RichRIExample#map\t\n", cli("--complete", *sources, "-a", "RichRIExample#ma", docs: false).first
+    assert_equal "RichRIExample#map\t\n:\n", cli("--complete", *sources, "-a", "RichRIExample#ma", docs: false).first
   end
 
   def test_the_word_after_an_option_is_its_value_only_where_the_parser_takes_it
@@ -238,7 +270,7 @@ end
 
 class ConfigurationCompletionTest < Minitest::Test
   def values(*words)
-    RichRI::Completion.new.candidates(words).map(&:first)
+    RichRI::Completion.new.answer(words).candidates.map(&:first)
   end
 
   def test_themes_depths_and_style_roles_are_discoverable
@@ -252,19 +284,6 @@ class ConfigurationCompletionTest < Minitest::Test
     %w[--bat-theme --shell-theme --pager-command].each do |flag|
       assert_empty values(flag, "RichRIExample")
       assert_empty values("#{flag}=RichRIExample")
-    end
-  end
-
-  def test_config_completion_keeps_spaces_and_handles_glob_characters
-    Dir.mktmpdir do |dir|
-      FileUtils.mkdir_p(File.join(dir, "config [one]"))
-      config = File.join(dir, "config [one]", "settings spaced.yml")
-      File.write(config, "theme: terminal\n")
-
-      assert_equal ["#{dir}/config [one]/"], values("--config", "#{dir}/config [")
-      assert_equal [config], values("--config", "#{dir}/config [one]/settings s")
-      assert_equal ["--config=#{config}"], values("--config=#{dir}/config [one]/settings s")
-      assert_empty values("--doc-dir", "#{dir}/config [one]/settings s")
     end
   end
 
@@ -285,7 +304,7 @@ class ConfigurationCompletionTest < Minitest::Test
 
         assert_predicate status, :success?, err
         assert_empty err
-        assert_equal "RichRIExample#map\t\n", out
+        assert_equal "RichRIExample#map\t\n:\n", out
       end
       refute_path_exists marker
     end
@@ -301,17 +320,17 @@ class ConfigurationCompletionTest < Minitest::Test
 
       assert_predicate status, :success?, err
       assert_empty err
-      assert_equal "RichRIExample#map\t\n", out
+      assert_equal "RichRIExample#map\t\n:\n", out
       out, err, status = cli("--complete", "--pager-command", "--no-home", "RichRIExample#ma",
                              docs: false, env: environment)
 
       assert_predicate status, :success?, err
-      assert_equal "RichRIExample#map\t\n", out
+      assert_equal "RichRIExample#map\t\n:\n", out
       out, err, status = cli("--complete", "--no-home", "RichRIExample#ma", docs: false, env: environment)
 
       assert_predicate status, :success?, err
       assert_empty err
-      assert_empty out
+      assert_equal ":\n", out
     end
   end
 
@@ -323,14 +342,14 @@ class ConfigurationCompletionTest < Minitest::Test
       out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
 
       assert_predicate status, :success?, err
-      assert_empty out
+      assert_equal ":\n", out
       assert_empty err
       out, err, status = cli("--complete", "--no-config", "--no-standard-docs", "--doc-dir", TestSupport::STORE,
                              "RichRIExample#ma", docs: false, env: environment)
 
       assert_predicate status, :success?, err
       assert_empty err
-      assert_equal "RichRIExample#map\t\n", out
+      assert_equal "RichRIExample#map\t\n:\n", out
     end
   end
 

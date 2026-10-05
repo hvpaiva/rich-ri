@@ -44,6 +44,12 @@ module TestSupport
     end
   end
 
+  # The RI data of one of those gems, which is a store to give to --doc-dir too.
+  def self.gem_store(name)
+    version, platform = GEMS.fetch(name)
+    File.join(gem_home, "doc", [name, version, *(platform unless platform == "ruby")].join("-"), "ri")
+  end
+
   def self.install_gem(home, name, version, platform)
     source = File.join(__dir__, "fixtures/gems", name)
     files = Dir.glob("**/*.{rb,rdoc}", base: source).sort
