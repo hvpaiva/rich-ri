@@ -3,14 +3,6 @@
 require "test_helper"
 
 class ErrorMessagesTest < Minitest::Test
-  def with_config(data)
-    Dir.mktmpdir("rich-ri-messages-") do |dir|
-      path = File.join(dir, "config.yml")
-      File.write(path, data.is_a?(String) ? data : Psych.dump(data))
-      yield path
-    end
-  end
-
   def test_refused_option_values_say_why_in_every_spelling
     directory = '--doc-dir must be a directory, not "/no/such/directory"'
     width = '--width must be an integer from 20 to 10000, not "19"'

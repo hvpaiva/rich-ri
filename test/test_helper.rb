@@ -41,6 +41,15 @@ module TestSupport
     RichRI::Driver.new(options.driver_options)
   end
 
+  # A temporary configuration file holding the given YAML text or data.
+  def with_config(data)
+    Dir.mktmpdir("rich-ri-config-") do |dir|
+      path = File.join(dir, "config.yml")
+      File.write(path, data.is_a?(String) ? data : Psych.dump(data))
+      yield path
+    end
+  end
+
   def with_environment(values)
     previous = values.to_h { |key, _value| [key, ENV.fetch(key, nil)] }
     values.each { |key, value| ENV[key] = value }
