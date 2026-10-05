@@ -3,6 +3,7 @@
 require "open3"
 require "tmpdir"
 require "rubygems/package"
+require_relative "tools"
 
 gem_command = [RbConfig.ruby, "-rrubygems/gem_runner", "-e", "Gem::GemRunner.new.run(ARGV)", "--"]
 
@@ -16,7 +17,7 @@ end
 namespace :package do
   desc "Install the gem into an empty gem home and exercise the installed CLI"
   task :check, [:artifact] do |_task, args|
-    require_tool("man")
+    Tools.require!("man")
     require_relative "../lib/rich_ri/version"
     Dir.mktmpdir("rich-ri-package-") do |dir|
       package = args[:artifact] ? File.expand_path(args[:artifact]) : File.join(dir, "rich-ri.gem")

@@ -6,13 +6,7 @@ require "fileutils"
 require_relative "rakelib/tools"
 
 # A shallow checkout may not have origin/main.
-def default_base
-  "origin/main" if system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL)
-end
-
-def require_tool(name)
-  abort Tools.missing(name) unless Tools.available?(name)
-end
+default_base = -> { "origin/main" if system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL) }
 
 Rake::TestTask.new(:test) do |task|
   task.description = "Run all tests; shell integrations missing locally are skipped"
@@ -80,41 +74,42 @@ end
 namespace :lint do
   desc "Check branch commits and optional PR_TITLE/PR_BODY (range defaults to origin/main..HEAD)"
   task :commits, [:range] do |_task, args|
-    sh RbConfig.ruby, "bin/lint-commits", args[:range] || (default_base ? "#{default_base}..HEAD" : "HEAD")
+    base = default_base.call
+    sh RbConfig.ruby, "bin/lint-commits", args[:range] || (base ? "#{base}..HEAD" : "HEAD")
   end
 
   desc "Check CHANGELOG.md and the entry for user-visible changes since base (origin/main); SKIP_CHANGELOG=1 waives it"
   task :changelog, [:base] do |_task, args|
-    sh RbConfig.ruby, "bin/lint-changelog", *(args[:base] || default_base)
+    sh RbConfig.ruby, "bin/lint-changelog", *(args[:base] || default_base.call)
   end
 
   desc "Check Bash scripts with ShellCheck"
   task :shell do
-    require_tool("shellcheck")
+    Tools.require!("shellcheck")
     sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
   end
 
   desc "Check spelling in source and documentation"
   task :spelling do
-    require_tool("typos")
+    Tools.require!("typos")
     sh "typos"
   end
 
   desc "Check GitHub Actions security (offline)"
   task :workflows do
-    require_tool("zizmor")
+    Tools.require!("zizmor")
     sh "zizmor", "--offline", "--no-progress", ".github/workflows"
   end
 
   desc "Check local documentation links"
   task :links do
-    require_tool("lychee")
+    Tools.require!("lychee")
     sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md", ".github/*.md"]
   end
 
   desc "Check the manual with groff"
   task :man do
-    require_tool("groff")
+    Tools.require!("groff")
     require "open3"
     _out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-man", "man/man1/rich-ri.1")
     abort err unless status.success? && err.empty?

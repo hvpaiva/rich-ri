@@ -25,7 +25,7 @@ class ToolsTest < Minitest::Test
 
   def test_every_program_a_task_requires_is_pinned_or_a_known_system_program
     sources = [File.join(TestSupport::ROOT, "Rakefile"), *Dir[File.join(TestSupport::ROOT, "rakelib/*.rake")]]
-    required = sources.flat_map { |path| File.read(path).scan(/require_tool\("([^"]+)"\)/) }.flatten.uniq
+    required = sources.flat_map { |path| File.read(path).scan(/Tools\.require!\("([^"]+)"\)/) }.flatten.uniq
 
     assert_empty required - Tools.required
     assert_empty Tools.required - required
