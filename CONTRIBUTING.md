@@ -58,6 +58,18 @@ mechanics, keep examples runnable and place details in the relevant guide.
 
 ## Check your work
 
+For documentation-only changes:
+
+```sh
+bundle exec rake docs:check
+```
+
+This checks local links, spelling, the generated manual and runnable examples.
+See [documentation checks](docs/development.md#documentation-checks) for which
+files qualify for the shorter CI run.
+
+For code, dependencies, scripts or workflow changes:
+
 ```sh
 bundle exec rake check
 ```
@@ -73,7 +85,7 @@ For a shorter loop, `bundle exec rake` runs Ruby lint and tests. To run one file
 bundle exec ruby -Ilib -Itest test/highlighter_test.rb
 ```
 
-CI also tests Linux and macOS, supported Ruby versions, current and minimum
+The full CI suite also tests Linux and macOS, supported Ruby versions, current and minimum
 dependencies, and an older RI store. See [compatibility checks](docs/development.md#compatibility-checks)
 for the local commands, and [performance measurements](docs/development.md#performance)
 to compare startup, rendering and completion.
