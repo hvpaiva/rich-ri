@@ -56,7 +56,8 @@ module RichRI
 
     def incompatible_cache?(error)
       (error.is_a?(TypeError) && error.message.match?(/class RDoc::Markup::\w+ not a struct/)) ||
-        (error.is_a?(ArgumentError) && error.message == "dump format error")
+        (error.is_a?(ArgumentError) &&
+          (error.message == "dump format error" || error.message.start_with?("undefined class/module RDoc::")))
     end
 
     def color?(mode)

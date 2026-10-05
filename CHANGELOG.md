@@ -22,6 +22,8 @@ User-visible changes are recorded here. This project follows
   where `dark` used to paint every role white.
 - Type signatures no longer disable bat for the rest of the page, and a bat that
   prints nothing no longer stops it.
+- Documentation stored by an RDoc class that the running RDoc lacks is reported
+  as an incompatible cache.
 
 ## [0.1.0] - 2026-10-05
 

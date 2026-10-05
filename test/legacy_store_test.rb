@@ -53,4 +53,19 @@ class LegacyStoreTest < Minitest::Test
       refute_includes err, "from "
     end
   end
+
+  def test_data_of_a_class_this_rdoc_does_not_define_explains_recovery
+    Dir.mktmpdir do |dir|
+      cache = File.join(dir, "old.ri")
+      source = "module RDoc; class NoLongerDefined; end; end; " \
+               "File.binwrite(ARGV[0], Marshal.dump(RDoc::NoLongerDefined.new))"
+      _out, err, status = Open3.capture3(RbConfig.ruby, "-e", source, cache)
+
+      assert_predicate status, :success?, err
+      _out, err, status = cli("--dump", cache, docs: false)
+
+      refute_predicate status, :success?
+      assert_includes err, "Regenerate the documentation"
+    end
+  end
 end
