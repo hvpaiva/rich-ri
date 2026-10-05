@@ -214,7 +214,7 @@ module Manual
       This setting applies to built-in styles; bat handles its own color depth.
       .TP
       .B width
-      Integer of at least 20 terminal columns. The default follows terminal width
+      Integer from 20 to 10000 terminal columns. The default follows terminal width
       minus two, bounded between 30 and 96. Redirected output normally uses 78.
       Code blocks preserve their original content and indentation.
       .TP
@@ -317,7 +317,7 @@ module Manual
       Override the corresponding file keys. Explicit flags take precedence.
       .TP
       .B RICH_RI_WIDTH
-      Override prose width; an integer of at least 20.
+      Override prose width; an integer from 20 to 10000.
       .TP
       .B RICH_RI_STYLE_<ROLE>
       Override one style, using its uppercase role name, for example
@@ -328,6 +328,9 @@ module Manual
       .TP
       .B RICH_RI_SHELL_THEME
       Override shell_theme, below --shell-theme. Default: ansi.
+      .TP
+      .B RICH_RI_DEBUG
+      When nonempty, a failure is followed by the error class and its backtrace.
       .TP
       .B RI
       Default options, parsed as shell words without shell evaluation.

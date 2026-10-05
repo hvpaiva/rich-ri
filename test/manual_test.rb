@@ -212,6 +212,17 @@ class ManualDisplayTest < Minitest::Test
     assert_includes files, '$XDG_DATA_HOME/man/man1/rich\-ri.1'
   end
 
+  def test_page_describes_every_variable_and_limit_that_help_names
+    help = RichRI::Options.new.parser.to_s
+    source = ::Manual.render
+    variables = help.scan(/RICH_RI_[A-Z_]+(?:<ROLE>)?/).uniq
+
+    assert_includes variables, "RICH_RI_DEBUG"
+    variables.each { |name| assert_includes source, name }
+    assert_includes help, "(20 to 10000)"
+    assert_equal 2, source.scan("from 20 to 10000").length
+  end
+
   # A formatter without a distribution's adjustments typesets these characters
   # as typography: a hyphen, a curly quote, an accent.
   TYPOGRAPHY = { "-" => "u2010", "'" => "u2019", "`" => "u2018", "^" => "u02C6", "~" => "u02DC" }.freeze
