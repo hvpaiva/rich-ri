@@ -64,10 +64,13 @@ module Changelog
     problems = problems(read(root))
     return problems unless base
 
-    paths = CI.changed_paths("#{base}...HEAD", root)
-    raise Error, "Cannot compare HEAD with #{base}" unless paths
+    entry_missing?(changed_paths(root, base)) ? problems << ENTRY_REQUIRED : problems
+  end
 
-    entry_missing?(paths) ? problems << ENTRY_REQUIRED : problems
+  def self.changed_paths(root, base)
+    CI.changed_paths("#{base}...HEAD", root)
+  rescue CI::Error => e
+    raise Error, "Cannot compare HEAD with #{base}: #{e.message}"
   end
 
   def self.read(root)

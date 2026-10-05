@@ -29,14 +29,18 @@ module CI
     return "full" unless [base, head].all? { |sha| sha&.match?(/\A[0-9a-f]{40}\z/) && sha != "0" * 40 }
 
     paths = changed_paths("#{base}#{pull_request ? '...' : '..'}#{head}", root)
-    paths&.any? && paths.all? { |path| documentation?(path) } ? "docs" : "full"
+    paths.any? && paths.all? { |path| documentation?(path) } ? "docs" : "full"
+  rescue Error
+    "full"
   end
 
   # Git paths are bytes: the locale must not decide whether they can be split.
   def self.changed_paths(range, root)
-    output, _error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", "--end-of-options",
-                                            range, "--", chdir: root, binmode: true)
-    output.split("\0").map { |path| path.force_encoding(Encoding::UTF_8) } if status.success?
+    output, error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", "--end-of-options",
+                                           range, "--", chdir: root, binmode: true)
+    raise Error, error.force_encoding(Encoding::UTF_8).scrub.strip unless status.success?
+
+    output.split("\0").map { |path| path.force_encoding(Encoding::UTF_8) }
   end
 
   def self.verify!(results, event:, force_full: false)

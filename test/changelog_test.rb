@@ -162,9 +162,14 @@ class ChangelogTest < Minitest::Test
       commit(root, "docs/usage.md" => "Usage")
 
       assert_empty Changelog.lint(root: root, base: base)
+    end
+  end
+
+  def test_a_comparison_git_refuses_carries_the_reason_git_gives
+    repository do |root|
       error = assert_raises(Changelog::Error) { Changelog.lint(root: root, base: "missing") }
 
-      assert_equal "Cannot compare HEAD with missing", error.message
+      assert_equal "Cannot compare HEAD with missing: fatal: bad revision 'missing...HEAD'", error.message
     end
   end
 
@@ -187,7 +192,8 @@ class ChangelogTest < Minitest::Test
       _out, err, status = lint_changelog(root, unrelated)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: Cannot compare HEAD with #{unrelated}\n", err
+      assert_equal "lint-changelog: Cannot compare HEAD with #{unrelated}: " \
+                   "fatal: #{unrelated}...HEAD: no merge base\n", err
     end
   end
 
