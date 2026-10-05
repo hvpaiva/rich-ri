@@ -79,7 +79,8 @@ module RichRI
       unknown = value.keys - keys
       return if unknown.empty?
 
-      raise ConfigurationError, "unknown key #{(section ? "#{section}.#{unknown.first}" : unknown.first).inspect}"
+      key = section ? "#{section}.#{unknown.first}" : unknown.first
+      raise ConfigurationError, "unknown key #{key.inspect}; choose #{keys.join(', ')}"
     end
 
     def sources(data)

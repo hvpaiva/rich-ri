@@ -58,6 +58,21 @@ class ErrorMessagesTest < Minitest::Test
     end
   end
 
+  def test_unknown_keys_are_answered_with_the_keys_accepted_there
+    unknown = { "colour: always" => %(unknown key "colour"; choose #{RichRI::Configuration::KEYS.join(', ')}),
+                "sources: {gem: false}" => 'unknown key "sources.gem"; choose system, site, home, gems',
+                "styles: {methd: red}" => %(unknown key "styles.methd"; choose #{RichRI::Theme::ROLES.join(', ')}) }
+    unknown.each do |data, message|
+      with_config(data) do |path|
+        out, err, status = cli("--config", path, "--show-config", docs: false)
+
+        assert_equal 1, status.exitstatus, data
+        assert_empty out
+        assert_equal "rich-ri: #{path}: #{message}\n", err
+      end
+    end
+  end
+
   def test_environment_failures_name_the_variable
     { { "RICH_RI_WIDTH" => "abc" } => "RICH_RI_WIDTH must be an integer from 20 to 10000\n",
       { "RICH_RI_THEME" => "d" } => "RICH_RI_THEME must be one of terminal, dark, light\n",
