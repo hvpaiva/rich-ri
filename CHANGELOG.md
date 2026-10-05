@@ -25,6 +25,8 @@ User-visible changes are recorded here. This project follows
 - Documentation stored by an RDoc class that the running RDoc lacks is reported
   as an incompatible cache.
 - The manual no longer has an empty "Style roles" section.
+- Unexpected failures are reported in one line, with the error class, instead of
+  a backtrace.
 
 ## [0.1.0] - 2026-10-05
 

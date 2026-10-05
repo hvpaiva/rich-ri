@@ -143,7 +143,7 @@ needed gem to that bundle too.
 
 ## Exit status
 
-The command exits with 0 on success, 1 for lookup or usage errors and 130 when
+The command exits with 0 on success, 1 for any failure and 130 when
 interrupted. A closed output pipe is a normal exit, and so is a name that RDoc
 answers with similar names or with the pages of its source. While a pager is
 open, Ctrl-C belongs to the pager; at the interactive prompt it ends the session
