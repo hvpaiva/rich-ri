@@ -141,7 +141,8 @@ class BashCompletionTest < Minitest::Test
 end
 
 # ble.sh does not run in CI, so ANSWER calls the script as its patch:cobraV2 does: through
-# words[0], with progcomp_prefix, taking the described lines for its own menu.
+# words[0], with progcomp_prefix, taking the described lines for its own menu. Like ble.sh, it
+# drops an empty reply and puts progcomp_prefix before the others.
 class BleCompletionTest < Minitest::Test
   include ShellInsertion
 
@@ -183,7 +184,7 @@ class BleCompletionTest < Minitest::Test
     if [[ -e $marker ]]; then echo invoked; else echo direct; fi
     for line in "${yielded[@]}"; do printf '%s\n' "$line"; done
     echo --
-    for line in "${COMPREPLY[@]}"; do printf '%s\n' "$line"; done
+    for line in "${COMPREPLY[@]}"; do [[ -n $line ]] && printf '%s\n' "$progcomp_prefix$line"; done
     echo --
     for line in "${asked[@]}"; do printf '%s\n' "$line"; done
   BASH
@@ -204,11 +205,13 @@ class BleCompletionTest < Minitest::Test
                  ble_answer("rich-ri --color=a", "--color=", "--color", "=", "a")
   end
 
-  def test_names_come_back_without_what_ble_sh_puts_before_them
-    assert_equal ["invoked", [], ["GUIDE.rdoc"], NO_FALLBACK],
+  def test_ble_sh_is_offered_each_name_whole
+    assert_equal ["invoked", [], ["#{TestSupport::STORE}:GUIDE.rdoc"], NO_FALLBACK],
                  ble_answer("rich-ri #{TestSupport::STORE}:G", "#{TestSupport::STORE}:", TestSupport::STORE, ":", "G")
     assert_equal ["invoked", [], ["Inkwell#fill", "Inkwell#filled?"], NO_FALLBACK],
                  ble_answer("rich-ri Inkwell#fi", "", "Inkwell#fi")
+    assert_equal ["invoked", [], ["Inkwell#==", "Inkwell#==="], NO_FALLBACK],
+                 ble_answer("rich-ri Inkwell#==", "Inkwell#==", "Inkwell#", "==")
   end
 
   def test_an_answer_without_candidates_turns_off_the_file_names_of_ble_sh
@@ -230,6 +233,12 @@ class BleCompletionTest < Minitest::Test
                  @terminal_output
     assert_equal ["RichRIExample"], ble_arguments(["RICH_READY> ", "rich-ri RichRIExam\t"], ["ple ", "\r"]),
                  @terminal_output
+  end
+
+  def test_ble_sh_keeps_a_name_typed_in_full_that_starts_a_longer_one
+    result = ble_arguments(["RICH_READY> ", "rich-ri Inkwell#==\t"], ["Inkwell#===", "\r"])
+
+    assert_equal ["Inkwell#=="], result, @terminal_output
   end
 
   def test_ble_sh_inserts_no_file_name_for_a_name_it_does_not_know

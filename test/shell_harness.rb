@@ -143,7 +143,8 @@ module ShellInsertion
         #{"source #{library.shellescape}" if library}
         source #{File.join(TestSupport::ROOT, 'completions/rich-ri.bash').shellescape}
         rich-ri() { printf '__RICH_ARG__%s\\n' "$@"; }
-        bleopt complete_auto_complete= highlight_syntax= edit_bell=abell
+        # Without colors a menu shows each name as one piece of text to wait for.
+        bleopt complete_auto_complete= highlight_syntax= edit_bell=abell complete_menu_color= complete_menu_color_match=
         ble-attach
       BASH
     end

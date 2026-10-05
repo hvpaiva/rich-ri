@@ -81,8 +81,12 @@ __rich_ri_handle_completion_types() {
     local head quote REPLY
     __rich_ri_dequote "${cur%"$typed"}"
     head=$REPLY
-    # ble.sh breaks the word itself, says what it keeps and quotes what it inserts.
-    [[ -n ${BLE_ATTACHED-} ]] && head=${progcomp_prefix-$head} quote=ble
+    # ble.sh quotes what it inserts and puts progcomp_prefix, the word up to its last ":" or "=",
+    # before each reply, but drops an empty one: whole names keep a name typed in full.
+    if [[ -n ${BLE_ATTACHED-} ]]; then
+        [[ -n ${progcomp_prefix+set} ]] && head="" progcomp_prefix=""
+        quote=ble
+    fi
 
     local i name reply
     local -a replies=()
