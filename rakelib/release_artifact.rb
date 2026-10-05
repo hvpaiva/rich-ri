@@ -2,6 +2,7 @@
 
 require "digest"
 require "rubygems/package"
+require_relative "changelog"
 require_relative "release"
 
 module Release

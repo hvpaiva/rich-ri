@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "date"
 require "tempfile"
 require_relative "release"
 require_relative "release_commands"
