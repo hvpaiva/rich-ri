@@ -30,9 +30,18 @@ namespace :test do
     sh({ "COVERAGE" => "1" }, "bundle", "exec", "rake", "test")
   end
 
-  desc "Run completion tests in Bash, Zsh and Fish (all required)"
+  desc "Run all shell integrations locally, or in Docker/Podman when shells are missing"
   task :shells do
-    sh({ "RICH_RI_REQUIRE_SHELLS" => "1" }, "bundle", "exec", "ruby", "-Ilib", "-Itest", "test/shell_test.rb")
+    require_relative "rakelib/shell_tests"
+    ShellTests.run
+  end
+
+  namespace :shells do
+    desc "Run all shell integrations in an isolated Docker/Podman container"
+    task :container do
+      require_relative "rakelib/shell_tests"
+      ShellTests.run(container: true)
+    end
   end
 end
 
@@ -107,7 +116,7 @@ namespace :docs do
   task check: %w[lint:links lint:spelling generate:check test:docs]
 end
 
-desc "Run local CI checks (all three shells and security database required)"
+desc "Run local CI checks (native shells or Docker/Podman, and security database required)"
 task check: %w[rubocop lint:commits lint:shell lint:spelling lint:workflows lint:links lint:man generate:check
                test:cov test:shells package:check audit]
 

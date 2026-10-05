@@ -3,8 +3,9 @@
 
 root = File.expand_path("..", __dir__)
 $LOAD_PATH.unshift(File.join(root, "lib"), File.join(root, "test"))
+maintenance = /\A(?:release.*|ci.*|github|commit_policy|project|test_environment|shell_runner)_test\.rb\z/
 Dir[File.join(root, "test/*_test.rb")].each do |path|
-  next if File.basename(path).match?(/\A(?:release.*|ci.*|github|commit_policy|project|test_environment)_test\.rb\z/)
+  next if File.basename(path).match?(maintenance)
 
   require path
 end

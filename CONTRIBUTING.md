@@ -18,8 +18,10 @@ bundle exec rake
 
 `mise.toml` pins Ruby and the lint tools. If you manage them another way, install
 the listed versions and skip `mise install`. `bin/setup` installs the bundle and
-reports missing system programs. The full checks need groff, man, Bash, Zsh, Fish
-and bash-completion 2.x; install these through your system's package manager.
+reports missing system programs. The full checks need groff and man, plus either
+Bash, Zsh, Fish and bash-completion 2.x or a running Docker/Podman engine for
+[isolated shell tests](docs/development.md#shell-tests). Install system programs
+through your package manager.
 
 Run the checkout with:
 
@@ -79,7 +81,9 @@ checks, tests with coverage, all three shells, installation of the built gem and
 a dependency audit. The audit updates its database over the network.
 `bundle exec rake audit:local` uses the last downloaded database.
 
-For a shorter loop, `bundle exec rake` runs Ruby lint and tests. To run one file:
+For a shorter loop, `bundle exec rake` runs Ruby lint and tests, skipping shell
+integrations unavailable locally. The full `check` task requires all three shells
+to pass, using a container when needed. To run one file:
 
 ```sh
 bundle exec ruby -Ilib -Itest test/highlighter_test.rb

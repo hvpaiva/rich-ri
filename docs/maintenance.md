@@ -93,7 +93,7 @@ publish a new version number for the replacement.
 
 ## Dependencies and access
 
-Dependabot proposes gem updates weekly and action updates monthly. Review the
+Dependabot proposes gem and test-image updates weekly and action updates monthly. Review the
 upstream changes and run the same checks as other PRs. A runtime dependency change
 may need a changelog entry even when Dependabot supplied `skip-changelog`.
 Update `gemfiles/minimum.gemfile` when raising a supported dependency floor.

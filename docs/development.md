@@ -29,13 +29,47 @@ change can merge.
 Releases always run the full suite, including workflow dry runs. Scheduled runs
 check the dependency advisory database.
 
+## Shell tests
+
+Run completion tests in all three shells with:
+
+```sh
+bundle exec rake test:shells
+```
+
+The task uses local Bash, Zsh and Fish when all are available and Bash can load
+bash-completion 2.x. Otherwise, it uses a running Docker engine or, if unavailable,
+Podman. `bundle exec rake check` includes this task and requires every shell test
+to pass. The shorter `bundle exec rake` run skips unavailable local integrations.
+
+To run in an isolated environment even when the shells are installed:
+
+```sh
+bundle exec rake test:shells:container
+```
+
+The first build downloads the image and installs the locked bundle; later builds
+reuse those layers. Only the project files needed for testing are copied into the
+image. Tests run as an unprivileged user with temporary storage and no network.
+The container uses its pinned Linux/Ruby environment and `Gemfile.lock`, regardless
+of the host Ruby version. CI checks this route as well as native shell integrations
+on Linux and macOS.
+
+Set `RICH_RI_CONTAINER_RUNTIME=docker` or `RICH_RI_CONTAINER_RUNTIME=podman` to
+select an engine when running in a container. For example:
+
+```sh
+RICH_RI_CONTAINER_RUNTIME=podman bundle exec rake test:shells:container
+```
+
 ## Compatibility checks
 
 The main `Gemfile.lock` fixes development dependencies. CI also resolves current
 versions with `bundle update` in a fresh checkout. Run that check in a separate
 checkout to keep your working lockfile intact.
 
-To test the minimum runtime dependencies, use Ruby 3.4 and run:
+To test the minimum runtime dependencies, use Ruby 3.4 with Bash, Zsh, Fish and
+bash-completion 2.x installed locally, then run:
 
 ```sh
 BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle install
@@ -48,9 +82,11 @@ LEGACY_RI_STORE="$PWD/tmp/legacy-ri" BUNDLE_GEMFILE=gemfiles/minimum.gemfile \
 
 The first bundle generates a store using RDoc 6.14. The second runs the runtime
 tests using the minimum direct dependencies compatible with RDoc 8.1, including
-lookup and completion against that older store. Maintenance-only tests use the
-main bundle. `LEGACY_RI_STORE` selects the test store; `RICH_RI_REQUIRE_SHELLS=1`
-requires all shell integrations to be available.
+lookup and completion against that older store. Maintenance-only tests and the
+optional server/profiler modes use the main bundle; missing-gem behavior is tested
+with both bundles. `LEGACY_RI_STORE` selects the test store; `RICH_RI_REQUIRE_SHELLS=1`
+requires all shell integrations to be available. This check uses the selected
+minimum bundle and local shells; the container task uses the main locked bundle.
 
 When raising a runtime dependency floor, update the minimum Gemfile and
 [compatibility policy](compatibility.md) in the same change.

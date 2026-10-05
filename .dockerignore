@@ -1,0 +1,19 @@
+# Only these files belong in the shell-test image.
+**
+!Gemfile
+!Gemfile.lock
+!rich-ri.gemspec
+!lib/
+!lib/**
+!completions/
+!completions/**
+!test/
+!test/test_helper.rb
+!test/shell_support.rb
+!test/shell_test.rb
+!test/terminal_helper.rb
+!test/fixtures/
+!test/fixtures/example.rb
+!test/fixtures/GUIDE.rdoc
+!test/containers/
+!test/containers/Dockerfile
