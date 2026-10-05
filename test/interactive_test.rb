@@ -48,22 +48,33 @@ class InteractiveTest < Minitest::Test
 
   # RubyGems builds its default directory from RbConfig, whose strings are
   # BINARY in every locale, and the directories of its gems inherit the label.
-  def test_tab_works_over_gem_directories_labelled_binary_and_on_an_empty_line
+  def binary_gem_session(keys)
     binary_paths = <<~RUBY
       home = ENV.fetch("GEM_HOME").b
       Gem.paths = { "GEM_HOME" => home, "GEM_PATH" => home }
     RUBY
     with_session(TestSupport.gem_environment) do |environment|
-      output, status = with_planted(binary_paths, env: environment) do |env|
-        terminal_cli("--no-system", "--no-site", "--no-home",
-                     env: env, prompt: ">> ", input: "\tinkwell-2\t\nInkwell#filled\t\n\n")
+      with_planted(binary_paths, env: environment) do |env|
+        terminal_cli("--no-system", "--no-site", "--no-home", env: env, prompt: ">> ", input: keys)
       end
-
-      assert_equal 0, status, output
-      assert_includes output, "UPGRADING.rdoc"
-      assert_includes output, "Report whether the well is full."
-      refute_match(/rich-ri:|incompatible character encodings/, output)
     end
+  end
+
+  def test_tab_completes_over_gem_directories_labelled_binary
+    output, status = binary_gem_session("inkwell-2\t\nInkwell#filled\t\n\n")
+
+    assert_equal 0, status, output
+    assert_includes output, "UPGRADING.rdoc"
+    assert_includes output, "Report whether the well is full."
+    refute_match(/rich-ri:|incompatible character encodings/, output)
+  end
+
+  def test_tab_on_an_empty_line_leaves_the_prompt_working
+    output, status = binary_gem_session("\tInkwell#filled?\n\n")
+
+    assert_equal 0, status, output
+    assert_includes output, "Report whether the well is full."
+    refute_match(/rich-ri:|incompatible character encodings/, output)
   end
 
   def test_tab_completes_a_gem_and_then_its_page

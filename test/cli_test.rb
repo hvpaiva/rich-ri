@@ -114,6 +114,9 @@ class CLITest < Minitest::Test
     assert_equal ["rich-ri: planted defect\n", "NoMethodError\n"], err.lines.first(2)
     assert_match(%r{\A {4}\S*/rich_ri_planted\.rb:2:in }, err.lines[2])
     assert_includes err, "rich_ri/cli.rb"
+  end
+
+  def test_debug_variable_adds_the_cause_of_an_explained_failure
     _out, err, status = cli("--dump=#{File.join(TestSupport::ROOT, 'LICENSE.txt')}", env: { "RICH_RI_DEBUG" => "1" })
 
     assert_equal 1, status.exitstatus

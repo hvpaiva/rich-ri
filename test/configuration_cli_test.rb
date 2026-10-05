@@ -70,11 +70,18 @@ class ConfigurationCLITest < Minitest::Test
         assert_equal "rich-ri: RI: #{option} cannot be set in RI; choose the configuration file with " \
                      "RICH_RI_CONFIG or on the command line\n", err
       end
-      out, err, status = cli("--help", docs: false, env: { "RI" => "--no-config" })
+    end
+  end
 
-      assert_predicate status, :success?, err
-      assert_includes out, "Usage: rich-ri"
-      # A selector that is the value of another option selects nothing.
+  def test_help_works_while_ri_names_a_configuration_file
+    out, err, status = cli("--help", docs: false, env: { "RI" => "--no-config" })
+
+    assert_predicate status, :success?, err
+    assert_includes out, "Usage: rich-ri"
+  end
+
+  def test_a_file_selector_that_is_the_value_of_another_option_in_ri_selects_nothing
+    with_config({ "width" => 44 }) do |path|
       environment = { "RI" => "--pager-command --no-config", "RICH_RI_CONFIG" => path }
       out, err, status = cli("--show-config", docs: false, env: environment)
 
@@ -92,12 +99,15 @@ class ConfigurationCLITest < Minitest::Test
       assert_predicate status, :success?, err
       assert_includes out, "\e["
       assert_includes RichRI.plain(out), "Return transformed values."
-      out, err, status = cli("RichRIExample#map", "--", "--no-config", env: environment.merge("RICH_RI_CONFIG" => nil))
-
-      assert_equal 1, status.exitstatus
-      assert_includes out, "Return transformed values."
-      assert_equal "rich-ri: Nothing known about --no-config\n", err
     end
+  end
+
+  def test_double_dash_ends_the_options_whatever_the_environment_says
+    out, err, status = cli("RichRIExample#map", "--", "--no-config", env: { "POSIXLY_CORRECT" => "1" })
+
+    assert_equal 1, status.exitstatus
+    assert_includes out, "Return transformed values."
+    assert_equal "rich-ri: Nothing known about --no-config\n", err
   end
 
   def test_show_config_is_roundtrippable_and_has_no_lookup_or_pager_side_effects

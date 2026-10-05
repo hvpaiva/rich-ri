@@ -58,7 +58,13 @@ class ActionsTest < Minitest::Test
     assert_equal "--interactive does not accept lookup names; enter them at its prompt", error.message
     assert_raises(RichRI::UsageError) { parse("RichRIExample", defaults: "--interactive") }
     assert parse("-i").driver_options[:interactive]
+  end
+
+  def test_the_last_of_interactive_and_no_interactive_wins
     assert parse("--no-interactive", "-i").driver_options[:interactive]
+  end
+
+  def test_help_answers_interactive_lookup_given_names
     assert_equal [:help], parse("-i", "RichRIExample", "--help").action
   end
 

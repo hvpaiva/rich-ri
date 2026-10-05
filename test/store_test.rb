@@ -55,6 +55,12 @@ class StoreTest < Minitest::Test
       assert_equal "rich-ri: incompatible or damaged RI data in #{store}\n", err.lines.first
       assert_includes err, "gem rdoc GEM_NAME --ri"
       refute_includes err, "--help"
+    end
+  end
+
+  def test_other_methods_stay_readable_beside_method_data_from_another_rdoc
+    with_store do |store|
+      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), RETIRED_CLASS_DATA)
       out, err, status = lookup(store, "RichRIExample.build")
 
       assert_predicate status, :success?, err
