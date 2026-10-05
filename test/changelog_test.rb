@@ -161,17 +161,49 @@ class ChangelogTest < Minitest::Test
     end
   end
 
-  def test_the_command_checks_the_project_and_honors_the_waiver
-    script = File.join(TestSupport::ROOT, "bin/lint-changelog")
-    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => nil }, RbConfig.ruby, script, "HEAD")
+  def test_the_command_checks_the_repository_it_runs_in
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      commit(root, "lib/rich_ri.rb" => "# changed")
+      _out, err, status = lint_changelog(root, base)
 
-    assert_predicate status, :success?, err
-    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => nil }, RbConfig.ruby, script, "missing-base")
+      assert_equal 1, status.exitstatus
+      assert_equal "#{Changelog::PATH}: #{Changelog::ENTRY_REQUIRED}\n", err
+    end
+  end
 
-    assert_equal 1, status.exitstatus
-    assert_equal "lint-changelog: Cannot compare HEAD with missing-base\n", err
-    _out, err, status = Open3.capture3({ "SKIP_CHANGELOG" => "true" }, RbConfig.ruby, script, "missing-base")
+  def test_the_command_reports_a_base_it_cannot_compare_with
+    repository do |root|
+      _out, err, status = lint_changelog(root, "missing-base")
 
-    assert_predicate status, :success?, err
+      assert_equal 1, status.exitstatus
+      assert_equal "lint-changelog: Cannot compare HEAD with missing-base\n", err
+    end
+  end
+
+  def test_the_command_honors_the_waiver
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      commit(root, "lib/rich_ri.rb" => "# changed")
+      _out, err, status = lint_changelog(root, base, waiver: "true")
+
+      assert_predicate status, :success?, err
+    end
+  end
+
+  def test_the_command_outside_a_repository_names_the_file_it_cannot_read
+    Dir.mktmpdir("rich-ri-empty-") do |root|
+      _out, err, status = lint_changelog(root)
+
+      assert_equal 1, status.exitstatus
+      assert_equal "lint-changelog: Cannot read CHANGELOG.md in #{root}: No such file or directory\n", err
+    end
+  end
+
+  private
+
+  def lint_changelog(root, *, waiver: nil)
+    Open3.capture3(GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => waiver), RbConfig.ruby,
+                   File.join(TestSupport::ROOT, "bin/lint-changelog"), *, chdir: root)
   end
 end

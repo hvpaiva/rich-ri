@@ -61,13 +61,19 @@ module Changelog
   def self.entry_missing?(paths) = paths.any?(USER_VISIBLE) && !paths.include?(PATH)
 
   def self.lint(root:, base: nil)
-    problems = problems(File.read(File.join(root, PATH)))
+    problems = problems(read(root))
     return problems unless base
 
     paths = CI.changed_paths("#{base}...HEAD", root)
     raise Error, "Cannot compare HEAD with #{base}" unless paths
 
     entry_missing?(paths) ? problems << ENTRY_REQUIRED : problems
+  end
+
+  def self.read(root)
+    File.read(File.join(root, PATH))
+  rescue SystemCallError => e
+    raise Error, "Cannot read #{PATH} in #{root}: #{e.message.split(' @ ').first}"
   end
 
   def self.problems(text, today: Time.now.utc.to_date)
