@@ -5,6 +5,10 @@ require "json"
 require "shell_support"
 
 class TestEnvironmentTest < Minitest::Test
+  SHELL_TESTS = File.read(File.join(TestSupport::ROOT, "test/shell_test.rb")).scan(/^ +def (test_\w+)/).flatten.freeze
+  SUMMARY = /(\d+) runs, \d+ assertions, (\d+) failures, (\d+) errors, (\d+) skips/
+  REQUIRED = /^.+ is required$/
+
   def test_application_settings_are_cleared_without_erasing_suite_controls
     values = { "RICH_RI_REQUIRE_SHELLS" => "1", "RICH_RI_CONFIG" => "/missing/config.yml", "RICH_RI_DEBUG" => "1",
                "RICH_RI_THEME" => "invalid", "RICH_RI_STYLE_COMMENT" => "invalid" }
@@ -19,43 +23,36 @@ class TestEnvironmentTest < Minitest::Test
   end
 
   def test_missing_shells_fail_in_required_mode_and_skip_in_optional_mode
-    Dir.mktmpdir do |empty_path|
-      ["1", nil].each do |required|
-        # ble.sh is optional: its tests are skipped where it is missing, in either mode.
-        environment = TestSupport::ENVIRONMENT.merge("PATH" => empty_path, "RICH_RI_REQUIRE_SHELLS" => required,
-                                                     "XDG_DATA_HOME" => empty_path, "COVERAGE_CHILD" => "1")
-        out, err, status = Open3.capture3(environment, RbConfig.ruby, "-Ilib", "-Itest", "test/shell_test.rb",
-                                          "--verbose", chdir: TestSupport::ROOT)
-        message = "#{out}\n#{err}"
+    required, status = without_shells("1")
 
-        assert_equal required ? 1 : 0, status.exitstatus, message
-        if required
-          assert_includes out, "fish is required"
-          assert_includes out, "zsh is required"
-          assert_includes out, "bash-completion 2.x with a compatible bash is required"
-          assert_match(/26 failures, 0 errors, 3 skips/, out)
-        else
-          assert_match(/0 failures, 0 errors, 29 skips/, out)
-        end
-      end
-    end
+    assert_equal 1, status.exitstatus, required
+    assert_includes required, "fish is required"
+    assert_includes required, "zsh is required"
+    assert_includes required, "bash-completion 2.x with a compatible bash is required"
+    runs, failures, errors, skips = counts(required)
+    # ble.sh is optional: its tests are skipped where it is missing, in either mode.
+    ble = required.scan(/^ble\.sh is not installed$/).length
+
+    assert_equal [SHELL_TESTS.length, required.scan(REQUIRED).length, 0, ble], [runs, failures, errors, skips]
+    optional, status = without_shells(nil)
+
+    assert_equal 0, status.exitstatus, optional
+    assert_equal [SHELL_TESTS.length, 0, 0, failures + skips], counts(optional)
   end
 
   def test_missing_bash_completion_fails_only_in_required_mode
-    source = <<~RUBY
-      require "shell_support"
-      def ShellSupport.bash_completion = nil
-      require_relative "test/shell_test"
-    RUBY
-    ["1", nil].each do |required|
-      environment = TestSupport::ENVIRONMENT.merge("RICH_RI_REQUIRE_SHELLS" => required, "COVERAGE_CHILD" => "1")
-      out, err, status = Open3.capture3(environment, RbConfig.ruby, "-Ilib", "-Itest", "-e", source,
-                                        "--", "--name", "/test_bash_/", chdir: TestSupport::ROOT)
-      message = "#{out}\n#{err}"
+    required, status = without_bash_completion("1")
 
-      assert_equal required ? 1 : 0, status.exitstatus, message
-      assert_match(required ? /10 failures, 0 errors, 0 skips/ : /0 failures, 0 errors, 10 skips/, out)
-    end
+    assert_equal 1, status.exitstatus, required
+    assert_includes required, "bash-completion 2.x with a compatible bash is required"
+    runs, failures, errors, skips = counts(required)
+
+    assert_equal [SHELL_TESTS.grep(/test_bash_/).length, required.scan(REQUIRED).length, 0, 0],
+                 [runs, failures, errors, skips]
+    optional, status = without_bash_completion(nil)
+
+    assert_equal 0, status.exitstatus, optional
+    assert_equal [runs, 0, 0, failures], counts(optional)
   end
 
   def test_completion_probe_checks_loading_version_functions_and_ignores_user_startup
@@ -85,5 +82,34 @@ class TestEnvironmentTest < Minitest::Test
       end
       with_environment("PATH" => dir) { refute_predicate ShellSupport, :available? }
     end
+  end
+
+  private
+
+  def without_shells(required)
+    Dir.mktmpdir do |empty_path|
+      environment = TestSupport::ENVIRONMENT.merge("PATH" => empty_path, "RICH_RI_REQUIRE_SHELLS" => required,
+                                                   "XDG_DATA_HOME" => empty_path, "COVERAGE_CHILD" => "1")
+      out, err, status = Open3.capture3(environment, RbConfig.ruby, "-Ilib", "-Itest", "test/shell_test.rb",
+                                        "--verbose", chdir: TestSupport::ROOT)
+      ["#{out}\n#{err}", status]
+    end
+  end
+
+  def without_bash_completion(required)
+    source = <<~RUBY
+      require "shell_support"
+      def ShellSupport.bash_completion = nil
+      require_relative "test/shell_test"
+    RUBY
+    environment = TestSupport::ENVIRONMENT.merge("RICH_RI_REQUIRE_SHELLS" => required, "COVERAGE_CHILD" => "1")
+    out, err, status = Open3.capture3(environment, RbConfig.ruby, "-Ilib", "-Itest", "-e", source,
+                                      "--", "--name", "/test_bash_/", chdir: TestSupport::ROOT)
+    ["#{out}\n#{err}", status]
+  end
+
+  # Runs, failures, errors and skips, as Minitest counts them.
+  def counts(output)
+    output.match(SUMMARY).captures.map(&:to_i)
   end
 end
