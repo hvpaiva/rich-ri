@@ -7,11 +7,15 @@ namespace :release do
   desc "Verify the release version, tag and changelog"
   task :verify do
     puts "Verified rich-ri #{Release.verify}"
+  rescue Release::Error => e
+    abort "release:verify: #{e.message}"
   end
 
   desc "Check that the release commit belongs to an allowed branch"
   task :verify_ref do
     Release.verify_ref
+  rescue Release::Error => e
+    abort "release:verify_ref: #{e.message}"
   end
 
   desc "Build the release artifact and record its checksum and notes"
@@ -22,6 +26,8 @@ namespace :release do
   desc "Verify the existing release artifact without rebuilding it"
   task :verify_artifact do
     puts Release::Artifact.verify
+  rescue Release::Error => e
+    abort "release:verify_artifact: #{e.message}"
   end
 end
 
@@ -34,4 +40,6 @@ task :release do
   Release.verify
   artifact = Release::Artifact.verify
   sh "gem", "push", "--host", "https://rubygems.org", artifact
+rescue Release::Error => e
+  abort "release: #{e.message}"
 end

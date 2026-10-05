@@ -17,6 +17,6 @@ begin
     puts "CI: #{scope} checks passed."
   else abort "Usage: ruby bin/ci scope|verify"
   end
-rescue KeyError, JSON::ParserError, RuntimeError => e
+rescue KeyError, JSON::ParserError, CI::Error => e
   abort "CI: #{e.message}"
 end

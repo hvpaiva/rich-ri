@@ -8,9 +8,11 @@ module CommitPolicy
   BOT_ADDRESS = /\A(?:noreply@anthropic\.com|cursoragent@cursor\.com|(?:aider|noreply)@aider\.chat|
                     \d+\+(?:Copilot|[\w-]+\[bot\])@users\.noreply\.github\.com)\z/ix
 
+  class Error < StandardError; end
+
   def self.git(*)
     output, error, status = Open3.capture3("git", *)
-    raise ArgumentError, "Cannot read commits: #{error.strip}" unless status.success?
+    raise Error, "Cannot read commits: #{error.strip}" unless status.success?
 
     output.force_encoding(Encoding::UTF_8).scrub
   end

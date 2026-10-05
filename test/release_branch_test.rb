@@ -25,11 +25,9 @@ class ReleaseBranchTest < Minitest::Test
   def test_hotfix_retry_keeps_the_selected_branch
     repository do |root|
       runner = workflow_runner([], fail_at: %w[git push], state: { branch: "hotfix/0.2" })
-      error = assert_raises(RuntimeError) do
+      assert_release_error(%r{rerun bin/release 0\.2\.0 --branch hotfix/0\.2}) do
         workflow("0.2.0", root: root, branch: "hotfix/0.2", runner: runner, out: StringIO.new).run
       end
-
-      assert_includes error.message, "rerun bin/release 0.2.0 --branch hotfix/0.2"
     end
   end
 
@@ -48,7 +46,7 @@ class ReleaseBranchTest < Minitest::Test
 
   def test_hotfix_branch_must_match_the_release_version
     %w[feature/foo hotfix/0.1 hotfix/0.2/extra --all].each do |branch|
-      assert_raises(RuntimeError) { Release.validate_branch(branch, "0.2.1") }
+      assert_release_error(%r{must be main or hotfix/0\.2\z}) { Release.validate_branch(branch, "0.2.1") }
     end
     assert_equal "main", Release.validate_branch("main", "0.2.1")
     assert_equal "hotfix/0.2", Release.validate_branch("hotfix/0.2", "0.2.1")
@@ -58,10 +56,11 @@ class ReleaseBranchTest < Minitest::Test
     repository do |root|
       sha = git(root, "rev-parse", "HEAD")
       Dir.chdir(root) do
-        assert_raises(RuntimeError) { Release.verify_ref(sha: sha, version: "0.2.1") }
+        assert_release_error(/must belong to main/) { Release.verify_ref(sha: sha, version: "0.2.1") }
         git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
         Release.verify_ref(sha: sha, version: "0.2.1")
-        assert_raises(RuntimeError) { Release.verify_ref(sha: sha, version: "0.3.0") }
+        assert_release_error(/matching hotfix branch/) { Release.verify_ref(sha: sha, version: "0.3.0") }
+        assert_release_error(/set GITHUB_SHA/) { Release.verify_ref(sha: nil, version: "0.2.1") }
       end
     end
   end

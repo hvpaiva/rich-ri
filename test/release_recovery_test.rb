@@ -40,7 +40,7 @@ class ReleaseRecoveryTest < Minitest::Test
       assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
       File.write(File.join(root, "CHANGELOG.md"), "#{changes.fetch('CHANGELOG.md')}unrelated\n")
       commands.clear
-      assert_raises(RuntimeError) do
+      assert_release_error(/CHANGELOG\.md has edits beyond release preparation/) do
         workflow("0.2.0", root: root, runner: workflow_runner(commands, state: state), out: StringIO.new).run
       end
 
@@ -49,11 +49,11 @@ class ReleaseRecoveryTest < Minitest::Test
   end
 
   def test_open_pr_is_reused_but_foreign_pr_and_wrong_version_are_never_merged
-    [{ pr: release_pr("OPEN"), release_version: "0.3.0" },
-     { pr: release_pr("OPEN").merge("isCrossRepository" => true) }].each do |state|
+    { /Release tag must be v0\.3\.0/ => { pr: release_pr("OPEN"), release_version: "0.3.0" },
+      /not a fork/ => { pr: release_pr("OPEN").merge("isCrossRepository" => true) } }.each do |reason, state|
       repository do |root|
         commands = []
-        assert_raises(RuntimeError) do
+        assert_release_error(reason) do
           workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                             out: StringIO.new).run
         end
@@ -105,12 +105,11 @@ class ReleaseRecoveryTest < Minitest::Test
       refute(commands.any? { |args| args.first(2) == %w[git push] || args.first(3) == %w[gh run rerun] })
       commands.clear
       state[:remote_tag] = "d" * 40
-      error = assert_raises(RuntimeError) do
+      assert_release_error(/never be moved/) do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end
 
-      assert_match(/never be moved/, error.message)
       refute(commands.any? { |args| args.first(2) == %w[git push] })
     end
   end
@@ -138,23 +137,23 @@ class ReleaseRecoveryTest < Minitest::Test
       state = { pr: release_pr, local_tag: true, remote_tag: "b" * 40, run_status: "in_progress", conclusion: "failure",
                 jobs: [{ "name" => "publish", "conclusion" => "success", "databaseId" => 40 },
                        { "name" => "github-release", "conclusion" => "failure", "databaseId" => 41 }] }
-      error = assert_raises(RuntimeError) do
+      error = assert_release_error(/RubyGems publication succeeded/) do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end
 
       assert_includes commands, %w[gh run watch 123 --repo hvpaiva/rich-ri]
-      assert_match(/RubyGems publication succeeded/, error.message)
       assert_match(/gh run rerun 123 --job 41/, error.message)
       refute(commands.any? { |args| args.first(3) == %w[gh run rerun] })
     end
   end
 
   def test_verification_rejects_invalid_date_empty_notes_wrong_links_and_duplicates
-    [released_changelog.sub("2026-10-04", "2026-99-99"), released_changelog.sub("- Readable documentation.", ""),
-     released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
-     "#{released_changelog}\n## [0.2.0] - 2026-10-04\n"].each do |text|
-      assert_raises(RuntimeError) { Release.verify(tag: "v0.2.0", version: "0.2.0", changelog: text) }
+    { /Invalid changelog release date/ => released_changelog.sub("2026-10-04", "2026-99-99"),
+      /Release notes for 0\.2\.0 are empty/ => released_changelog.sub("- Readable documentation.", ""),
+      /Missing or incorrect release links/ => released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
+      /Expected one dated changelog/ => "#{released_changelog}\n## [0.2.0] - 2026-10-04\n" }.each do |reason, text|
+      assert_release_error(reason) { Release.verify(tag: "v0.2.0", version: "0.2.0", changelog: text) }
     end
   end
 end

@@ -25,6 +25,6 @@ begin
 rescue OptionParser::ParseError => e
   warn "release: #{e.message}\n#{parser}"
   exit 2
-rescue StandardError => e
+rescue Release::Error, GitHub::Error => e
   abort "release: #{e.message}"
 end

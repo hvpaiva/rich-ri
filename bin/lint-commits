@@ -7,6 +7,6 @@ begin
   errors = CommitPolicy.problems(ARGV.fetch(0, "HEAD"), title: ENV.fetch("PR_TITLE", nil),
                                                         body: ENV.fetch("PR_BODY", nil))
   abort errors.join("\n") unless errors.empty?
-rescue ArgumentError => e
+rescue CommitPolicy::Error => e
   abort e.message
 end

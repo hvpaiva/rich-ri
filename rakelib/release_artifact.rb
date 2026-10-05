@@ -22,20 +22,27 @@ module Release
 
     def self.verify(root: ROOT, expected: ENV.fetch("RELEASE_SHA256", nil))
       gem = path(root: root)
+      manifest = File.join(root, "pkg/SHA256SUMS")
+      missing = [gem, manifest].reject { |file| File.file?(file) }.map { |file| file.delete_prefix("#{root}/") }
+      raise Error, "Release artifact is incomplete: #{missing.join(' and ')} not found" unless missing.empty?
+
       digest = Digest::SHA256.file(gem).hexdigest
-      manifest = File.read(File.join(root, "pkg/SHA256SUMS"))
-      unless manifest == "#{digest}  #{File.basename(gem)}\n" && (expected.nil? || expected == digest)
-        raise "Release artifact checksum mismatch"
+      unless File.read(manifest) == "#{digest}  #{File.basename(gem)}\n" && (expected.nil? || expected == digest)
+        raise Error, "Release artifact checksum mismatch"
       end
 
+      verify_package(gem, Release.version(root: root))
+      gem
+    end
+
+    def self.verify_package(gem, version)
       package = Gem::Package.new(gem)
       package.verify
-      spec = package.spec
-      unless spec.name == "rich-ri" && spec.version.to_s == Release.version(root: root)
-        raise "Release artifact name/version does not match the checkout"
-      end
+      return if package.spec.name == "rich-ri" && package.spec.version.to_s == version
 
-      gem
+      raise Error, "Release artifact name/version does not match the checkout"
+    rescue Gem::Package::Error => e
+      raise Error, "Release artifact is not a valid gem: #{e.message}"
     end
   end
 end

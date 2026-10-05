@@ -26,8 +26,22 @@ class ProjectTest < Minitest::Test
       [#{RichRI::VERSION}]: https://github.com/hvpaiva/rich-ri/releases/tag/v#{RichRI::VERSION}
     TEXT
     assert_equal RichRI::VERSION, Release.verify(tag: "v#{RichRI::VERSION}", changelog: changelog)
-    assert_raises(RuntimeError) { Release.verify(tag: "v9.9.9", changelog: changelog) }
-    assert_raises(RuntimeError) { Release.verify(tag: "v#{RichRI::VERSION}", changelog: "## [Unreleased]\n") }
+    error = assert_raises(Release::Error) { Release.verify(tag: "v9.9.9", changelog: changelog) }
+
+    assert_equal "Release tag must be v#{RichRI::VERSION}", error.message
+    error = assert_raises(Release::Error) do
+      Release.verify(tag: "v#{RichRI::VERSION}", changelog: "## [Unreleased]\n")
+    end
+
+    assert_match(/Unreleased section before the release/, error.message)
+  end
+
+  def test_a_failed_release_check_reports_its_reason_without_a_backtrace
+    _out, err, status = Open3.capture3({ "GITHUB_REF_NAME" => nil }, "bundle", "exec", "rake", "release:verify",
+                                       chdir: TestSupport::ROOT)
+
+    refute_predicate status, :success?
+    assert_equal "release:verify: Release tag must be v#{RichRI::VERSION}\n", err
   end
 
   def test_local_release_is_refused_before_any_publish_action

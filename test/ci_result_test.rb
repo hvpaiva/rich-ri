@@ -15,9 +15,8 @@ class CIResultTest < Minitest::Test
     CI::FULL_JOBS.product(%w[failure cancelled skipped]).each do |job, result|
       data = results("full")
       data.fetch(job)["result"] = result
-      error = assert_raises(RuntimeError) { CI.verify!(data, event: "pull_request") }
 
-      assert_includes error.message, job
+      assert_rejected(/^#{job}: expected success, got "#{result}"$/, data)
     end
   end
 
@@ -26,7 +25,7 @@ class CIResultTest < Minitest::Test
       data = results("docs")
       data.fetch(job)["result"] = "failure"
 
-      assert_raises(RuntimeError) { CI.verify!(data, event: "pull_request") }
+      assert_rejected(/^#{job}: expected success, got "failure"$/, data)
     end
   end
 
@@ -34,27 +33,34 @@ class CIResultTest < Minitest::Test
     data = results("full")
     data.delete("test")
 
-    assert_raises(RuntimeError) { CI.verify!(data, event: "pull_request") }
+    assert_rejected(/Incomplete CI job results/, data)
     %w[failure cancelled skipped].each do |result|
       data = results("docs")
       data.fetch("changes")["result"] = result
 
-      assert_raises(RuntimeError) { CI.verify!(data, event: "pull_request") }
+      assert_rejected(/Change detection did not succeed/, data)
     end
     data = results("docs")
     data.fetch("changes")["outputs"] = { "scope" => "unknown" }
 
-    assert_raises(RuntimeError) { CI.verify!(data, event: "pull_request") }
+    assert_rejected(/Unknown CI scope: "unknown"/, data)
   end
 
   def test_a_release_cannot_pass_using_only_documentation_or_audit_checks
-    assert_raises(RuntimeError) { CI.verify!(results("docs"), event: "pull_request", force_full: true) }
-    assert_raises(RuntimeError) { CI.verify!(results("audit", event: "push"), event: "push") }
-    assert_raises(RuntimeError) { CI.verify!(results("docs", event: "workflow_dispatch"), event: "workflow_dispatch") }
-    assert_raises(RuntimeError) { CI.verify!(results("docs", event: "schedule"), event: "schedule") }
+    assert_rejected(/requires the full suite/, results("docs"), force_full: true)
+    assert_rejected(/Only scheduled runs/, results("audit", event: "push"), event: "push")
+    assert_rejected(/Only pushes and pull requests/, results("docs", event: "workflow_dispatch"),
+                    event: "workflow_dispatch")
+    assert_rejected(/Only pushes and pull requests/, results("docs", event: "schedule"), event: "schedule")
   end
 
   private
+
+  def assert_rejected(reason, data, event: "pull_request", **)
+    error = assert_raises(CI::Error) { CI.verify!(data, event: event, **) }
+
+    assert_match reason, error.message
+  end
 
   def results(scope, event: "pull_request")
     needed = case scope

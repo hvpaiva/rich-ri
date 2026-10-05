@@ -10,6 +10,8 @@ module CI
   FULL_JOBS = %w[quality test audit fresh-dependencies compatibility].freeze
   JOBS = (%w[changes docs commits] + FULL_JOBS).freeze
 
+  class Error < StandardError; end
+
   def self.documentation?(path)
     path.valid_encoding? && (DOCUMENTS.include?(path) || path.match?(%r{\Adocs/.+\.md\z}m) ||
       path.match?(%r{\Adocs/images/[^/]+\.png\z}))
@@ -36,20 +38,20 @@ module CI
   end
 
   def self.verify!(results, event:, force_full: false)
-    raise "Incomplete CI job results" unless results.keys.sort == JOBS.sort
-    raise "Change detection did not succeed" unless results.dig("changes", "result") == "success"
+    raise Error, "Incomplete CI job results" unless results.keys.sort == JOBS.sort
+    raise Error, "Change detection did not succeed" unless results.dig("changes", "result") == "success"
 
     scope = results.dig("changes", "outputs", "scope")
     required = case scope
                when "full" then FULL_JOBS.dup
                when "docs" then ["docs"]
                when "audit" then ["audit"]
-               else raise "Unknown CI scope: #{scope.inspect}"
+               else raise Error, "Unknown CI scope: #{scope.inspect}"
                end
-    raise "This run requires the full suite" if force_full && scope != "full"
-    raise "Only scheduled runs may use audit scope" if scope == "audit" && event != "schedule"
+    raise Error, "This run requires the full suite" if force_full && scope != "full"
+    raise Error, "Only scheduled runs may use audit scope" if scope == "audit" && event != "schedule"
     if scope == "docs" && !%w[push pull_request].include?(event)
-      raise "Only pushes and pull requests may use docs scope"
+      raise Error, "Only pushes and pull requests may use docs scope"
     end
 
     required << "commits" if event == "pull_request"
@@ -59,7 +61,7 @@ module CI
       actual = results.dig(name, "result")
       "#{name}: expected #{expected}, got #{actual.inspect}" unless actual == expected
     end
-    raise failures.join("\n") unless failures.empty?
+    raise Error, failures.join("\n") unless failures.empty?
 
     scope
   end

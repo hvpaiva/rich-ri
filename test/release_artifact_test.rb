@@ -27,11 +27,24 @@ class ReleaseArtifactTest < Minitest::Test
       path = Release::Artifact.path(root: root)
 
       assert_equal path, Release::Artifact.verify(root: root, expected: digest)
-      assert_raises(RuntimeError) { Release::Artifact.verify(root: root, expected: "0" * 64) }
+      assert_release_error(/checksum mismatch/) { Release::Artifact.verify(root: root, expected: "0" * 64) }
       File.binwrite(path, "tampered")
-      assert_raises(RuntimeError) { Release::Artifact.verify(root: root, expected: digest) }
+      assert_release_error(/checksum mismatch/) { Release::Artifact.verify(root: root, expected: digest) }
       artifact(root, version: "9.0.0")
-      assert_raises(RuntimeError) { Release::Artifact.verify(root: root) }
+      assert_release_error(%r{name/version does not match}) { Release::Artifact.verify(root: root) }
+    end
+  end
+
+  def test_a_missing_or_unreadable_artifact_is_reported_without_a_backtrace
+    repository do |root|
+      assert_release_error(%r{incomplete: pkg/rich-ri-0\.1\.0\.gem and pkg/SHA256SUMS not found}) do
+        Release::Artifact.verify(root: root)
+      end
+      FileUtils.mkdir_p(File.join(root, "pkg"))
+      File.binwrite(Release::Artifact.path(root: root), "not a gem")
+      Release::Artifact.record(root: root)
+
+      assert_release_error(/not a valid gem/) { Release::Artifact.verify(root: root) }
     end
   end
 

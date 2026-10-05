@@ -28,7 +28,7 @@ module Release
       verify_commit(sha)
       remote = remote_tag
       if remote.any? && remote["refs/tags/#{tag}^{}"] != sha
-        raise "Remote #{tag} targets another commit; it will never be moved"
+        raise Error, "Remote #{tag} targets another commit; it will never be moved"
       end
 
       exists = !@commands.call(["git", "tag", "--list", tag]).strip.empty?
@@ -48,7 +48,7 @@ module Release
     end
 
     def verify_commit(sha)
-      raise "GitHub did not return a valid release merge commit" unless sha&.match?(/\A[0-9a-f]{40}\z/)
+      raise Error, "GitHub did not return a valid release merge commit" unless sha&.match?(/\A[0-9a-f]{40}\z/)
 
       @commands.call(["git", "merge-base", "--is-ancestor", sha, "origin/#{@base}"])
       verify_metadata(sha)
@@ -66,7 +66,7 @@ module Release
     def verify_tag(sha)
       unless @commands.call(["git", "cat-file", "-t", "refs/tags/#{tag}"]).strip == "tag" &&
              @commands.call(["git", "rev-parse", "#{tag}^{commit}"]).strip == sha
-        raise "Local #{tag} is not an annotated tag of the release merge; it will never be replaced"
+        raise Error, "Local #{tag} is not an annotated tag of the release merge; it will never be replaced"
       end
 
       @commands.call(["git", "verify-tag", tag])
@@ -83,8 +83,8 @@ module Release
         @sleeper.sleep(5)
       end
       unless run
-        raise "#{tag} is already on GitHub. No Release run appeared; inspect Actions before dispatching it. " \
-              "The tag was not changed."
+        raise Error, "#{tag} is already on GitHub. No Release run appeared; inspect Actions before dispatching it. " \
+                     "The tag was not changed."
       end
 
       id = run.fetch("databaseId").to_s
@@ -92,7 +92,7 @@ module Release
         @commands.call(["gh", "run", "watch", id], stream: true)
         run = @commands.json(["gh", "run", "view", id, "--json", "status,conclusion"])
       end
-      raise failed_run_message(id) unless run["conclusion"] == "success"
+      raise Error, failed_run_message(id) unless run["conclusion"] == "success"
 
       @out.puts "Released #{tag}; the existing successful run is #{id}."
     end

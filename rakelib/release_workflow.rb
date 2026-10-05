@@ -30,13 +30,13 @@ module Release
         require_clean
         @publication.run(pull_request.dig("mergeCommit", "oid"), push: @push, dry_run: @dry_run)
       elsif @publication.remote_tag.any?
-        raise "#{tag} already exists without a matching merged release PR; inspect it before continuing"
+        raise Error, "#{tag} already exists without a matching merged release PR; inspect it before continuing"
       elsif pull_request
         resume_pull_request(pull_request)
       else
         prepare_pull_request
       end
-    rescue StandardError => e
+    rescue Error, GitHub::Error => e
       raise e.class, "#{e.message}\nAfter resolving the problem, rerun #{resume_command}#{' --push' if @push}. " \
                      "Existing pull requests and tags are inspected before any new action."
     end
@@ -57,39 +57,39 @@ module Release
       Release.validate_version(@version)
       origin = command(%w[git remote get-url origin]).strip
       unless origin.match?(%r{\A(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)#{GitHub::REPOSITORY}(?:\.git)?\z}o)
-        raise "The origin repository must be #{GitHub::REPOSITORY}"
+        raise Error, "The origin repository must be #{GitHub::REPOSITORY}"
       end
 
       @configuration.verify!
       command(%w[git fetch origin --tags])
       @current_branch = command(%w[git branch --show-current]).strip
-      raise "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
+      raise Error, "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
     end
 
     def find_pull_request
       requests = @commands.json(["gh", "pr", "list", "--state", "all", "--base", @base, "--head", branch,
                                  "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
       if requests.any? { |request| request["isCrossRepository"] != false }
-        raise "Release pull requests must originate in #{GitHub::REPOSITORY}, not a fork"
+        raise Error, "Release pull requests must originate in #{GitHub::REPOSITORY}, not a fork"
       end
-      raise "Several pull requests use #{branch}; reconcile them before releasing" if requests.length > 1
+      raise Error, "Several pull requests use #{branch}; reconcile them before releasing" if requests.length > 1
 
       requests.first
     end
 
     def require_clean
-      raise "Commit or stash unrelated work before continuing" unless command(%w[git status --porcelain]).empty?
+      raise Error, "Commit or stash unrelated work before continuing" unless command(%w[git status --porcelain]).empty?
     end
 
     def resume_pull_request(request)
       require_clean
       unless request["state"] == "OPEN"
-        raise "The release PR #{request['url']} was closed without merging; reopen it before retrying"
+        raise Error, "The release PR #{request['url']} was closed without merging; reopen it before retrying"
       end
 
       @commit = request.fetch("headRefOid")
       if @current_branch == branch && command(%w[git rev-parse HEAD]).strip != @commit
-        raise "Local #{branch} differs from the PR head. Push its reviewed changes before retrying"
+        raise Error, "Local #{branch} differs from the PR head. Push its reviewed changes before retrying"
       end
       return @out.puts "Existing release PR: #{request.fetch('url')} (dry run)." if @dry_run
 
@@ -101,7 +101,7 @@ module Release
         require_clean
         head = command(%w[git rev-parse HEAD])
         unless head == command(["git", "rev-parse", "origin/#{@base}"])
-          raise "Local #{@base} must match origin/#{@base}; pull first"
+          raise Error, "Local #{@base} must match origin/#{@base}; pull first"
         end
 
         changes = Release.changes(@version, root: @root)
@@ -121,7 +121,7 @@ module Release
 
     def resumed_changes
       dirty = command(%w[git status --porcelain]).lines.map { |line| line.chomp[3..] }
-      raise "Unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
+      raise Error, "Unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
 
       source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, command(["git", "show", "HEAD:#{path}"])] }
       if source.fetch("CHANGELOG.md").include?("## [#{@version}]")
@@ -136,15 +136,20 @@ module Release
       # while still comparing every edit against exactly what we would generate.
       changelog = File.read(File.join(@root, "CHANGELOG.md"))
       dated = changelog[/^## \[#{Regexp.escape(@version)}\] - (\d{4}-\d{2}-\d{2})$/, 1]
-      date = dated ? Date.iso8601(dated) : Time.now.utc.to_date
-      changes = Release.changes(@version, root: @root, source: source, date: date)
+      changes = Release.changes(@version, root: @root, source: source, date: preparation_date(dated))
       changes.each do |path, content|
         actual = File.read(File.join(@root, path))
         next if [source.fetch(path), content].include?(actual)
 
-        raise "#{path} has edits beyond release preparation; review them before retrying"
+        raise Error, "#{path} has edits beyond release preparation; review them before retrying"
       end
       changes
+    end
+
+    def preparation_date(text)
+      text ? Date.iso8601(text) : Time.now.utc.to_date
+    rescue Date::Error
+      raise Error, "CHANGELOG.md has an invalid date for #{@version}: #{text}"
     end
 
     def prepare(changes)
@@ -188,7 +193,7 @@ module Release
 
         @sleeper.sleep(5)
       end
-      raise "Timed out waiting for checks on #{url}; the existing PR will be reused on retry"
+      raise Error, "Timed out waiting for checks on #{url}; the existing PR will be reused on retry"
     end
   end
 end

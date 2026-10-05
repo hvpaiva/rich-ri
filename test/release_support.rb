@@ -25,6 +25,13 @@ module ReleaseFixtures
     end
   end
 
+  def assert_release_error(reason, &)
+    error = assert_raises(Release::Error, &)
+
+    assert_match reason, error.message
+    error
+  end
+
   def workflow(version, **)
     configuration = Object.new
     def configuration.verify! = nil
