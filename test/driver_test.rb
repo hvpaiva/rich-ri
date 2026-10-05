@@ -134,6 +134,12 @@ class DriverTest < Minitest::Test
     cli(*(complete ? ["--complete", *sources] : sources), *words, docs: false, env: TestSupport.gem_environment)
   end
 
+  # The names --complete offers over those gems, without the last line of
+  # its answer, which says what the shell is to do with them.
+  def gem_candidates(word)
+    gems(word, complete: true).first.lines(chomp: true)[0...-1].map { |line| line.split("\t").first }
+  end
+
   def test_a_gem_is_asked_for_by_its_name_whatever_its_version_and_platform
     { "inkwell-native:BUILDING" => "Compile the extension.", "inkwell-native:" => "BUILDING.rdoc",
       "inkwell-2:UPGRADING" => "Move from the first inkwell.", "inkwell:GUIDE" => "Keep the well full." }
@@ -168,9 +174,7 @@ class DriverTest < Minitest::Test
       assert_equal 1, status.exitstatus, source
       assert_empty out
       assert_equal "rich-ri: Nothing known about #{source}\n", err
-      out, = gems("#{source}:", complete: true)
-
-      assert_empty out, source
+      assert_empty gem_candidates("#{source}:"), source
     end
   end
 
@@ -178,11 +182,11 @@ class DriverTest < Minitest::Test
     out, err, status = gems("inkwell", complete: true)
 
     assert_predicate status, :success?, err
-    assert_equal %w[inkwell-2: inkwell-native: inkwell:], out.split
-    assert_equal %w[inkwell:GLOSSARY.rdoc inkwell:GUIDE.rdoc], gems("inkwell:", complete: true).first.split
-    assert_equal %w[inkwell-2:UPGRADING.rdoc], gems("inkwell-2:", complete: true).first.split
-    assert_equal %w[inkwell-native:BUILDING.rdoc], gems("inkwell-native:B", complete: true).first.split
-    assert_equal %w[inkwell-1.4.0:GUIDE.rdoc], gems("inkwell-1.4.0:GU", complete: true).first.split
+    assert_equal "inkwell-2:\t\ninkwell-native:\t\ninkwell:\t\n:\n", out
+    assert_equal %w[inkwell:GLOSSARY.rdoc inkwell:GUIDE.rdoc], gem_candidates("inkwell:")
+    assert_equal %w[inkwell-2:UPGRADING.rdoc], gem_candidates("inkwell-2:")
+    assert_equal %w[inkwell-native:BUILDING.rdoc], gem_candidates("inkwell-native:B")
+    assert_equal %w[inkwell-1.4.0:GUIDE.rdoc], gem_candidates("inkwell-1.4.0:GU")
   end
 
   def test_source_directory_display_escapes_controls_without_changing_lookup_paths
