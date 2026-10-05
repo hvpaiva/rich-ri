@@ -30,7 +30,7 @@ _rich-ri() {
 }
 
 # Loaded from fpath, this file is the body of the function on its first call.
-if [[ $funcstack[1] == _rich-ri ]]; then
+if [[ $zsh_eval_context[-1] == loadautofunc ]]; then
   _rich-ri "$@"
 else
   compdef _rich-ri rich-ri

@@ -294,6 +294,17 @@ class ZshCompletionTest < Minitest::Test
     assert_equal ["compset -P '--[^=]#='", "_files -/"], zsh_answer("--doc-dir=do")
   end
 
+  def test_zsh_sourced_by_a_relative_name_registers_the_function_and_completes_nothing
+    FileUtils.cp(File.join(TestSupport::ROOT, "completions/rich-ri.zsh"), File.join(@bin, "_rich-ri"))
+    result = shell("zsh", <<~ZSH, @bin)
+      compdef() { print -r -- "compdef $*" }
+      cd "$1"
+      source _rich-ri
+    ZSH
+
+    assert_equal ["compdef _rich-ri rich-ri"], result
+  end
+
   private
 
   def zsh_answer(*)
