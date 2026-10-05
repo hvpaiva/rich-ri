@@ -200,7 +200,7 @@ module RichRI
         @actions.choose("--install-man", :install_man, directory)
       end
       @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") do |path|
-        raise UsageError, "--dump requires a nonempty file path" if path.empty?
+        raise UsageError, '--dump must be a readable regular file, not ""' if path.empty?
 
         @actions.choose("--dump", :dump, path)
       end

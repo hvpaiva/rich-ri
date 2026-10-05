@@ -130,7 +130,7 @@ class ConfigurationTest < Minitest::Test
         with_environment("RICH_RI_WIDTH" => value) do
           error = assert_raises(RichRI::ConfigurationError, value) { options }
 
-          assert_equal "RICH_RI_WIDTH must be an integer from 20 to 10000", error.message
+          assert_equal "RICH_RI_WIDTH must be an integer from 20 to 10000, not #{value.inspect}", error.message
         end
       end
     end

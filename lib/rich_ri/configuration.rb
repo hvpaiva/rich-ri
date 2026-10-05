@@ -140,20 +140,25 @@ module RichRI
 
       if key == "width"
         unless value.is_a?(Integer) && WIDTH.cover?(value)
-          raise ConfigurationError, "#{name} must be an integer from #{WIDTH.min} to #{WIDTH.max}"
+          raise ConfigurationError, "#{name} must be an integer from #{WIDTH.min} to #{WIDTH.max}, " \
+                                    "not #{value.to_s.inspect}"
         end
       else
         text!(value, name)
       end
       values = { "theme" => Theme::NAMES, "color" => COLOR_MODES, "color_depth" => Theme::DEPTHS }[key]
-      raise ConfigurationError, "#{name} must be one of #{values.join(', ')}" if values && !values.include?(value)
+      if values && !values.include?(value)
+        raise ConfigurationError, "#{name} must be one of #{values.join(', ')}, not #{value.inspect}"
+      end
 
       flag = key == "pager" ? "pager-command" : key.tr("_", "-")
       key == "pager" ? ["--pager", "--#{flag}=#{value}"] : ["--#{flag}=#{value}"]
     end
 
     def boolean(flag, value, name = flag)
-      raise ConfigurationError, "#{name} must be true or false" unless [true, false].include?(value)
+      unless [true, false].include?(value)
+        raise ConfigurationError, "#{name} must be true or false, not #{value.to_s.inspect}"
+      end
 
       ["--#{'no-' unless value}#{flag}"]
     end
