@@ -29,11 +29,15 @@ module Changelog
 
     # Where the branch forked: entries the base released since then are not the branch's own.
     def self.fork_point_text(root, base)
-      fork_point, error, status = Open3.capture3("git", "merge-base", "--end-of-options", base, "HEAD", chdir: root)
-      raise Error, "cannot compare HEAD with #{base}: #{error.strip}" unless status.success?
+      fork_point = git(root, "cannot compare HEAD with #{base}", "merge-base", "--end-of-options", base, "HEAD").strip
+      git(root, "cannot read #{Changelog::PATH} at #{fork_point}", "show", "#{fork_point}:#{Changelog::PATH}")
+    end
 
-      text, _error, status = Open3.capture3("git", "show", "#{fork_point.strip}:#{Changelog::PATH}", chdir: root)
-      status.success? ? text : ""
+    def self.git(root, failure, *)
+      output, error, status = Open3.capture3("git", *, chdir: root)
+      raise Error, "#{failure}: #{error.strip}" unless status.success?
+
+      output
     end
 
     # A release moves the entries out of Unreleased into a section of their own.
@@ -49,6 +53,6 @@ module Changelog
       raise Error, "cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
     end
 
-    private_class_method :changed_paths, :fork_point_text, :entry_added?, :read
+    private_class_method :changed_paths, :fork_point_text, :git, :entry_added?, :read
   end
 end

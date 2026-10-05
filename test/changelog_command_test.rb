@@ -42,6 +42,19 @@ class ChangelogCommandTest < Minitest::Test
     end
   end
 
+  def test_a_changelog_git_cannot_read_where_the_branch_forked_stops_the_check
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      blob = git(root, "rev-parse", "#{base}:CHANGELOG.md")
+      commit(root, "lib/rich_ri.rb" => "# changed")
+      File.delete(File.join(root, ".git/objects", blob[0, 2], blob[2..]))
+      out, err, status = lint_changelog(root, base)
+
+      assert_equal [1, "", "lint-changelog: cannot read CHANGELOG.md at #{base}: " \
+                           "fatal: bad object #{base}:CHANGELOG.md\n"], [status.exitstatus, out, err]
+    end
+  end
+
   def test_honors_the_documented_waiver_values
     %w[1 true].each do |waiver|
       repository do |root|
