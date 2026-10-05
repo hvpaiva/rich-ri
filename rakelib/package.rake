@@ -16,6 +16,7 @@ end
 namespace :package do
   desc "Install the gem into an empty gem home and exercise the installed CLI"
   task :check, [:artifact] do |_task, args|
+    require_tool("man")
     require_relative "../lib/rich_ri/version"
     Dir.mktmpdir("rich-ri-package-") do |dir|
       package = args[:artifact] ? File.expand_path(args[:artifact]) : File.join(dir, "rich-ri.gem")

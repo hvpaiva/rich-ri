@@ -3,6 +3,12 @@
 require "rake/testtask"
 require "rubocop/rake_task"
 require "fileutils"
+require_relative "rakelib/tools"
+
+# A missing program gets one line of advice instead of a failed command and its trace.
+def require_tool(name)
+  abort Tools.missing(name) unless Tools.available?(name)
+end
 
 Rake::TestTask.new(:test) do |task|
   task.libs << "test" << "lib"
@@ -78,26 +84,31 @@ namespace :lint do
 
   desc "Check Bash scripts with ShellCheck"
   task :shell do
+    require_tool("shellcheck")
     sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
   end
 
   desc "Check spelling in source and documentation"
   task :spelling do
+    require_tool("typos")
     sh "typos"
   end
 
   desc "Check GitHub Actions security (offline)"
   task :workflows do
+    require_tool("zizmor")
     sh "zizmor", "--offline", "--no-progress", ".github/workflows"
   end
 
   desc "Check local documentation links"
   task :links do
+    require_tool("lychee")
     sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md", ".github/*.md"]
   end
 
   desc "Check the manual with groff"
   task :man do
+    require_tool("groff")
     require "open3"
     _out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-man", "man/man1/rich-ri.1")
     abort err unless status.success? && err.empty?
