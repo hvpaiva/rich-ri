@@ -7,17 +7,13 @@ require "fileutils"
 module Compatibility
   ROOT = File.expand_path("..", __dir__)
   HOME = File.join(ROOT, "tmp/compatibility")
-  MAINTENANCE = %w[benchmark commit_policy compatibility project setup shell_runner test_environment tools].freeze
+  RUNTIME = %w[bat cli completion configuration configuration_cli configuration_docs corpus dependencies
+               document_structure documentation driver highlighter legacy_store manual optional_dependency options
+               rendering ruby_highlighting shell terminal theme].freeze
 
   class Error < StandardError; end
 
-  def self.maintenance?(name) = MAINTENANCE.include?(name) || name.match?(/\A(?:changelog|ci|github|release)(?:_|\z)/)
-
-  def self.runtime_tests
-    Dir[File.join(ROOT, "test/*_test.rb")].reject { |path| maintenance?(File.basename(path, "_test.rb")) }
-  end
-
-  def self.load_tests = runtime_tests.each { |path| require path }
+  def self.load_tests = RUNTIME.each { |name| require File.join(ROOT, "test/#{name}_test") }
 
   def self.environment(bundle, home: HOME)
     { "BUNDLE_GEMFILE" => File.join(ROOT, "gemfiles/#{bundle}.gemfile"), "BUNDLE_PATH" => File.join(home, bundle) }

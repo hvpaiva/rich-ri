@@ -4,6 +4,12 @@ require "test_helper"
 require_relative "../rakelib/compatibility"
 
 class CompatibilityTest < Minitest::Test
+  # They test the repository's own tooling, which the minimum bundle does not install.
+  MAINTENANCE = %w[benchmark changelog changelog_command changelog_lint ci ci_result ci_workflow commit_policy
+                   compatibility github github_templates project release release_artifact release_branch
+                   release_commands release_publication release_pull_request release_recovery setup shell_runner
+                   test_environment tools].freeze
+
   def test_both_bundles_stay_in_a_private_directory_and_never_reach_the_active_gem_home
     recorded_run do |home, calls|
       environments = calls.map(&:first)
@@ -29,12 +35,11 @@ class CompatibilityTest < Minitest::Test
     end
   end
 
-  def test_only_runtime_tests_run_with_the_minimum_bundle
-    names = Compatibility.runtime_tests.map { |path| File.basename(path, "_test.rb") }
+  def test_every_test_file_runs_with_the_minimum_bundle_or_is_a_maintenance_test
+    names = Dir.glob("*_test.rb", base: File.join(TestSupport::ROOT, "test")).map { |path| path.delete_suffix("_test.rb") }
 
-    assert_empty %w[cli completion legacy_store manual rendering shell] - names
-    assert_empty names & %w[benchmark changelog ci ci_result ci_workflow compatibility github github_templates
-                            release release_commands setup tools]
+    assert_empty Compatibility::RUNTIME & MAINTENANCE
+    assert_equal names.sort, (Compatibility::RUNTIME + MAINTENANCE).sort
   end
 
   def test_a_failed_step_stops_the_run_and_names_the_bundle
