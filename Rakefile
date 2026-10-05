@@ -75,12 +75,12 @@ namespace :lint do
   desc "Check branch commits and optional PR_TITLE/PR_BODY (range defaults to origin/main..HEAD)"
   task :commits, [:range] do |_task, args|
     base = default_base.call
-    sh RbConfig.ruby, "bin/lint-commits", args[:range] || (base ? "#{base}..HEAD" : "HEAD")
+    sh RbConfig.ruby, File.join(__dir__, "bin/lint-commits"), args[:range] || (base ? "#{base}..HEAD" : "HEAD")
   end
 
   desc "Check CHANGELOG.md and the entry for user-visible changes since base (origin/main); SKIP_CHANGELOG=1 waives it"
   task :changelog, [:base] do |_task, args|
-    sh RbConfig.ruby, "bin/lint-changelog", *(args[:base] || default_base.call)
+    sh RbConfig.ruby, File.join(__dir__, "bin/lint-changelog"), *(args[:base] || default_base.call)
   end
 
   desc "Check Bash scripts with ShellCheck"

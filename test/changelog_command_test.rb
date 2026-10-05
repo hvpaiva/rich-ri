@@ -86,7 +86,40 @@ class ChangelogCommandTest < Minitest::Test
     end
   end
 
+  def test_the_rake_task_compares_with_origin_main_when_the_clone_has_it
+    repository do |root|
+      git(root, "update-ref", "refs/remotes/origin/main", git(root, "rev-parse", "HEAD"))
+      commit(root, "lib/rich_ri.rb" => "# changed")
+      _out, err, status = rake(root, "lint:changelog")
+
+      assert_equal 1, status.exitstatus
+      assert_equal ["lint-changelog: CHANGELOG.md: #{Changelog::Lint::ENTRY_REQUIRED}\n"],
+                   err.lines.grep(/\Alint-changelog: /)
+    end
+  end
+
+  def test_the_rake_task_checks_only_the_structure_in_a_clone_without_origin_main
+    repository do |root|
+      commit(root, "lib/rich_ri.rb" => "# changed")
+      _out, err, status = rake(root, "lint:changelog")
+
+      assert_predicate status, :success?, err
+    end
+  end
+
+  def test_the_documentation_check_includes_the_changelog_check
+    out, err, status = rake(TestSupport::ROOT, "--prereqs", "docs:check")
+
+    assert_predicate status, :success?, err
+    assert_includes out[/^rake docs:check\n((?:    .+\n)+)/, 1].split, "lint:changelog"
+  end
+
   private
+
+  def rake(root, *)
+    Open3.capture3(GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => nil), RbConfig.ruby, Gem.bin_path("rake", "rake"),
+                   "-f", File.join(TestSupport::ROOT, "Rakefile"), *, chdir: root)
+  end
 
   def lint_changelog(root, *, waiver: nil)
     Open3.capture3(GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => waiver), RbConfig.ruby,
