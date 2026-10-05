@@ -59,7 +59,8 @@ module Manual
       Options may follow names; -- ends them.
       .PP
       A command does one thing. --help answers before anything else and
-      --version before the rest, so either can be added to any command line.
+      --version before the rest, so either can be added to any command line
+      whose options and values are valid.
       No two of #{listing(exclusive_actions)} can be combined.
       --interactive takes no names; --no-interactive requires one.
       An action given on the command line replaces one set in RI.

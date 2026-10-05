@@ -15,6 +15,15 @@ class ActionsTest < Minitest::Test
     refute parse("--list", "--help").driver_options[:list]
   end
 
+  def test_help_does_not_answer_a_command_line_with_a_refused_value
+    out, err, status = cli("--help", "--width=abc", docs: false)
+
+    assert_equal 2, status.exitstatus
+    assert_empty out
+    assert_equal "rich-ri: --width must be an integer from 20 to 10000, not \"abc\"\n" \
+                 "Run rich-ri --help for usage.\n", err
+  end
+
   def test_two_other_actions_cannot_be_combined
     { %w[--man --show-config] => "--man and --show-config",
       %w[--config-path --show-config] => "--config-path and --show-config",
