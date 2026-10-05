@@ -16,7 +16,7 @@ class ConfigurationDocsTest < Minitest::Test
   end
 
   def test_documented_yaml_examples_are_accepted_by_the_executable
-    examples = [read("docs/config.example.yml")]
+    examples = [read("docs/config.example.yml"), manual_example]
     %w[README.md docs/configuration.md].each do |path|
       examples.concat(read(path).scan(/```yaml\n(.*?)```/m).flatten)
     end
@@ -29,6 +29,19 @@ class ConfigurationDocsTest < Minitest::Test
         assert_predicate status, :success?, "Example #{index}: #{err}"
         assert_equal RichRI::Configuration::KEYS.sort, YAML.safe_load(out).keys.sort
       end
+    end
+  end
+
+  def test_manual_example_sets_only_values_that_change_the_output
+    example = YAML.safe_load(manual_example)
+    defaults = RichRI::Options.new.parse([], defaults: "", configuration: false).settings
+
+    example.except("styles").each { |key, value| refute_equal defaults.fetch(key), value, key }
+    preset = RichRI::Theme.new(name: example.fetch("theme"))
+    example.fetch("styles").each do |role, style|
+      styled = RichRI::Theme.new(name: example.fetch("theme"), styles: { role => style })
+
+      refute_equal preset.sgr(role.to_sym), styled.sgr(role.to_sym), role
     end
   end
 
@@ -48,6 +61,10 @@ class ConfigurationDocsTest < Minitest::Test
   end
 
   private
+
+  def manual_example
+    Manual.render[/^\.SS Example\n\.nf\n(.*?)^\.fi$/m, 1]
+  end
 
   def read(path)
     File.read(File.join(TestSupport::ROOT, path))

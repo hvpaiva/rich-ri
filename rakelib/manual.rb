@@ -260,13 +260,11 @@ module Manual
       Mapping of semantic role names to style strings. See STYLES below.
       .SS Example
       .nf
-      theme: terminal
-      color: auto
-      color_depth: auto
-      pager: true
+      theme: dark
+      width: 72
       styles:
-        heading: "blue:bold"
-        comment: "bright_black"
+        method: "green:bold"
+        comment: "italic"
       .fi
       .PP
       Original RDoc formatters selected with --format do not use rich-ri themes,
