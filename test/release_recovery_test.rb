@@ -48,6 +48,21 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
+  def test_a_resumed_preparation_refuses_a_date_that_is_not_on_the_calendar
+    repository do |root|
+      source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| ["HEAD:#{path}", File.read(File.join(root, path))] }
+      changelog = Release.changes("0.2.0", root: root, date: Date.new(2026, 10, 4)).fetch("CHANGELOG.md")
+      File.write(File.join(root, "CHANGELOG.md"), changelog.sub("2026-10-04", "2026-02-30"))
+      state = { branch: "release/v0.2.0", dirty: " M CHANGELOG.md\n", source: source }
+      error = assert_raises(Release::Error) do
+        workflow("0.2.0", root: root, runner: workflow_runner([], state: state), out: StringIO.new).run
+      end
+
+      assert_equal "CHANGELOG.md: [0.2.0] is dated 2026-02-30, which is not a calendar date; use YYYY-MM-DD",
+                   error.message.lines.first.chomp
+    end
+  end
+
   def test_open_pr_for_another_version_is_never_merged
     repository do |root|
       commands = []
@@ -148,10 +163,12 @@ class ReleaseRecoveryTest < Minitest::Test
 
   def test_verification_rejects_a_malformed_changelog_and_a_version_it_does_not_release
     rejected = {
-      /\[0\.2\.0\] has an invalid date/ => released_changelog.sub("2026-10-04", "2026-99-99"),
-      /\[0\.2\.0\] has no entries/ => released_changelog.sub("- Readable documentation.", ""),
-      /Link references must be, in this order/ => released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
-      /has no "## \[0\.2\.0\] - YYYY-MM-DD" heading/ => released_changelog.gsub("0.2.0", "0.1.9")
+      /\ACHANGELOG\.md: \[0\.2\.0\] is dated 2026-99-99, which is not a calendar date/ =>
+        released_changelog.sub("2026-10-04", "2026-99-99"),
+      /\ACHANGELOG\.md: \[0\.2\.0\] has no entries/ => released_changelog.sub("- Readable documentation.", ""),
+      /\ACHANGELOG\.md: link references must be, in this order/ =>
+        released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
+      /^CHANGELOG\.md: "## \[0\.2\.0\] - YYYY-MM-DD" is missing\z/ => released_changelog.gsub("0.2.0", "0.1.9")
     }
 
     rejected.each do |reason, text|

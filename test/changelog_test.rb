@@ -46,12 +46,13 @@ class ChangelogTest < Minitest::Test
   end
 
   def test_headings_dates_and_sections_must_follow_the_format
-    { 'Heading "## 0.2.0" must be "## [Unreleased]" or "## [X.Y.Z] - YYYY-MM-DD"' =>
+    { 'heading "## 0.2.0" must be "## [Unreleased]" or "## [X.Y.Z] - YYYY-MM-DD"' =>
         RELEASED.sub("## [0.2.0] - 2026-10-04", "## 0.2.0"),
       '"## [Unreleased]" must appear once, before every release' => RELEASED.sub("## [Unreleased]\n", ""),
-      "[0.1.0] has an invalid date: 2026-02-30" => RELEASED.sub("2026-10-01", "2026-02-30"),
+      "[0.1.0] is dated 2026-02-30, which is not a calendar date; use YYYY-MM-DD" =>
+        RELEASED.sub("2026-10-01", "2026-02-30"),
       "[0.2.0] is dated in the future: 2026-10-05" => RELEASED.sub("2026-10-04", "2026-10-05"),
-      'Section "### New" must be one of Added, Changed, Deprecated, Removed, Fixed, Security' =>
+      'section "### New" must be one of Added, Changed, Deprecated, Removed, Fixed, Security' =>
         RELEASED.sub("### Fixed", "### New") }.each do |problem, text|
       assert_includes Changelog.problems(text, today: TODAY), problem
     end
@@ -61,14 +62,14 @@ class ChangelogTest < Minitest::Test
     swapped = RELEASED.sub("2026-10-04", "2026-09-30")
     repeated = RELEASED.sub("## [0.1.0] - 2026-10-01 [YANKED]", "## [0.2.0] - 2026-10-01")
 
-    assert_includes Changelog.problems(swapped, today: TODAY), "Releases must be listed newest first"
+    assert_includes Changelog.problems(swapped, today: TODAY), "releases must be listed newest first"
     assert_includes Changelog.problems(repeated, today: TODAY), "[0.2.0] appears more than once"
     assert_includes Changelog.problems(RELEASED.sub("- The first release.\n", ""), today: TODAY),
                     '[0.1.0] has no entries; add at least one "- " line'
   end
 
   def test_link_references_follow_the_headings_in_order
-    expected = "Link references must be, in this order:\n[Unreleased]: #{URL}/compare/v0.2.0...HEAD\n" \
+    expected = "link references must be, in this order:\n[Unreleased]: #{URL}/compare/v0.2.0...HEAD\n" \
                "[0.2.0]: #{URL}/releases/tag/v0.2.0\n[0.1.0]: #{URL}/releases/tag/v0.1.0"
     ascending = RELEASED.sub(REFERENCES.join, REFERENCES.values_at(0, 2, 1).join)
 

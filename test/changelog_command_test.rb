@@ -22,7 +22,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root, base)
 
       assert_equal 1, status.exitstatus
-      assert_equal "#{Changelog::PATH}: #{Changelog::Lint::ENTRY_REQUIRED}\n", err
+      assert_equal "lint-changelog: CHANGELOG.md: #{Changelog::Lint::ENTRY_REQUIRED}\n", err
     end
   end
 
@@ -34,7 +34,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root, unrelated)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: Cannot compare HEAD with #{unrelated}: " \
+      assert_equal "lint-changelog: cannot compare HEAD with #{unrelated}: " \
                    "fatal: #{unrelated}...HEAD: no merge base\n", err
     end
   end
@@ -82,7 +82,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: Cannot read CHANGELOG.md in #{root}: No such file or directory\n", err
+      assert_equal "lint-changelog: cannot read CHANGELOG.md in #{root}: No such file or directory\n", err
     end
   end
 

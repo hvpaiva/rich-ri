@@ -21,10 +21,8 @@ module Release
     raise Error, "Release tag must be v#{version}" unless tag == "v#{version}"
 
     problems = Changelog.problems(changelog)
-    unless Changelog.released?(changelog, version)
-      problems << %(#{Changelog::PATH} has no "## [#{version}] - YYYY-MM-DD" heading)
-    end
-    raise Error, problems.join("\n") unless problems.empty?
+    problems << %("## [#{version}] - YYYY-MM-DD" is missing) unless Changelog.released?(changelog, version)
+    raise Error, problems.map { |problem| "#{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
 
     version
   end

@@ -137,8 +137,7 @@ module Release
       # A retry may happen on another UTC day. Preserve the preparation date,
       # while still comparing every edit against exactly what we would generate.
       changelog = File.read(File.join(@root, "CHANGELOG.md"))
-      dated = changelog[/^## \[#{Regexp.escape(@version)}\] - (\d{4}-\d{2}-\d{2})$/, 1]
-      changes = Release.changes(@version, root: @root, source: source, date: preparation_date(dated))
+      changes = Release.changes(@version, root: @root, source: source, date: preparation_date(changelog))
       changes.each do |path, content|
         actual = File.read(File.join(@root, path))
         next if [source.fetch(path), content].include?(actual)
@@ -148,10 +147,12 @@ module Release
       changes
     end
 
-    def preparation_date(text)
-      text ? Date.iso8601(text) : Time.now.utc.to_date
-    rescue Date::Error
-      raise Error, "CHANGELOG.md has an invalid date for #{@version}: #{text}"
+    def preparation_date(changelog)
+      heading = Changelog.releases(changelog).find { |release| release.version == @version }
+      return Time.now.utc.to_date unless heading
+      raise Error, "#{Changelog::PATH}: #{Changelog.invalid_date(heading)}" unless heading.dated?
+
+      heading.day
     end
 
     def prepare(changes)

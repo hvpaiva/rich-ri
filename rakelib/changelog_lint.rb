@@ -7,7 +7,7 @@ require_relative "ci"
 module Changelog
   module Lint
     USER_VISIBLE = %r{\A(?:(?:lib|exe|completions|man)/|rich-ri\.gemspec\z)}
-    ENTRY_REQUIRED = "Changes to lib/, exe/, completions/, man/ or rich-ri.gemspec need a line under " \
+    ENTRY_REQUIRED = "changes to lib/, exe/, completions/, man/ or rich-ri.gemspec need a line under " \
                      '"## [Unreleased]". When users cannot see the change, set SKIP_CHANGELOG=1; ' \
                      "a maintainer adds the skip-changelog label to the pull request."
 
@@ -24,13 +24,13 @@ module Changelog
     def self.changed_paths(root, base)
       CI.changed_paths("#{base}...HEAD", root)
     rescue CI::Error => e
-      raise Error, "Cannot compare HEAD with #{base}: #{e.message}"
+      raise Error, "cannot compare HEAD with #{base}: #{e.message}"
     end
 
     # Where the branch forked: entries the base released since then are not the branch's own.
     def self.fork_point_text(root, base)
       fork_point, error, status = Open3.capture3("git", "merge-base", "--end-of-options", base, "HEAD", chdir: root)
-      raise Error, "Cannot compare HEAD with #{base}: #{error.strip}" unless status.success?
+      raise Error, "cannot compare HEAD with #{base}: #{error.strip}" unless status.success?
 
       text, _error, status = Open3.capture3("git", "show", "#{fork_point.strip}:#{Changelog::PATH}", chdir: root)
       status.success? ? text : ""
@@ -46,7 +46,7 @@ module Changelog
     def self.read(root)
       File.read(File.join(root, Changelog::PATH))
     rescue SystemCallError => e
-      raise Error, "Cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
+      raise Error, "cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
     end
   end
 end

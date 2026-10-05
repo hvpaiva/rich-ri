@@ -44,6 +44,10 @@ module Changelog
     ["[Unreleased]: #{unreleased}"] + versions.map { |version| "[#{version}]: #{URL}/releases/tag/v#{version}" }
   end
 
+  def self.invalid_date(release)
+    "[#{release.version}] is dated #{release.date}, which is not a calendar date; use YYYY-MM-DD"
+  end
+
   def self.cut(text, version, date)
     released = text.sub(/^## \[Unreleased\]\n/) { "## #{UNRELEASED}\n\n## [#{version}] - #{date.iso8601}\n" }
     released.sub(/^\[Unreleased\]: .*\n/) do
@@ -58,7 +62,7 @@ module Changelog
   def self.heading_problems(text)
     headings = headings(text)
     problems = headings.reject { |heading| heading == UNRELEASED || RELEASE.match?(heading) }.map do |heading|
-      %(Heading "## #{heading}" must be "## #{UNRELEASED}" or "## [X.Y.Z] - YYYY-MM-DD")
+      %(heading "## #{heading}" must be "## #{UNRELEASED}" or "## [X.Y.Z] - YYYY-MM-DD")
     end
     return problems if headings.first == UNRELEASED && headings.one?(UNRELEASED)
 
@@ -69,12 +73,12 @@ module Changelog
     releases = releases(text)
     undated, dated = releases.partition { |release| !release.dated? }
     repeated = releases.map(&:version).tally.select { |_version, count| count > 1 }.keys
-    problems = undated.map { |release| "[#{release.version}] has an invalid date: #{release.date}" }
+    problems = undated.map { |release| invalid_date(release) }
     problems += dated.select { |release| release.day > today }.map do |release|
       "[#{release.version}] is dated in the future: #{release.date}"
     end
     problems += repeated.map { |version| "[#{version}] appears more than once" }
-    problems << "Releases must be listed newest first" unless newest_first?(dated)
+    problems << "releases must be listed newest first" unless newest_first?(dated)
     problems + empty_releases(text).map { |version| %([#{version}] has no entries; add at least one "- " line) }
   end
 
@@ -87,12 +91,12 @@ module Changelog
 
   def self.section_problems(text)
     (text.scan(/^### (.*)$/).flatten.uniq - SECTIONS).map do |section|
-      %(Section "### #{section}" must be one of #{SECTIONS.join(', ')})
+      %(section "### #{section}" must be one of #{SECTIONS.join(', ')})
     end
   end
 
   def self.reference_problems(text)
     expected = references(text)
-    text.scan(REFERENCE) == expected ? [] : ["Link references must be, in this order:\n#{expected.join("\n")}"]
+    text.scan(REFERENCE) == expected ? [] : ["link references must be, in this order:\n#{expected.join("\n")}"]
   end
 end

@@ -24,7 +24,7 @@ begin
 
   base = nil if %w[1 true].include?(ENV.fetch("SKIP_CHANGELOG", nil))
   problems = Changelog::Lint.problems(root: Dir.pwd, base: base)
-  abort problems.map { |problem| "#{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
+  abort problems.map { |problem| "lint-changelog: #{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
 rescue OptionParser::ParseError => e
   warn "lint-changelog: #{e.message}\n#{parser}"
   exit 2

@@ -85,7 +85,7 @@ class ChangelogLintTest < Minitest::Test
     repository do |root|
       error = assert_raises(Changelog::Lint::Error) { Changelog::Lint.problems(root: root, base: "missing") }
 
-      assert_equal "Cannot compare HEAD with missing: fatal: bad revision 'missing...HEAD'", error.message
+      assert_equal "cannot compare HEAD with missing: fatal: bad revision 'missing...HEAD'", error.message
     end
   end
 

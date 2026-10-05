@@ -51,10 +51,11 @@ class ProjectTest < Minitest::Test
 
     assert_equal "Release tag must be v#{RichRI::VERSION}", error.message
     error = assert_raises(Release::Error) do
-      Release.verify(tag: "v#{RichRI::VERSION}", changelog: "## [Unreleased]\n")
+      Release.verify(tag: "v#{RichRI::VERSION}",
+                     changelog: "## [Unreleased]\n\n[Unreleased]: https://github.com/hvpaiva/rich-ri/commits/main\n")
     end
 
-    assert_includes error.message, %(CHANGELOG.md has no "## [#{RichRI::VERSION}] - YYYY-MM-DD" heading)
+    assert_equal %(CHANGELOG.md: "## [#{RichRI::VERSION}] - YYYY-MM-DD" is missing), error.message
   end
 
   def test_a_failed_release_check_reports_its_reason_without_a_backtrace
