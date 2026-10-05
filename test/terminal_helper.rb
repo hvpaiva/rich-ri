@@ -48,9 +48,8 @@ module TerminalTestSupport
 
   # The executable on a terminal, with colors left to its own detection.
   def terminal_cli(*, env: {}, prompt: nil, input: nil)
-    coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
-    terminal(RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", "#{TestSupport::ROOT}/exe/rich-ri", *,
-             env: { "COVERAGE_CHILD" => "1", "NO_COLOR" => nil }.merge(env), prompt: prompt, input: input)
+    terminal(*executable(*), env: { "COVERAGE_CHILD" => "1", "NO_COLOR" => nil }.merge(env), prompt: prompt,
+                             input: input)
   end
 
   private

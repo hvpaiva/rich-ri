@@ -81,10 +81,13 @@ module TestSupport
 
   def cli(*, env: {}, docs: true, stdin: "")
     sources = docs ? ["--no-standard-docs", "--doc-dir", STORE] : []
+    Open3.capture3(ENVIRONMENT.merge("COVERAGE_CHILD" => "1").merge(env), *executable(*sources, *), stdin_data: stdin)
+  end
+
+  # The command that cli runs, for a test that connects its streams itself.
+  def executable(*)
     coverage = ENV["COVERAGE"] ? ["-r#{ROOT}/test/coverage_helper"] : []
-    Open3.capture3(ENVIRONMENT.merge("COVERAGE_CHILD" => "1").merge(env), RbConfig.ruby, *coverage,
-                   "-I#{ROOT}/lib", "#{ROOT}/exe/rich-ri", *sources, *,
-                   stdin_data: stdin)
+    [RbConfig.ruby, *coverage, "-I#{ROOT}/lib", File.join(ROOT, "exe/rich-ri"), *]
   end
 
   def driver

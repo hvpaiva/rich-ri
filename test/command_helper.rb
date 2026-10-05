@@ -29,12 +29,6 @@ module CommandSupport
     end
   end
 
-  # The command that cli runs, for a test that connects its streams itself.
-  def executable(*)
-    coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
-    [RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", File.join(TestSupport::ROOT, "exe/rich-ri"), *]
-  end
-
   private
 
   def current(env, name)
