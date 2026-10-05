@@ -12,7 +12,7 @@ module RichRI
       Timeout.timeout(4) do
         words = words.drop(1).map { |word| shell_word(word) } if %w[--shell=bash --shell=zsh].include?(words.first)
         candidates(words).each do |value, description|
-          next if [value, description].any? { |text| text.match?(/[\t\r\n]/) || RichRI.sanitize(text) != text }
+          next if [value, description].any? { |text| text.match?(/[\t\r\n]/) || !RichRI.printable?(text) }
 
           io.puts "#{value}\t#{description}"
         end
@@ -101,7 +101,7 @@ module RichRI
     end
 
     def names(words, prefix)
-      defaults = Shellwords.split(ENV.fetch("RI", ""))
+      defaults = Shellwords.split(RichRI.utf8(ENV.fetch("RI", "")))
       configured = Configuration.new(words).arguments
       args = [defaults, configured, words].flat_map { |layer| source_arguments(layer) }
       options = Options.new.parse(args, defaults: "", configuration: false).driver_options

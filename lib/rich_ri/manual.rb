@@ -44,12 +44,12 @@ module RichRI
     def install_directory(target)
       raise UsageError, "--install-man=DIR must not be empty" if target && target.strip.empty?
 
-      data = ENV.fetch("XDG_DATA_HOME", nil)
-      data = File.join(Dir.home, ".local/share") unless data&.start_with?("/")
-      directory = File.expand_path(target || File.join(data, "man/man1"))
+      data = RichRI.utf8(ENV.fetch("XDG_DATA_HOME", ""))
+      data = File.join(RichRI.utf8(Dir.home), ".local/share") unless data.start_with?("/")
+      directory = RichRI.expand_path(target || File.join(data, "man/man1"))
       # Without DIR the destination comes from the environment, not from the command line.
       refused = target ? UsageError : ConfigurationError
-      if directory.match?(/[[:cntrl:]]/) || RichRI.sanitize(directory) != directory
+      if directory.match?(/[[:cntrl:]]/) || !RichRI.printable?(directory)
         raise refused, "manual destination must not contain control characters"
       end
       unless File.basename(directory) == "man1"

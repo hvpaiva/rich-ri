@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "encoding"
+
 module RichRI
   SGR = /\e\[[\d;]*m/
+  CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u0080-\u009f\u202a-\u202e\u2066-\u2069]|\r(?!\n)/
   RESET = "\e[0m"
   COLORS = {
     title: "1;36", heading: "1;34", subheading: "1;35",
@@ -12,19 +15,22 @@ module RichRI
   }.freeze
 
   def self.plain(text)
-    text.gsub(SGR, "")
+    utf8(text).gsub(SGR, "")
   end
 
   # Documentation may contain literal terminal controls. Show them as text;
   # only styles produced by this reader may reach the terminal as escapes.
   def self.sanitize(text)
-    text.gsub(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u0080-\u009f\u202a-\u202e\u2066-\u2069]|\r(?!\n)/) do |char|
-      format("\\u%04x", char.ord)
-    end
+    utf8(text).gsub(CONTROL) { |char| format("\\u%04x", char.ord) }
+  end
+
+  # Whether sanitize would leave the text as it is.
+  def self.printable?(text)
+    !utf8(text).match?(CONTROL)
   end
 
   def self.width(text)
-    Reline::Unicode.calculate_width(text, true)
+    Reline::Unicode.calculate_width(utf8(text), true)
   end
 
   # Each word has balanced SGRs: less resets colors at newlines, and wrapping

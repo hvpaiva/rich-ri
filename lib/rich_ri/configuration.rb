@@ -44,16 +44,16 @@ module RichRI
     # Whether a setting can be shown and passed on as it is: a nonempty string
     # holding no terminal control, line break or tab.
     def self.text?(value)
-      value.is_a?(String) && !value.strip.empty? && RichRI.sanitize(value) == value && !value.match?(/[\r\n\t]/)
+      value.is_a?(String) && !value.strip.empty? && RichRI.printable?(value) && !value.match?(/[\r\n\t]/)
     end
 
     private
 
     def select_path(argv)
-      base = @env["XDG_CONFIG_HOME"]
-      base = File.join(@env.fetch("HOME") { Dir.home }, ".config") unless base&.start_with?("/")
-      explicit = !@env.fetch("RICH_RI_CONFIG", "").empty?
-      path = explicit ? @env.fetch("RICH_RI_CONFIG") : File.join(base, "rich-ri/config.yml")
+      base = variable("XDG_CONFIG_HOME")
+      base = File.join(variable("HOME") || RichRI.utf8(Dir.home), ".config") unless base&.start_with?("/")
+      explicit = !variable("RICH_RI_CONFIG").to_s.empty?
+      path = explicit ? variable("RICH_RI_CONFIG") : File.join(base, "rich-ri/config.yml")
       refused = ConfigurationError
       self.class.switches(argv).each do |word, argument|
         if word == "--no-config"
@@ -70,7 +70,7 @@ module RichRI
         raise refused, "Configuration path must be a nonempty string without control characters"
       end
 
-      [path && File.expand_path(path), explicit]
+      [path && RichRI.expand_path(path), explicit]
     end
 
     def read_file
@@ -123,30 +123,36 @@ module RichRI
 
       directories.each do |directory|
         text!(directory, "doc_dirs")
-        args.push("--doc-dir", File.expand_path(directory, File.dirname(@path)))
+        args.push("--doc-dir", RichRI.expand_path(directory, File.dirname(@path)))
       end
       args
     end
 
     def environment_arguments
       args = ENVIRONMENT.flat_map do |name, key|
-        value = @env[name]
+        value = variable(name)
         next [] if value.nil? || value.empty?
 
         setting(key, key == "width" && value.match?(/\A[0-9]+\z/) ? value.to_i : value)
       end
-      args.concat(setting("bat_theme", @env["BAT_THEME"])) if @env["BAT_THEME"] && !@env["BAT_THEME"].empty? &&
-                                                              @env.fetch("RICH_RI_BAT_THEME", "").empty?
-      unless @env.fetch("RI_PAGER", "").empty?
-        text!(@env["RI_PAGER"], "RI_PAGER")
-        args << "--pager-command=#{@env['RI_PAGER']}"
+      bat_theme = variable("BAT_THEME").to_s
+      args.concat(setting("bat_theme", bat_theme)) unless bat_theme.empty? || !variable("RICH_RI_BAT_THEME").to_s.empty?
+      pager = variable("RI_PAGER").to_s
+      unless pager.empty?
+        text!(pager, "RI_PAGER")
+        args << "--pager-command=#{pager}"
       end
       @env.each do |name, value|
         next unless name.start_with?("RICH_RI_STYLE_") && !value.to_s.empty?
 
-        args.concat(style(name.delete_prefix("RICH_RI_STYLE_").downcase, value))
+        args.concat(style(name.delete_prefix("RICH_RI_STYLE_").downcase, RichRI.utf8(value)))
       end
       args
+    end
+
+    def variable(name)
+      value = @env[name]
+      value && RichRI.utf8(value)
     end
 
     def setting(key, value)

@@ -9,6 +9,7 @@ module RichRI
     end
 
     def run(argv)
+      argv = argv.map { |argument| RichRI.utf8(argument) }
       if argv.first == "--complete"
         Completion.new.write(argv.drop(1), $stdout)
         return 0

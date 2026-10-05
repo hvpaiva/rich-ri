@@ -42,7 +42,7 @@ module RichRI
       @parser.separator "Ruby highlighting is built in; bat optionally highlights other languages."
     end
 
-    def parse(argv, defaults: ENV.fetch("RI", ""), configuration: true)
+    def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)
       names = configured_defaults(argv, defaults, configuration)
       @driver_options[:names] = names + arguments(argv)
       @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
@@ -126,7 +126,7 @@ module RichRI
         directories.each do |dir|
           raise OptionParser::InvalidArgument, "#{dir} is not a directory" unless File.directory?(dir)
 
-          @driver_options[:extra_doc_dirs] << File.expand_path(dir)
+          @driver_options[:extra_doc_dirs] << RichRI.expand_path(dir)
         end
       end
       @parser.on("--no-standard-docs", "Use only directories provided with --doc-dir.") do

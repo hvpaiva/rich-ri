@@ -9,7 +9,7 @@ module RichRI
                    "reverse" => "7", "strike" => "9" }.freeze
 
     def initialize(value)
-      unless value.is_a?(String) && !value.empty? && RichRI.sanitize(value) == value
+      unless value.is_a?(String) && !value.empty? && RichRI.printable?(value)
         raise ThemeError, "style must be a nonempty string without control characters"
       end
 

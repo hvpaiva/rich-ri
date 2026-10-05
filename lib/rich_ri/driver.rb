@@ -147,6 +147,9 @@ module RichRI
 
     def load_stores(*selection)
       RDoc::RI::Paths.each(*selection) do |path, type|
+        # RubyGems labels its directories BINARY; a store source built from one
+        # cannot be joined with other text.
+        path = RichRI.utf8(path)
         @doc_dirs << path
         # Listing the searched directories is how a broken store is found.
         next if @list_doc_dirs

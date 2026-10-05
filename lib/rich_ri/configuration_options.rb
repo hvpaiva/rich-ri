@@ -16,7 +16,7 @@ module RichRI
       @parser.separator ""
       @parser.separator "Configuration and themes:"
       @parser.on("--config=FILE", "Read a YAML configuration file instead of the user default.") do |path|
-        @configuration_path = File.expand_path(text(path, "Configuration path"))
+        @configuration_path = RichRI.expand_path(text(path, "Configuration path"))
       end
       @parser.on("--no-config", "Skip the configuration file; environment options still apply.") do
         @configuration_path = nil
