@@ -40,4 +40,6 @@ module Compatibility
     bundle = File.basename(environment.fetch("BUNDLE_GEMFILE"), ".gemfile")
     raise Error, "#{bundle} bundle: #{command.join(' ')} failed"
   end
+
+  private_class_method :environment, :execute
 end

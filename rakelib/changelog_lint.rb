@@ -48,5 +48,7 @@ module Changelog
     rescue SystemCallError => e
       raise Error, "cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
     end
+
+    private_class_method :changed_paths, :fork_point_text, :entry_added?, :read
   end
 end

@@ -46,5 +46,7 @@ module Release
     rescue Gem::Package::Error => e
       raise Error, "release artifact is not a valid gem: #{e.message}"
     end
+
+    private_class_method :verify_package
   end
 end

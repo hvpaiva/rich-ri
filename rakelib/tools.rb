@@ -6,21 +6,27 @@ module Tools
   TABLE = /\A\[(?<name>[^\]]+)\]\s*\z/
   ENTRY = /\A(?<tool>[a-z][a-z0-9-]*)\s*=\s*"(?<version>[^"]+)"/
 
+  def self.mise_tools = pinned - ["ruby"]
+
+  def self.require!(tool)
+    abort "rake: #{missing(tool)}" unless available?(tool)
+  end
+
+  def self.report
+    (mise_tools + SYSTEM).reject { |tool| available?(tool) }.each { |tool| warn "setup: #{missing(tool)}" }
+  end
+
   # The standard library has no TOML parser; [tools] holds only quoted versions.
-  def self.pinned(path = MISE_TOML)
+  def self.pinned
     table = nil
-    File.foreach(path, chomp: true).each_with_object({}) do |line, tools|
+    File.foreach(MISE_TOML, chomp: true).each_with_object([]) do |line, tools|
       if (header = TABLE.match(line))
         table = header[:name]
       elsif table == "tools" && (entry = ENTRY.match(line))
-        tools[entry[:tool]] = entry[:version]
+        tools << entry[:tool]
       end
     end
   end
-
-  def self.mise_tools(pinned = self.pinned) = pinned.keys - ["ruby"]
-
-  def self.required(pinned = self.pinned) = mise_tools(pinned) + SYSTEM
 
   def self.available?(tool)
     ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |directory|
@@ -30,23 +36,15 @@ module Tools
   end
 
   # A tool mise holds is off PATH until mise is activated, and "mise install" then reports nothing.
-  def self.missing(tool, pinned = self.pinned, installed_by_mise: pinned.key?(tool) && mise_holds?(tool))
-    if installed_by_mise
-      "#{tool} is installed by mise but not on PATH; activate mise in your shell (mise activate --help)"
-    elsif pinned.key?(tool)
-      "#{tool} is not installed; install the version mise.toml pins with: mise install #{tool}"
-    else
+  def self.missing(tool)
+    if !mise_tools.include?(tool)
       "#{tool} is not installed; install it with your package manager"
+    elsif system("mise", "which", tool, out: File::NULL, err: File::NULL)
+      "#{tool} is installed by mise but not on PATH; activate mise in your shell (mise activate --help)"
+    else
+      "#{tool} is not installed; install the version mise.toml pins with: mise install #{tool}"
     end
   end
 
-  def self.require!(tool)
-    abort "rake: #{missing(tool)}" unless available?(tool)
-  end
-
-  def self.mise_holds?(tool) = system("mise", "which", tool, out: File::NULL, err: File::NULL) || false
-
-  def self.report
-    required.reject { |tool| available?(tool) }.each { |tool| warn "setup: #{missing(tool)}" }
-  end
+  private_class_method :pinned, :available?, :missing
 end

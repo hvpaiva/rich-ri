@@ -120,7 +120,7 @@ class CIWorkflowTest < Minitest::Test
     end
 
     assert_equal Tools.mise_tools.sort, installs.fetch("quality").sort
-    assert_empty installs.values.flatten - Tools.pinned.keys
+    assert_empty installs.values.flatten - Tools.mise_tools
   end
 
   def test_reusable_ci_and_release_explicitly_require_the_full_suite

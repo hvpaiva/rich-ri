@@ -99,4 +99,7 @@ module Changelog
     expected = references(text)
     text.scan(REFERENCE) == expected ? [] : ["link references must be, in this order:\n#{expected.join("\n")}"]
   end
+
+  private_class_method :headings, :references, :heading_problems, :release_problems, :empty_releases,
+                       :newest_first?, :section_problems, :reference_problems
 end

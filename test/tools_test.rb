@@ -7,40 +7,46 @@ require_relative "../rakelib/tools"
 class ToolsTest < Minitest::Test
   include ProgramSupport
 
-  def test_pinned_reads_the_tools_table_and_nothing_else
-    path = File.join(TestSupport::TEMP, "mise.toml")
-    File.write(path, <<~TOML)
-      min_version = "2026.1.0"
+  def test_only_the_tools_table_of_mise_toml_is_read_and_ruby_is_left_out
+    Dir.mktmpdir("rich-ri-tools-") do |root|
+      FileUtils.mkdir_p(File.join(root, "rakelib"))
+      FileUtils.cp(File.join(TestSupport::ROOT, "rakelib/tools.rb"), File.join(root, "rakelib"))
+      File.write(File.join(root, "mise.toml"), <<~TOML)
+        min_version = "2026.1.0"
 
-      [tools]
-      # The version CI runs.
-      ruby = "4.0.7"
-      typos = "1.50.3" # trailing comment
+        [tools]
+        # The version CI runs.
+        ruby = "4.0.7"
+        typos = "1.50.3" # trailing comment
 
-      [settings]
-      experimental = "true"
-    TOML
+        [settings]
+        experimental = "true"
+      TOML
+      out, err, status = Open3.capture3(RbConfig.ruby, "-r./rakelib/tools", "-e", "puts Tools.mise_tools", chdir: root)
 
-    assert_equal({ "ruby" => "4.0.7", "typos" => "1.50.3" }, Tools.pinned(path))
-    assert_equal %w[typos groff man], Tools.required(Tools.pinned(path))
+      assert_predicate status, :success?, err
+      assert_equal "typos\n", out
+    end
   end
 
   def test_every_program_a_task_requires_is_pinned_or_a_known_system_program
     sources = [File.join(TestSupport::ROOT, "Rakefile"), *Dir[File.join(TestSupport::ROOT, "rakelib/*.rake")]]
     required = sources.flat_map { |path| File.read(path).scan(/Tools\.require!\("([^"]+)"\)/) }.flatten.uniq
 
-    assert_empty required - Tools.required
-    assert_empty Tools.required - required
+    assert_equal (Tools.mise_tools + Tools::SYSTEM).sort, required.sort
   end
 
-  def test_advice_distinguishes_pinned_inactive_and_system_programs
-    pinned = { "typos" => "1.50.3" }
+  def test_a_tool_mise_installed_but_left_off_path_asks_to_activate_mise
+    Dir.mktmpdir("rich-ri-tools-") do |bin|
+      link_ruby(bin)
+      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
+      write_program(bin, "mise", '[ "$1" = which ]')
+      _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", "lint:spelling",
+                                         chdir: TestSupport::ROOT)
 
-    assert_equal "typos is not installed; install the version mise.toml pins with: mise install typos",
-                 Tools.missing("typos", pinned, installed_by_mise: false)
-    assert_equal "typos is installed by mise but not on PATH; activate mise in your shell (mise activate --help)",
-                 Tools.missing("typos", pinned, installed_by_mise: true)
-    assert_equal "groff is not installed; install it with your package manager", Tools.missing("groff", pinned)
+      assert_equal [1, "rake: typos is installed by mise but not on PATH; activate mise in your shell " \
+                       "(mise activate --help)\n"], [status.exitstatus, err]
+    end
   end
 
   def test_a_lint_task_without_its_program_explains_how_to_install_it

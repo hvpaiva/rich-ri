@@ -73,4 +73,6 @@ module Release
 
     [VERSION_FILE, Changelog::PATH].to_h { |path| [path, File.read(File.join(root, path))] }
   end
+
+  private_class_method :clean_source
 end

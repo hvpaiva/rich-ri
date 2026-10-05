@@ -78,4 +78,6 @@ module CommitPolicy
     errors << "remove generated attribution: #{visible(credited)}" if credited
     errors
   end
+
+  private_class_method :git, :visible, :attribution, :subject_problems
 end

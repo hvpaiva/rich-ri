@@ -44,7 +44,7 @@ class SetupTest < Minitest::Test
 
   def test_a_complete_environment_succeeds
     program("mise")
-    (Tools.required + ["docker"]).each { |tool| program(tool) }
+    (Tools.mise_tools + Tools::SYSTEM + ["docker"]).each { |tool| program(tool) }
     out, err, status = run_setup
 
     assert_predicate status, :success?, err

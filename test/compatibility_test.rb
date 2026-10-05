@@ -1,9 +1,14 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "bundler"
+require "program_support"
+require "shellwords"
 require_relative "../rakelib/compatibility"
 
 class CompatibilityTest < Minitest::Test
+  include ProgramSupport
+
   # They test the repository's own tooling, which the minimum bundle does not install.
   MAINTENANCE = %w[benchmark changelog changelog_command changelog_lint ci ci_result ci_workflow commit_policy
                    compatibility github github_templates project release release_artifact release_branch
@@ -43,15 +48,34 @@ class CompatibilityTest < Minitest::Test
   end
 
   def test_a_failed_step_stops_the_run_and_names_the_bundle
-    environment = Compatibility.environment("legacy")
-    error = assert_raises(Compatibility::Error) do
-      Compatibility.execute(environment, RbConfig.ruby, "-e", "exit 3")
-    end
+    _out, err, status = run_with_bundle("exit 3")
 
-    assert_match(/\Alegacy bundle: .+ -e exit 3 failed\z/, error.message)
+    assert_equal [1, "legacy bundle: bundle install failed\n"], [status.exitstatus, err]
+  end
+
+  def test_the_bundle_of_the_caller_does_not_reach_the_bundles_it_installs
+    log = File.join(TestSupport::TEMP, "compatibility-bundle.log")
+    _out, err, status = run_with_bundle(%(echo "$BUNDLE_GEMFILE|$RUBYOPT" >> #{log.shellescape}))
+    gemfiles = %w[legacy legacy minimum minimum].map { |name| File.join(TestSupport::ROOT, "gemfiles/#{name}.gemfile") }
+
+    assert_predicate status, :success?, err
+    assert_equal gemfiles.map { |gemfile| "#{gemfile}|\n" }, File.readlines(log)
   end
 
   private
+
+  # Under bundle exec, as rake runs it, with a bundle program that only runs the given shell code.
+  def run_with_bundle(body)
+    Dir.mktmpdir("rich-ri-compatibility-") do |directory|
+      write_program(directory, "bundle", body)
+      source = "begin; Compatibility.run(home: ARGV.fetch(0)); rescue Compatibility::Error => e; abort e.message; end"
+      Bundler.with_unbundled_env do
+        Open3.capture3({ "PATH" => "#{directory}#{File::PATH_SEPARATOR}#{ENV.fetch('PATH')}" }, RbConfig.ruby,
+                       Gem.bin_path("bundler", "bundle"), "exec", "ruby", "-r./rakelib/compatibility", "-e", source,
+                       directory, chdir: TestSupport::ROOT)
+      end
+    end
+  end
 
   def recorded_run
     Dir.mktmpdir("rich-ri-compatibility-") do |home|
