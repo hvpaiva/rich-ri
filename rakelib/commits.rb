@@ -29,7 +29,8 @@ module CommitPolicy
 
   def self.git(*)
     output, error, status = Open3.capture3("git", *)
-    raise Error, "cannot read commits: #{visible(error.strip)}" unless status.success?
+    # Git prints control characters in its own messages as "?".
+    raise Error, "cannot read commits: #{error.strip}" unless status.success?
 
     output.force_encoding(Encoding::UTF_8).scrub
   end

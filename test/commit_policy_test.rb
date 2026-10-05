@@ -170,6 +170,19 @@ class CommitPolicyTest < Minitest::Test
     end
   end
 
+  def test_an_error_git_writes_on_several_lines_keeps_its_lines
+    repository do |root|
+      parent = git(root, "rev-parse", "HEAD")
+      git(root, "commit", "--allow-empty", "-qm", "fix: correct rendering")
+      head = git(root, "rev-parse", "HEAD")
+      File.delete(File.join(root, ".git/objects", parent[0, 2], parent[2..]))
+      _out, err, status = lint(root)
+
+      assert_equal [1, "lint-commits: cannot read commits: error: Could not read #{parent}\n" \
+                       "fatal: Failed to traverse parents of commit #{head}\n"], [status.exitstatus, err]
+    end
+  end
+
   def test_control_characters_from_commits_and_pull_requests_are_shown_as_text
     repository do |root|
       git(root, "commit", "--allow-empty", "-qm", "\e]0;renamed\a\e[31mred")
