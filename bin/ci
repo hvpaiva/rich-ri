@@ -9,8 +9,13 @@ begin
   force_full = ENV["CI_FORCE_FULL"] == "true"
   case ARGV
   when ["scope"]
-    scope = CI.scope(event: event, ref: ENV.fetch("GITHUB_REF", ""), base: ENV.fetch("CI_BASE", nil),
-                     head: ENV.fetch("CI_HEAD", nil), force_full: force_full)
+    scope = begin
+      CI.scope(event: event, ref: ENV.fetch("GITHUB_REF", ""), base: ENV.fetch("CI_BASE", nil),
+               head: ENV.fetch("CI_HEAD", nil), force_full: force_full)
+    rescue CI::Error => e
+      warn "ci: every check runs because the changed files are unknown: #{e.message}"
+      "full"
+    end
     puts "scope=#{scope}"
   when ["verify"]
     scope = CI.verify!(JSON.parse(ENV.fetch("CI_RESULTS")), event: event, force_full: force_full)

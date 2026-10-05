@@ -75,9 +75,24 @@ class CITest < Minitest::Test
     repository do |root|
       head = git(root, "rev-parse", "HEAD")
 
-      [head, nil, "0" * 40, "a" * 40, "--all"].each do |base|
+      [head, nil, "0" * 40, "--all"].each do |base|
         assert_equal "full", scope(root, base, head)
       end
+    end
+  end
+
+  def test_bin_ci_says_why_it_runs_every_check_when_git_cannot_compare
+    repository do |root|
+      head = git(root, "rev-parse", "HEAD")
+      environment = GitSupport::ENVIRONMENT.merge("GIT_DIR" => File.join(root, ".git"), "CI_FORCE_FULL" => nil,
+                                                  "GITHUB_EVENT_NAME" => "pull_request", "GITHUB_REF" => "",
+                                                  "CI_BASE" => "a" * 40, "CI_HEAD" => head)
+      out, err, status = Open3.capture3(environment, RbConfig.ruby, File.join(TestSupport::ROOT, "bin/ci"), "scope")
+
+      reason = "fatal: Invalid symmetric difference expression #{'a' * 40}...#{head}"
+
+      assert_equal [0, "scope=full\n", "ci: every check runs because the changed files are unknown: #{reason}\n"],
+                   [status.exitstatus, out, err]
     end
   end
 

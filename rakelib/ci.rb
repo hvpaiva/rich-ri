@@ -30,8 +30,6 @@ module CI
 
     paths = changed_paths("#{base}#{pull_request ? '...' : '..'}#{head}", root)
     paths.any? && paths.all? { |path| documentation?(path) } ? "docs" : "full"
-  rescue Error
-    "full"
   end
 
   # Git paths are bytes: the locale must not decide whether they can be split.
