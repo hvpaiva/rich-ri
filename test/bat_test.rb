@@ -36,6 +36,12 @@ class BatTest < Minitest::Test
     end
   end
 
+  def test_success_without_output_leaves_the_text_to_the_caller
+    fake_bat("STDIN.read") do
+      assert_nil RichRI::Bat.new.highlight("echo hello\n", language: "bash", theme: "ansi")
+    end
+  end
+
   def test_excess_output_is_bounded_even_if_input_is_not_consumed
     fake_bat('loop { STDOUT.write("x" * 4096) }') do
       result = RichRI::Bat.new(timeout: 2, max_output: 1024).highlight("x" * 200_000, language: "bash", theme: "ansi")

@@ -20,6 +20,8 @@ User-visible changes are recorded here. This project follows
 - Colors reach less when `LESS` ends with a string-valued option such as `-P`.
 - The `dark` and `light` presets keep the terminal palette at basic color depth,
   where `dark` used to paint every role white.
+- Type signatures no longer disable bat for the rest of the page, and a bat that
+  prints nothing no longer stops it.
 
 ## [0.1.0] - 2026-10-05
 

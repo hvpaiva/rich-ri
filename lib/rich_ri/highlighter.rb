@@ -26,7 +26,7 @@ module RichRI
                                    shell_session(text) || other_language(text, format, theme: @shell_theme)
                                  elsif SESSION_FORMATS.include?(format)
                                    shell_session(text) || text
-                                 elsif %i[c cpp javascript js json yaml yml diff sql rbs].include?(format)
+                                 elsif %i[c cpp javascript js json yaml yml diff sql].include?(format)
                                    other_language(text, format)
                                  else
                                    text

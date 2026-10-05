@@ -37,7 +37,7 @@ module RichRI
         completed = false
         writer = Thread.new { write(input, text) }
         Timeout.timeout(@timeout) do
-          result = output.read(@max_output + 1).to_s
+          result = output.read(@max_output + 1) || +""
           next if result.bytesize > @max_output
 
           writer.value
