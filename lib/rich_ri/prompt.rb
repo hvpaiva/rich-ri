@@ -13,12 +13,15 @@ module RichRI
     end
 
     def read
-      return @pasted.shift unless @pasted.empty?
-
-      # The editor takes line breaks in a bracketed paste for text: several names arrive as one line.
-      text = RichRI.utf8($stdin.tty? && $stdout.tty? ? edit : $stdin.gets)
-      name, *@pasted = text.lines.map(&:strip).reject(&:empty?)
-      name
+      while @pasted.empty?
+        editing = $stdin.tty? && $stdout.tty?
+        text = RichRI.utf8(editing ? edit : $stdin.gets)
+        @pasted = text.lines.map(&:strip).reject(&:empty?)
+        # The editor takes line breaks in a bracketed paste for text: several names arrive as one
+        # line, and a blank line ends the session only when it was typed, not pasted.
+        return if @pasted.empty? && !(editing && text.include?("\n"))
+      end
+      @pasted.shift
     end
 
     private

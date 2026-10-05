@@ -105,20 +105,6 @@ class InteractiveTest < Minitest::Test
     refute_includes output, "rich-ri:"
   end
 
-  def test_each_line_of_a_pasted_block_is_looked_up
-    with_session do |environment|
-      # Bracketed paste: the editor takes the line breaks inside it for text.
-      pasted = "\e[200~RichRIExample#map\n\n  RichRIExample.build\n\e[201~"
-      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
-                                    env: environment, prompt: ">> ", input: "#{pasted}\n\n")
-
-      assert_equal 0, status, output
-      assert_includes output, "Return transformed values."
-      assert_includes output, "Create an example."
-      refute_includes output, "rich-ri:"
-    end
-  end
-
   def test_tab_offers_no_name_that_holds_a_terminal_control
     names = { modules: ["RichRIUnsafe\e]52;c;AAAA\a", "RichRIUnsafe\e[31m", "RichRIUnsafe\tTab", "RichRIUnsafe\nLine"],
               methods: ["ma\e[31mx"],
@@ -220,6 +206,37 @@ class InteractiveTest < Minitest::Test
     assert_equal 1, status, output
     assert_equal ["rich-ri: planted prompt defect\r\n"] * 3, output.lines.last(3)
     assert_equal 3, output.scan("planted prompt defect").length
+  end
+end
+
+class PastedBlockTest < Minitest::Test
+  include TerminalTestSupport
+  include CommandSupport
+
+  def test_each_line_of_a_pasted_block_is_looked_up
+    with_session do |environment|
+      # Bracketed paste: the editor takes the line breaks inside it for text.
+      pasted = "\e[200~RichRIExample#map\n\n  RichRIExample.build\n\e[201~"
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                                    env: environment, prompt: ">> ", input: "#{pasted}\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "Return transformed values."
+      assert_includes output, "Create an example."
+      refute_includes output, "rich-ri:"
+    end
+  end
+
+  def test_a_pasted_block_of_blank_lines_leaves_the_session_open
+    with_session do |environment|
+      pasted = "\e[200~\n  \n\e[201~"
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                                    env: environment, prompt: ">> ", input: "#{pasted}\nRichRIExample#map\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "Return transformed values."
+      refute_includes output, "rich-ri:"
+    end
   end
 end
 
