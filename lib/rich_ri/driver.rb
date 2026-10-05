@@ -48,11 +48,9 @@ module RichRI
       @rich_ri_pager = options.delete(:rich_ri_pager)
       options = self.class.default_options.merge(options)
       optional_gem("profile", "--profile") if options[:profile]
-      # RDoc resolves ~/.rdoc as soon as its list of stores is loaded and
-      # fails there with a TypeError when the user has no home directory.
+      # RDoc resolves ~/.rdoc while loading stores and fails with a TypeError without a home.
       RichRI.home!
-      # RDoc would load every store itself, as plain RDoc stores that cannot
-      # say which of them failed. Start it without any and load them here.
+      # RDoc's own stores cannot say which of them failed, so they are loaded here instead.
       super(options.merge(STANDARD_SOURCES.to_h { |source| [source, false] }, extra_doc_dirs: []))
       load_stores(*options.values_at(*STANDARD_SOURCES), *options[:extra_doc_dirs])
     end
@@ -86,14 +84,13 @@ module RichRI
       raise LookupError.from(e)
     end
 
-    # Looks every name up, as RDoc does, and returns those that were not found.
+    # Unlike RDoc's, returns the names that were not found.
     def display_names(names)
       names.reject { |name| display_name(expand_name(name)) }
     end
 
-    # Whether the name was found. RDoc answers false after showing similar
-    # names, but true after listing the pages of a source in place of a page
-    # it does not have, as it does when that list is what was asked for.
+    # RDoc answers true after listing a source's pages in place of a missing page, as it does
+    # when that list is what was asked for.
     def display_name(name)
       @page_list = false
       super && (name.end_with?(":") || !@page_list)
@@ -116,14 +113,12 @@ module RichRI
       @pager = nil
     end
 
-    # RDoc tries RI_PAGER, PAGER and three programs in turn and passes over
-    # any that does not start, the one the user asked for included.
+    # RDoc passes over a pager that does not start, even the one the user named.
     def setup_pager
       return if @use_stdout
 
       @pager = Pager.start(@rich_ri_pager)
       @paging = !@pager.nil?
-      # With no pager on this system, write to the terminal from now on.
       @use_stdout = !@paging
       @pager&.io
     end
@@ -160,9 +155,8 @@ module RichRI
       end
     end
 
-    # RDoc's own loop leaves on the first exception other than an unknown name
-    # and answers Ctrl-C with a successful exit. Here a failed lookup is
-    # reported and the prompt returns; Ctrl-C reaches the command as Interrupt.
+    # RDoc's loop ends at the first failure other than an unknown name and exits with success
+    # on Ctrl-C; here a failure is reported and Ctrl-C reaches the command as Interrupt.
     def interactive
       puts "\nEnter a name to look up; Tab completes it."
       puts "Enter a blank line to exit.\n\n"
@@ -177,10 +171,8 @@ module RichRI
       Server.new(port: @server, doc_dirs: @stores.select { |store| store.type == :extra }.map(&:path)).start
     end
 
-    # RDoc completes classes and methods. The sources of pages and the pages
-    # themselves come from the loaded stores, so that discovery follows this
-    # Ruby and --doc-dir. A line editor and a shell write a candidate as it
-    # is, so a name from a store that holds a terminal control is not offered.
+    # Pages come from the loaded stores, so discovery follows this Ruby and --doc-dir. A shell
+    # inserts a candidate as it is, so one holding a terminal control is not offered.
     def complete(name)
       candidates = PageSources::NAME.match?(name) ? [] : super + selectors(name)
       (candidates + page_sources.complete(name)).uniq.select { |candidate| RichRI.printable?(candidate) }.sort
@@ -232,8 +224,7 @@ module RichRI
       Error.report(e.is_a?(NotFoundError) ? LookupError.from(e) : e)
     end
 
-    # webrick and profile are not dependencies of the gem. RDoc answers their
-    # absence with abort or a bare LoadError; say which gem the option needs.
+    # RDoc answers a missing webrick or profile gem with abort or a bare LoadError.
     def optional_gem(name, option)
       require name
     rescue LoadError => e
@@ -245,8 +236,7 @@ module RichRI
 
     def load_stores(*selection)
       RDoc::RI::Paths.each(*selection) do |path, type|
-        # RubyGems labels its directories BINARY; a store source built from one
-        # cannot be joined with other text.
+        # RubyGems labels its paths BINARY, which cannot be joined with UTF-8 text.
         path = RichRI.utf8(path)
         @doc_dirs << path
         # Listing the searched directories is how a broken store is found.
@@ -259,13 +249,11 @@ module RichRI
       end
     end
 
-    # The name of each installed gem by the directory of its RI data. RDoc
-    # finds those directories through the specifications and keeps only the paths.
+    # RDoc finds gem stores through their specifications but keeps only the paths.
     def gem_names
       @gem_names ||= Gem::Specification.to_h { |spec| [RichRI.utf8(File.join(spec.doc_dir, "ri")), spec.name] }
     end
 
-    # What can follow the name of a class.
     def selectors(name)
       classes.key?(name) ? ["#{name}#", "#{name}.", "#{name}::"] : []
     end

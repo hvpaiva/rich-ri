@@ -1,28 +1,18 @@
 # frozen_string_literal: true
 
 module RichRI
-  # Answers a shell that asks what may follow the words typed so far. The
-  # answer is one candidate a line, as "value<TAB>description", and a last
-  # line saying what the script is to do: ":" offers the candidates,
-  # ":nospace" offers the only one as the start of a longer word, and
-  # ":files" or ":directories" leave the word to the shell, which completes
-  # the name of a file better than this could: it knows "~", its variables and
-  # its own quoting.
-  #
-  # The words are read by the parser of the command itself, so that what is
-  # offered is what the command accepts, but only the choice of sources
-  # reaches the driver: pressing Tab can never start a pager, server or cache dump.
+  # The protocol is one "value<TAB>description" line per candidate and a last line for the script:
+  # ":" offers them, ":nospace" offers the only one as the start of a word, and ":files" or
+  # ":directories" leave the word to the shell, which knows "~", its variables and its quoting.
+  # Only source options reach the driver: pressing Tab can never start a pager, server or cache dump.
   class Completion
     SHELLS = %w[bash zsh fish].freeze
-    # The options whose value is a path, and what the shell completes there.
     PATHS = { "--config" => "files", "--dump" => "files", "--doc-dir" => "directories", "-d" => "directories",
               "--install-man" => "directories" }.freeze
-    # A candidate that only starts a word: a class before its method, a source
-    # before its page, an option or a style role before its value. A method
+    # A candidate that only starts a word, such as "Class#", "source:" or "--option="; a method
     # name may itself end in "=", after one of the other marks.
     UNFINISHED = /[:#.]\z|\A[^:#.]*=\z/
 
-    # Candidates, each a value and its description, and what to do with them.
     Answer = Struct.new(:candidates, :action)
 
     def write(words, io)
@@ -89,8 +79,7 @@ module RichRI
       word
     end
 
-    # The word being typed, the option it is the value of and what precedes
-    # that value in the word.
+    # The word being typed, the option it is the value of and the text before that value.
     def context(words)
       current = words.last || ""
       return [current, awaited_option(words[0...-1]), ""] unless current.start_with?("--") && current.include?("=")
@@ -99,9 +88,7 @@ module RichRI
       [value, option, "#{option}="]
     end
 
-    # The option whose value is the next word, as the parser reads the words
-    # so far. It is none after "--", after an option whose value is optional
-    # and comes only with "=", or when the last word was itself a value.
+    # None after "--", after an option whose optional value comes only with "=", or after a value.
     def awaited_option(words)
       Options.new.parser.permute(words)
       nil
@@ -117,9 +104,8 @@ module RichRI
       RichRI::COLORS.keys.map { |role| ["#{role}=", "Override #{role} style"] }
     end
 
-    # A command line the reader refuses has no names to offer: it is read
-    # here as the lookup would read it, with RI and the configuration under it
-    # and the name being typed at its end, which --interactive does not take.
+    # Read as the lookup reads it, with RI and the configuration, so a command line it refuses,
+    # such as --interactive with the name being typed, offers no names.
     def names(words, prefix)
       options = Options.new.parse([*words, prefix]).driver_options
       sources = options.slice(*Driver::STANDARD_SOURCES, :extra_doc_dirs)
