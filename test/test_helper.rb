@@ -13,9 +13,11 @@ module TestSupport
   TEMP = Dir.mktmpdir("rich-ri-test-")
   STORE = File.join(TEMP, "ri")
   # A contributor's theme file must not change fixture output or option defaults.
-  ENV.keys.grep(/\ARICH_RI_/).each { |key| ENV.delete(key) }
+  application_variables = RichRI::Configuration::ENVIRONMENT.keys + ["RICH_RI_CONFIG"] +
+                          ENV.keys.grep(/\ARICH_RI_STYLE_/)
+  application_variables.each { |key| ENV.delete(key) }
   ENV["XDG_CONFIG_HOME"] = File.join(TEMP, "config")
-  ENVIRONMENT = ENV.keys.grep(/\ARICH_RI_/).to_h { |key| [key, nil] }.merge(
+  ENVIRONMENT = application_variables.to_h { |key| [key, nil] }.merge(
     "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1", "TERM" => "xterm",
     "BAT_THEME" => nil, "XDG_CONFIG_HOME" => File.join(TEMP, "config"), "RICH_RI_CONFIG" => nil
   ).freeze
