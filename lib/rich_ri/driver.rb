@@ -47,7 +47,20 @@ module RichRI
     end
 
     def page
-      super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
+      interrupt = nil
+      super do |io|
+        interrupt = trap("INT", "IGNORE") if paging?
+        yield(@list && !@formatter_klass ? ListOutput.new(io) : io)
+      end
+    ensure
+      trap("INT", interrupt) if interrupt
+    end
+
+    def expand_name(name)
+      super
+    rescue RegexpError
+      # RDoc builds a pattern from the name without escaping it.
+      raise NotFoundError, name
     end
 
     def start_server
@@ -76,7 +89,8 @@ module RichRI
           next if (store.cache[:pages] || []).empty?
 
           source = store.type == :gem ? store.source.sub(/-\d[^-]*\z/, "") : store.source
-          candidates << "#{source}:" if source.start_with?(name)
+          # RubyGems reports its directories as binary strings, which Reline refuses to offer.
+          candidates << "#{source}:".force_encoding(Encoding::UTF_8) if source.start_with?(name)
         end
       end
       candidates.uniq.sort

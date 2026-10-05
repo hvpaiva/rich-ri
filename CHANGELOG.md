@@ -6,6 +6,26 @@ User-visible changes are recorded here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Tab at the interactive prompt no longer ends the session when an installed gem
+  has documentation pages.
+- An empty configuration file means no overrides, as documented, instead of
+  stopping every command.
+- Names with pattern characters, such as `Array[`, are reported as unknown and no
+  longer end interactive lookup.
+- Configuration paths outside ASCII are read under the C locale.
+- Ctrl-C is left to the pager while a page is open; it no longer leaves the pager
+  running in a terminal without echo.
+- Colors reach less when `LESS` ends with a string-valued option such as `-P`.
+- The `dark` and `light` presets keep the terminal palette at basic color depth,
+  where `dark` used to paint every role white.
+- Type signatures no longer disable bat for the rest of the page, and a bat that
+  prints nothing no longer stops it.
+- Documentation stored by an RDoc class that the running RDoc lacks is reported
+  as an incompatible cache.
+- The manual no longer has an empty "Style roles" section.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added

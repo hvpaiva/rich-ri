@@ -42,7 +42,7 @@ module RichRI
     end
 
     def self.text!(value, name)
-      if value.is_a?(String) && !value.strip.empty? && RichRI.sanitize(value) == value && !value.match?(/[\r\n\t]/)
+      if value.is_a?(String) && !value.strip.empty? && RichRI.sanitize(value).b == value.b && !value.match?(/[\r\n\t]/)
         return
       end
 
@@ -73,7 +73,7 @@ module RichRI
     def read_file
       raise ArgumentError, "Configuration is not a readable regular file: #{@path}" unless File.file?(@path)
 
-      content = File.read(@path, MAX_BYTES + 1)
+      content = File.read(@path, MAX_BYTES + 1).to_s
       raise ArgumentError, "Configuration exceeds #{MAX_BYTES} bytes: #{@path}" if content.bytesize > MAX_BYTES
 
       stream = Psych.parse_stream(content, filename: @path)

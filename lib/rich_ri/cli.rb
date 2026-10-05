@@ -32,7 +32,7 @@ module RichRI
       0
     rescue Errno::EPIPE
       0
-    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
+    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError, RegexpError => e
       if (dependency = optional_dependency(e))
         warn "rich-ri: --#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
              "Install it for your active Ruby: gem install #{dependency}"
@@ -56,7 +56,8 @@ module RichRI
 
     def incompatible_cache?(error)
       (error.is_a?(TypeError) && error.message.match?(/class RDoc::Markup::\w+ not a struct/)) ||
-        (error.is_a?(ArgumentError) && error.message == "dump format error")
+        (error.is_a?(ArgumentError) &&
+          (error.message == "dump format error" || error.message.start_with?("undefined class/module RDoc::")))
     end
 
     def color?(mode)
@@ -102,7 +103,7 @@ module RichRI
       previous_pager = ENV.fetch("RI_PAGER", nil)
       ENV["RI_PAGER"] = command if command
       previous = ENV.fetch("LESS", nil)
-      ENV["LESS"] = "#{previous || '-Fi'} -R"
+      ENV["LESS"] = "-R #{previous || '-Fi'}"
       yield
     ensure
       ENV["LESS"] = previous

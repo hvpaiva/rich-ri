@@ -23,6 +23,15 @@ class HighlighterTest < Minitest::Test
     end
   end
 
+  def test_type_signatures_stay_plain_and_keep_bat_for_the_page
+    fake_bat('exit 1 if ARGV.include?("--language=rbs"); print "\e[32m", STDIN.read, "\e[0m"') do
+      highlighter = RichRI::Highlighter.new(true)
+
+      assert_equal "(Integer) -> String", highlighter.highlight("(Integer) -> String", :rbs)
+      assert_equal "\e[32m{}\e[0m", highlighter.highlight("{}", :json)
+    end
+  end
+
   def test_bat_cannot_change_content_or_inject_terminal_sequences
     input = "echo hello\n"
     ["puts 'changed'", 'print "\e]52;c;AAAA\a"; print STDIN.read'].each do |body|

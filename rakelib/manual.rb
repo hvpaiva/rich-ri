@@ -99,7 +99,9 @@ module Manual
   end
 
   def self.options
-    RichRI::Options.new.parser.top.list.filter_map do |entry|
+    entries = RichRI::Options.new.parser.top.list
+    last_option = entries.rindex { |entry| entry.respond_to?(:long) }
+    entries[..last_option].filter_map do |entry|
       if entry.respond_to?(:long)
         names = (entry.short + entry.long).join(", ") + entry.arg.to_s
         ".TP\n.B #{escape(names)}\n#{escape(entry.desc.join(' '))}"
@@ -138,7 +140,8 @@ module Manual
       .TP
       .B theme
       terminal (default), dark or light. Presets change foreground colors;
-      they do not detect or set the terminal background.
+      they do not detect or set the terminal background. With basic color depth
+      dark and light keep the terminal palette.
       .TP
       .B color
       auto (default), always or never. Auto colors only terminal output, unless

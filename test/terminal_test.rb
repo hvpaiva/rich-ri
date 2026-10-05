@@ -30,15 +30,35 @@ class TerminalTest < Minitest::Test
       pager = File.join(dir, "pager.rb")
       capture = File.join(dir, "output")
       File.write(pager, "File.write(ARGV.fetch(0), ENV.fetch('LESS', '') + \"\\n\" + STDIN.read)\n")
-      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "LESS" => "-i", "PAGER" => "missing" }
+      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "LESS" => "-i -Pprompt",
+                      "PAGER" => "missing" }
       output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
                                     env: environment)
       page = File.read(capture)
 
       assert_equal 0, status, output
-      assert_equal "-i -R\n", page.lines.first
+      assert_equal "-R -i -Pprompt\n", page.lines.first
       assert_includes page, "\e["
       assert_includes RichRI.plain(page), "Return transformed values."
+    end
+  end
+
+  def test_interrupt_is_left_to_the_pager_while_a_page_is_open
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      pager = File.join(dir, "pager.rb")
+      File.write(pager, <<~RUBY)
+        trap("INT", "IGNORE")
+        STDIN.read
+        print "open"
+        File.open("/dev/tty", &:gets)
+        print "closed"
+      RUBY
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
+                                    env: { "RI_PAGER" => [RbConfig.ruby, pager].shelljoin },
+                                    prompt: "open", input: "\u0003\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "closed"
     end
   end
 
@@ -64,6 +84,18 @@ class TerminalTest < Minitest::Test
       assert_includes output, ">> RichRIExample#map"
       assert_includes output, "Return transformed values."
       refute_includes output, "Nothing known about"
+    end
+  end
+
+  def test_interactive_lookup_continues_after_a_name_with_pattern_characters
+    Dir.mktmpdir("rich-ri-interactive-") do |dir|
+      environment = { "PATH" => "", "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                                    env: environment, prompt: ">> ", input: "RichRIExample[\nRichRIExample#map\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "Nothing known about RichRIExample["
+      assert_includes output, "Return transformed values."
     end
   end
 end

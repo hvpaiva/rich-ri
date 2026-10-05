@@ -18,6 +18,7 @@ module RichRI
   # Documentation may contain literal terminal controls. Show them as text;
   # only styles produced by this reader may reach the terminal as escapes.
   def self.sanitize(text)
+    text = text.dup.force_encoding(Encoding::UTF_8) unless text.encoding == Encoding::UTF_8 || text.ascii_only?
     text.gsub(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u0080-\u009f\u202a-\u202e\u2066-\u2069]|\r(?!\n)/) do |char|
       format("\\u%04x", char.ord)
     end
