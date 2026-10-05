@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "program_support"
 require_relative "../rakelib/tools"
 
 class ToolsTest < Minitest::Test
+  include ProgramSupport
+
   def test_pinned_reads_the_tools_table_and_nothing_else
     path = File.join(TestSupport::TEMP, "mise.toml")
     File.write(path, <<~TOML)
@@ -41,13 +44,17 @@ class ToolsTest < Minitest::Test
   end
 
   def test_a_lint_task_without_its_program_explains_how_to_install_it
-    environment = { "PATH" => File.dirname(RbConfig.ruby) }
-    { "lint:spelling" => "typos is not installed; install the version mise.toml pins with: mise install typos\n",
-      "lint:man" => "groff is not installed; install it with your package manager\n" }.each do |task, advice|
-      _out, err, status = Open3.capture3(environment, "bundle", "exec", "rake", task, chdir: TestSupport::ROOT)
+    Dir.mktmpdir("rich-ri-tools-") do |bin|
+      link_ruby(bin)
+      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
+      { "lint:spelling" => "typos is not installed; install the version mise.toml pins with: mise install typos\n",
+        "lint:man" => "groff is not installed; install it with your package manager\n" }.each do |task, advice|
+        _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", task,
+                                           chdir: TestSupport::ROOT)
 
-      assert_equal 1, status.exitstatus
-      assert_equal advice, err
+        assert_equal 1, status.exitstatus
+        assert_equal advice, err
+      end
     end
   end
 end

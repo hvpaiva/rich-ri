@@ -15,6 +15,12 @@ module ProgramSupport
     File.symlink(target, File.join(directory, name))
   end
 
+  # Ruby's own directory may also hold system programs, so only Ruby and Bundler are linked.
+  def link_ruby(directory, bundler: true)
+    link_program(directory, "ruby", RbConfig.ruby)
+    link_program(directory, "bundle", Gem.bin_path("bundler", "bundle")) if bundler
+  end
+
   def which(name)
     ENV.fetch("PATH").split(File::PATH_SEPARATOR).map { |directory| File.join(directory, name) }
        .find { |path| File.file?(path) && File.executable?(path) }

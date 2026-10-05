@@ -12,6 +12,7 @@ class SetupTest < Minitest::Test
     @log = File.join(@bin, "mise.log")
     program("bundle")
     link_program(@bin, "dirname")
+    link_ruby(@bin, bundler: false)
   end
 
   def teardown
@@ -60,8 +61,7 @@ class SetupTest < Minitest::Test
   def program(name, body = "exit 0") = write_program(@bin, name, body)
 
   def run_setup
-    path = [@bin, File.dirname(RbConfig.ruby)].join(File::PATH_SEPARATOR)
-    Open3.capture3({ "PATH" => path, "RICH_RI_CONTAINER_RUNTIME" => nil }, which("bash"), "bin/setup",
+    Open3.capture3({ "PATH" => @bin, "RICH_RI_CONTAINER_RUNTIME" => nil }, which("bash"), "bin/setup",
                    chdir: TestSupport::ROOT)
   end
 end
