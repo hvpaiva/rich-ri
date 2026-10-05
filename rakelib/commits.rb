@@ -29,10 +29,13 @@ module CommitPolicy
 
   def self.git(*)
     output, error, status = Open3.capture3("git", *)
-    raise Error, "cannot read commits: #{error.strip}" unless status.success?
+    raise Error, "cannot read commits: #{visible(error.strip)}" unless status.success?
 
     output.force_encoding(Encoding::UTF_8).scrub
   end
+
+  # Commit text is untrusted: an escape sequence must reach the terminal as text, not act on it.
+  def self.visible(text) = text.gsub(/[[:cntrl:]]/) { |character| character.dump[1..-2] }
 
   def self.attribution(text)
     text.each_line.map(&:strip).find do |line|
@@ -48,11 +51,12 @@ module CommitPolicy
     return subject_problems(reverted[:subject]) if reverted
 
     if UNFINISHED.match?(subject)
-      ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{subject}"]
+      ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{visible(subject)}"]
     elsif SUBJECT.match?(subject)
       []
     else
-      [%(use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: #{subject})]
+      [%(use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: ) +
+        visible(subject)]
     end
   end
 
@@ -71,7 +75,7 @@ module CommitPolicy
   def self.check(message, subject:)
     errors = subject ? subject_problems(message.to_s.lines.first.to_s.strip) : []
     credited = attribution(message.to_s)
-    errors << "remove generated attribution: #{credited}" if credited
+    errors << "remove generated attribution: #{visible(credited)}" if credited
     errors
   end
 end

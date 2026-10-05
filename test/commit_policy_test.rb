@@ -157,6 +157,20 @@ class CommitPolicyTest < Minitest::Test
     end
   end
 
+  def test_control_characters_from_commits_and_pull_requests_are_shown_as_text
+    repository do |root|
+      git(root, "commit", "--allow-empty", "-qm", "\e]0;renamed\a\e[31mred")
+      sha = git(root, "rev-parse", "--short=8", "HEAD")
+      _out, err, status = lint(root, "PR_BODY" => "Notes\n\nhttps://claude.ai/code/session_1 \e[2J")
+
+      assert_equal 1, status.exitstatus
+      assert_equal "lint-commits: #{sha}: use a Conventional Commit subject, \"type(scope): summary\" with one of " \
+                   "feat, fix, docs, test, refactor, perf, build, ci, chore, revert: \\e]0;renamed\\a\\e[31mred\n" \
+                   "lint-commits: PR body: remove generated attribution: https://claude.ai/code/session_1 \\e[2J\n",
+                   err
+    end
+  end
+
   private
 
   def attributed?(line) = CommitPolicy.check("Fix it.\n\n#{line}\n", subject: false).any?
