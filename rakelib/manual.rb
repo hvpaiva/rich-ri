@@ -4,6 +4,8 @@ require_relative "../lib/rich_ri"
 
 # The options come from the same descriptions as --help.
 module Manual
+  class Error < StandardError; end
+
   CHANGELOG = File.expand_path("../CHANGELOG.md", __dir__)
   RELEASE = /^## \[#{Regexp.escape(RichRI::VERSION)}\] - (\d{4}-\d{2}-\d{2})$/
   REQUESTS = %w[.SH .SS .TP .PP .B .I .nf .fi].freeze
@@ -145,7 +147,8 @@ module Manual
   end
 
   def self.release_date
-    File.read(CHANGELOG)[RELEASE, 1] or raise "CHANGELOG.md has no release date for #{RichRI::VERSION}"
+    File.read(CHANGELOG)[RELEASE, 1] or
+      raise Error, "#{CHANGELOG} has no \"## [#{RichRI::VERSION}] - YYYY-MM-DD\" heading"
   end
 
   def self.options

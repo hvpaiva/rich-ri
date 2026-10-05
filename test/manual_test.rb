@@ -211,6 +211,20 @@ class ManualDisplayTest < Minitest::Test
     assert_includes formatted(typographic(source), 80).lines.last(3).join, released.tr("-", "\u2010")
   end
 
+  def test_generation_names_the_changelog_without_a_release_heading
+    Dir.mktmpdir("rich-ri-manual-") do |root|
+      FileUtils.mkdir(File.join(root, "rakelib"))
+      FileUtils.cp(File.join(TestSupport::ROOT, "rakelib/manual.rb"), File.join(root, "rakelib"))
+      File.symlink(File.join(TestSupport::ROOT, "lib"), File.join(root, "lib"))
+      File.write(File.join(root, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n")
+      _out, err, status = Open3.capture3(RbConfig.ruby, "-e", "require ARGV[0]; Manual.render",
+                                         File.join(root, "rakelib/manual.rb"))
+
+      refute_predicate status, :success?
+      assert_includes err, "#{root}/CHANGELOG.md has no \"## [#{RichRI::VERSION}] - YYYY-MM-DD\" heading (Manual::Error)"
+    end
+  end
+
   def test_every_section_has_content_and_the_files_are_listed
     source = ::Manual.render
 
