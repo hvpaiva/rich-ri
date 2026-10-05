@@ -1,3 +1,6 @@
+# A pushed v* tag publishes; bin/release creates that tag after the release pull request is
+# merged. A manual run is a rehearsal: it verifies, builds and installs the gem, and can only
+# publish when it is started from a tag with dry_run turned off.
 name: Release
 
 on:
@@ -10,14 +13,19 @@ on:
         type: boolean
         default: true
 
+# The default for every job; the three that need more say so below.
 permissions:
   contents: read
 
+# A second run for the same ref waits: a publication is never cancelled halfway.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  # A reusable workflow call is resolved before any step runs, at the commit of this run, so
+  # no checkout during the run can change what "./" loads. zizmor suggests the newer "$/"
+  # spelling of the same reference: a matter of style, not of what is executed.
   ci:
     uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository]
     with:
@@ -33,10 +41,13 @@ jobs:
       publish: ${{ steps.decision.outputs.publish }}
       sha256: ${{ steps.artifact.outputs.sha256 }}
     steps:
+      # The whole history, so origin/main and origin/hotfix/* exist for the ancestry check.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+      # No bundler cache in this workflow: a cache written by another run must never feed a
+      # release. BUNDLE_FROZEN installs exactly Gemfile.lock.
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
       - run: bundle install
         env:
@@ -46,6 +57,8 @@ jobs:
         if: github.ref_type == 'tag'
         run: |
           bundle exec rake release:verify release:verify_ref
+      # The gem is built once. Later jobs download this artifact and compare its checksum
+      # instead of building again.
       - id: artifact
         run: |
           bundle exec rake release:artifact
@@ -67,8 +80,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write
-      attestations: write
+      id-token: write # signs the attestation with the identity of this workflow run
+      attestations: write # stores the attestation in this repository
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -95,10 +108,12 @@ jobs:
     if: needs.verify.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The RubyGems trusted publisher is bound to this workflow file and this environment,
+    # which only v* tags may enter.
     environment: release
     permissions:
       contents: read
-      id-token: write
+      id-token: write # exchanged with RubyGems for a short-lived push credential
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -119,12 +134,14 @@ jobs:
         env:
           RELEASE_SHA256: ${{ needs.verify.outputs.sha256 }}
 
+  # A job of its own because RubyGems refuses a version it already has: after a failure here,
+  # rerunning this job alone creates the release without attempting a second push.
   github-release:
     needs: [verify, publish]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: write # gh release create
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
