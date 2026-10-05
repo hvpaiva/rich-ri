@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# A failed step must not hide the report of missing programs at the end.
 cd "$(dirname "$0")/.." || exit 1
 
 bundle install || exit 1
