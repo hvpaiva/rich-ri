@@ -24,13 +24,15 @@ module CI
     return "full" unless pull_request || branch_push
     return "full" unless [base, head].all? { |sha| sha&.match?(/\A[0-9a-f]{40}\z/) && sha != "0" * 40 }
 
-    range = "#{base}#{pull_request ? '...' : '..'}#{head}"
-    output, _error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", range, "--",
-                                            chdir: root)
-    return "full" unless status.success?
+    paths = changed_paths("#{base}#{pull_request ? '...' : '..'}#{head}", root)
+    paths&.any? && paths.all? { |path| documentation?(path) } ? "docs" : "full"
+  end
 
-    paths = output.split("\0")
-    paths.any? && paths.all? { |path| documentation?(path) } ? "docs" : "full"
+  # Git paths are bytes: the locale must not decide whether they can be split.
+  def self.changed_paths(range, root)
+    output, _error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", range, "--",
+                                            chdir: root, binmode: true)
+    output.split("\0").map { |path| path.force_encoding(Encoding::UTF_8) } if status.success?
   end
 
   def self.verify!(results, event:, force_full: false)

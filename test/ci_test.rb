@@ -18,6 +18,19 @@ class CITest < Minitest::Test
     end
   end
 
+  def test_changed_paths_are_read_the_same_way_in_a_c_locale
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      head = commit(root, "docs/日本語.md" => "Example")
+      source = 'puts CI.scope(root: ARGV[0], base: ARGV[1], head: ARGV[2], event: "pull_request", ref: "")'
+      out, err, status = Open3.capture3({ "LC_ALL" => "C" }, RbConfig.ruby, "-r",
+                                        File.join(TestSupport::ROOT, "rakelib/ci"), "-e", source, root, base, head)
+
+      assert_predicate status, :success?, err
+      assert_equal "docs\n", out
+    end
+  end
+
   def test_scripts_fixtures_generated_manual_and_unknown_paths_require_full_checks
     %w[docs/images/render_comparison.rb test/fixtures/GUIDE.rdoc lib/rich_ri/cli.rb
        .github/workflows/ci.yml Gemfile.lock man/man1/rich-ri.1 new-tool].each do |path|
