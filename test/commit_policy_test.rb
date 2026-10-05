@@ -82,15 +82,14 @@ class CommitPolicyTest < Minitest::Test
       body = "Fix completion.\n\nhttps://claude.ai/code/session_01EXAMPLE0000000000000000"
       _out, err, status = lint(root, "HEAD", "PR_BODY" => body)
 
-      refute_predicate status, :success?
-      assert_equal "lint-commits: pull request body: remove generated attribution: " \
-                   "https://claude.ai/code/session_01EXAMPLE0000000000000000\n",
-                   err
+      assert_equal [1, "lint-commits: pull request body: remove generated attribution: " \
+                       "https://claude.ai/code/session_01EXAMPLE0000000000000000\n"], [status.exitstatus, err]
       git(root, "commit", "--allow-empty", "-qm", "fix: correct rendering\n\nGenerated-with: Codex")
+      sha = git(root, "rev-parse", "--short=8", "HEAD")
       _out, err, status = lint(root)
 
-      refute_predicate status, :success?
-      assert_match(/\Alint-commits: \h{8}: remove generated attribution: Generated-with: Codex\n\z/, err)
+      assert_equal [1, "lint-commits: #{sha}: remove generated attribution: Generated-with: Codex\n"],
+                   [status.exitstatus, err]
     end
   end
 
@@ -132,10 +131,11 @@ class CommitPolicyTest < Minitest::Test
         assert_predicate status, :success?, err
       end
       git(root, "commit", "--amend", "-qm", "Merge synthetic PR\n\nGenerated-by: Codex")
+      sha = git(root, "rev-parse", "--short=8", "HEAD")
       _out, err, status = lint(root)
 
-      refute_predicate status, :success?
-      assert_includes err, "remove generated attribution"
+      assert_equal [1, "lint-commits: #{sha}: remove generated attribution: Generated-by: Codex\n"],
+                   [status.exitstatus, err]
     end
   end
 

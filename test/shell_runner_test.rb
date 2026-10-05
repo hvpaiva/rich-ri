@@ -45,8 +45,7 @@ class ShellRunnerTest < Minitest::Test
     engines("docker", "podman")
     _out, err, status = run_runner(env: { "RICH_RI_CONTAINER_RUNTIME" => "docker; echo unsafe" })
 
-    refute_predicate status, :success?
-    assert_includes err, "RICH_RI_CONTAINER_RUNTIME must be docker or podman"
+    assert_equal [1, "RICH_RI_CONTAINER_RUNTIME must be docker or podman\n"], [status.exitstatus, err]
     assert_empty calls
   end
 
@@ -80,8 +79,7 @@ class ShellRunnerTest < Minitest::Test
     engines("docker")
     _out, err, status = run_runner(env: { "SHELL_RUNNER_BUILD_STATUS" => "23" })
 
-    refute_predicate status, :success?
-    assert_includes err, "shell test image build failed"
+    assert_equal [1, "shell test image build failed\n"], [status.exitstatus, err]
     assert_equal [%w[docker info], %w[docker build]], steps
   end
 
@@ -89,8 +87,7 @@ class ShellRunnerTest < Minitest::Test
     engines("docker")
     _out, err, status = run_runner(env: { "SHELL_RUNNER_RUN_STATUS" => "42" })
 
-    refute_predicate status, :success?
-    assert_includes err, "container shell integration tests failed"
+    assert_equal [1, "container shell integration tests failed\n"], [status.exitstatus, err]
     assert_equal "run", steps.last.last
   end
 
@@ -98,8 +95,7 @@ class ShellRunnerTest < Minitest::Test
     engines("docker")
     _out, err, status = run_runner(env: { "SHELL_RUNNER_IMAGE_ID" => "a mutable tag" })
 
-    refute_predicate status, :success?
-    assert_includes err, "container build did not return an image ID"
+    assert_equal [1, "container build did not return an image ID\n"], [status.exitstatus, err]
     assert_equal [%w[docker info], %w[docker build]], steps
   end
 

@@ -75,8 +75,7 @@ class ProjectTest < Minitest::Test
   def test_a_failed_release_check_reports_its_reason_without_a_backtrace
     _out, err, status = rake("release:verify", env: { "GITHUB_REF_NAME" => nil })
 
-    refute_predicate status, :success?
-    assert_equal "rake: release tag must be v#{RichRI::VERSION}\n", err
+    assert_equal [1, "rake: release tag must be v#{RichRI::VERSION}\n"], [status.exitstatus, err]
   end
 
   def test_a_release_commit_check_without_a_commit_reports_its_reason_without_a_backtrace
@@ -122,7 +121,7 @@ class ProjectTest < Minitest::Test
   def test_local_release_is_refused_before_any_publish_action
     _out, err, status = rake("release", env: { "GITHUB_ACTIONS" => nil })
 
-    refute_predicate status, :success?
-    assert_equal "rake: publication runs only in the release workflow; use bin/release X.Y.Z --push\n", err
+    assert_equal [1, "rake: publication runs only in the release workflow; use bin/release X.Y.Z --push\n"],
+                 [status.exitstatus, err]
   end
 end
