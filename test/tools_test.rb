@@ -58,4 +58,17 @@ class ToolsTest < Minitest::Test
       end
     end
   end
+
+  def test_package_check_needs_groff_to_render_the_installed_manual
+    Dir.mktmpdir("rich-ri-tools-") do |bin|
+      link_ruby(bin)
+      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
+      write_program(bin, "man")
+      _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", "package:check",
+                                         chdir: TestSupport::ROOT)
+
+      assert_equal 1, status.exitstatus
+      assert_equal "rake: groff is not installed; install it with your package manager\n", err
+    end
+  end
 end
