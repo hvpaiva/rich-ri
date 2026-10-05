@@ -85,10 +85,16 @@ class ProjectTest < Minitest::Test
   end
 
   def test_an_artifact_check_reports_its_reason_without_a_backtrace
-    _out, err, status = rake("release:verify_artifact", env: { "RELEASE_SHA256" => "0" * 64 })
+    Dir.mktmpdir("rich-ri-artifact-") do |root|
+      FileUtils.cp_r(File.join(TestSupport::ROOT, "rakelib"), root)
+      FileUtils.cp(File.join(TestSupport::ROOT, "Rakefile"), root)
+      FileUtils.mkdir_p(File.join(root, "lib/rich_ri"))
+      FileUtils.cp(File.join(TestSupport::ROOT, "lib/rich_ri/version.rb"), File.join(root, "lib/rich_ri"))
+      _out, err, status = rake("release:verify_artifact", chdir: root, rakefile: File.join(root, "Rakefile"))
 
-    assert_equal 1, status.exitstatus
-    assert_match(/\Arake: release artifact (?:is incomplete: .+ not found|checksum mismatch)\n\z/, err)
+      assert_equal [1, "rake: release artifact is incomplete: pkg/rich-ri-#{RichRI::VERSION}.gem and pkg/SHA256SUMS " \
+                       "not found\n"], [status.exitstatus, err]
+    end
   end
 
   def test_publication_in_the_release_workflow_reports_its_reason_without_a_backtrace

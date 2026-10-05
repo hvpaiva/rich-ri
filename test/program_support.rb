@@ -22,9 +22,8 @@ module ProgramSupport
     link_program(directory, "bundle", Gem.bin_path("bundler", "bundle")) if bundler
   end
 
-  def rake(*, env: {}, chdir: TestSupport::ROOT)
-    Open3.capture3(env, RbConfig.ruby, Gem.bin_path("rake", "rake"), "-f", File.join(TestSupport::ROOT, "Rakefile"), *,
-                   chdir: chdir)
+  def rake(*, env: {}, chdir: TestSupport::ROOT, rakefile: File.join(TestSupport::ROOT, "Rakefile"))
+    Open3.capture3(env, RbConfig.ruby, Gem.bin_path("rake", "rake"), "-f", rakefile, *, chdir: chdir)
   end
 
   # rake with nothing on PATH but Ruby, Bundler, rake and what the test puts in the directory.
