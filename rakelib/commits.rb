@@ -13,7 +13,7 @@ module CommitPolicy
   TOOL_TRAILER = /\A(?:Generated-(?:by|with)|Assisted-by|Claude-Session|Amp-Thread-ID):/i
   # Product names stay case-sensitive: "generated with cursor movements" is ordinary prose.
   GENERATED = /\A\W*(?i:Generated (?:by|with)) \[?(?:#{ASSISTANTS.join('|')})\b/
-  SESSION = %r{https://(?:claude\.ai/code/session_|chatgpt\.com/codex/tasks/|ampcode\.com/threads/|
+  SESSION = %r{(?<![\w.-])(?:claude\.ai/code/session_|chatgpt\.com/codex/tasks/|ampcode\.com/threads/|
                app\.devin\.ai/sessions/|jules\.google\.com/task/|cursor\.com/(?:agents|background-agent)\b)}ix
   # People share assistants' names (Claude Monet), so a signature counts as a tool's only by
   # a tool's address or by a name that is nothing but a product.
