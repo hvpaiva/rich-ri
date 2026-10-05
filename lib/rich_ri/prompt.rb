@@ -24,6 +24,7 @@ module RichRI
     private
 
     def edit
+      previous = [Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc]
       complete_whole_line
       failures = 0
       begin
@@ -37,6 +38,8 @@ module RichRI
         Error.report(e)
         retry
       end
+    ensure
+      Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc = previous
     end
 
     # Reline completes only what follows the last space, quote or one of "<>=;|&{(`", which after

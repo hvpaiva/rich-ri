@@ -77,6 +77,23 @@ class InteractiveTest < Minitest::Test
     refute_match(/rich-ri:|incompatible character encodings/, output)
   end
 
+  def test_the_session_leaves_the_line_editor_settings_as_it_found_them
+    observer = <<~RUBY
+      require "reline"
+      settings = -> { [Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc] }
+      before = settings.call
+      at_exit { puts(settings.call == before ? "settings restored" : "settings changed") }
+    RUBY
+    output, status = with_session do |environment|
+      with_planted(observer, env: environment) do |env|
+        terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, env: env, prompt: ">> ", input: "\n")
+      end
+    end
+
+    assert_equal 0, status, output
+    assert_includes output, "settings restored"
+  end
+
   def test_tab_completes_a_gem_and_then_its_page
     output, status = gem_session("inkwell-n\tB\t\n\n")
 
