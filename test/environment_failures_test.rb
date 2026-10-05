@@ -62,8 +62,11 @@ class EnvironmentFailuresTest < Minitest::Test
   end
 
   def test_commands_that_need_no_home_directory_work_without_one
-    { ["--version"] => "rich-ri #{RichRI::VERSION}\n", ["--help"] => "Usage: rich-ri",
-      ["--show-config"] => "theme: terminal", ["--config-path"] => "\n" }.each do |args, text|
+    outputs = { ["--version"] => "rich-ri #{RichRI::VERSION}\n", ["--help"] => "Usage: rich-ri",
+                ["--show-config"] => "theme: terminal", ["--config-path"] => "\n", ["--completion=bash"] => "_rich_ri",
+                ["--man-path"] => RichRI::Manual.new.path,
+                ["--dump=#{TestSupport::STORE}/cache.ri"] => 'modules: ["RichRIExample", "RichRIExample::Nested"]' }
+    outputs.each do |args, text|
       out, err, status = without_home(*args)
 
       assert_predicate status, :success?, "#{args.inspect}: #{err}"
@@ -79,6 +82,16 @@ class EnvironmentFailuresTest < Minitest::Test
     assert_includes err, "rich-ri: cannot find a home directory; set HOME to an absolute path\n"
     refute_includes err, "no implicit conversion"
     refute_includes err, "--help"
+  end
+
+  def test_commands_that_read_the_stores_need_a_home_directory
+    %w[--list --list-doc-dirs --server].each do |action|
+      out, err, status = without_home("--no-standard-docs", "--doc-dir", TestSupport::STORE, action)
+
+      assert_equal 1, status.exitstatus, action
+      assert_empty out
+      assert_equal "rich-ri: cannot find a home directory; set HOME to an absolute path\n", err
+    end
   end
 
   def test_manual_installation_needs_a_home_directory_only_for_its_default

@@ -379,6 +379,10 @@ module Manual
       .B GEM_HOME, GEM_PATH, HOME, PATH
       RubyGems documentation locations, home RI store and external program lookup.
       HOME also supplies the fallback user configuration location.
+      Lookups, --list, --list-doc-dirs, --server and --install-man without a
+      directory need HOME to be an absolute path. --help, --version,
+      --config-path, --show-config, --completion, --man, --man-path, --dump and
+      --install-man=DIR work without it.
     SOURCE
   end
 
