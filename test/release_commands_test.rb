@@ -54,7 +54,7 @@ class ReleaseCommandsTest < Minitest::Test
     [false, true].each do |stream|
       error = assert_raises(Release::Error) { @commands.call(["rich-ri-missing-program"], stream: stream) }
 
-      assert_equal "rich-ri-missing-program is not installed or not on PATH", error.message
+      assert_equal "rich-ri-missing-program is not installed; install it with your package manager", error.message
     end
   end
 end

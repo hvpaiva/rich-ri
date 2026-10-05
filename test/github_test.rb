@@ -1,9 +1,14 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "git_support"
+require "program_support"
 require_relative "../rakelib/github_configuration"
 
 class GitHubTest < Minitest::Test
+  include GitSupport
+  include ProgramSupport
+
   class MemoryClient
     attr_reader :calls, :state
     attr_accessor :fail_path
@@ -141,6 +146,20 @@ class GitHubTest < Minitest::Test
     assert_equal 404, response.call(404).request("/vulnerability-alerts", missing: true).status
     assert_raises(GitHub::Error) { response.call(403).request("/vulnerability-alerts", missing: true) }
     assert_raises(GitHub::Error) { response.call(500).request("/immutable-releases") }
+  end
+
+  def test_repository_tasks_without_gh_say_how_to_install_it
+    %w[github:verify github:setup].each do |task|
+      github_origin do |environment|
+        Dir.mktmpdir("rich-ri-no-gh-") do |bin|
+          link_program(bin, "git")
+          out, err, status = isolated_rake(bin, task, env: environment)
+
+          assert_equal [1, "", "rake: gh is not installed; install it with your package manager\n"],
+                       [status.exitstatus, out, err], task
+        end
+      end
+    end
   end
 
   def test_origin_accepts_only_this_repository_on_github

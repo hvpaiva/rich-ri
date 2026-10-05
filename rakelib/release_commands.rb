@@ -5,6 +5,7 @@ require "json"
 require "open3"
 require_relative "github"
 require_relative "release"
+require_relative "tools"
 
 module Release
   class Commands
@@ -41,7 +42,7 @@ module Release
       @out.print diagnostics
       [output, status]
     rescue Errno::ENOENT
-      raise Error, "#{argv.first} is not installed or not on PATH"
+      raise Error, Tools.missing(argv.first)
     end
 
     def start(argv)

@@ -28,10 +28,10 @@ module ProgramSupport
   end
 
   # rake with nothing on PATH but Ruby, Bundler, rake and what the test puts in the directory.
-  def isolated_rake(bin, *)
+  def isolated_rake(bin, *, env: {})
     link_ruby(bin)
     link_program(bin, "rake", Gem.bin_path("rake", "rake"))
-    Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", *, chdir: TestSupport::ROOT)
+    Open3.capture3(env.merge("PATH" => bin), File.join(bin, "bundle"), "exec", "rake", *, chdir: TestSupport::ROOT)
   end
 
   def which(name)

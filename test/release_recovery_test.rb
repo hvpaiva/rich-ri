@@ -23,20 +23,6 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
-  def test_a_missing_gh_stops_the_release_with_one_line_instead_of_a_backtrace
-    repository do |root|
-      Dir.mktmpdir("rich-ri-no-gh-") do |empty|
-        error = with_environment("PATH" => empty) do
-          assert_raises(GitHub::Error) do
-            Release::Workflow.new("0.2.0", root: root, runner: workflow_runner([]), out: StringIO.new).run
-          end
-        end
-
-        assert_equal "gh is not installed or not on PATH", error.message.lines.first.chomp
-      end
-    end
-  end
-
   def test_partial_preparation_can_resume_on_a_later_day_without_overwriting_unrelated_edits
     repository do |root|
       source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, File.read(File.join(root, path))] }

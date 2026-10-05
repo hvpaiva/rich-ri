@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "open3"
+require "tmpdir"
 
 module GitSupport
   # Git exports these to hooks; left set, they point the tests at the repository running the suite.
@@ -17,6 +18,15 @@ module GitSupport
 
     assert_predicate status, :success?, err
     out.strip
+  end
+
+  # Commands that check origin first find this project there through GIT_DIR.
+  def github_origin
+    Dir.mktmpdir("rich-ri-origin-") do |root|
+      git(root, "init", "-q")
+      git(root, "remote", "add", "origin", "https://github.com/hvpaiva/rich-ri.git")
+      yield ENVIRONMENT.merge("GIT_DIR" => File.join(root, ".git"))
+    end
   end
 
   def commit(root, files)

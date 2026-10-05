@@ -46,5 +46,5 @@ module Tools
     end
   end
 
-  private_class_method :pinned, :available?, :missing
+  private_class_method :pinned, :available?
 end

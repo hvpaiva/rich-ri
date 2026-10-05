@@ -5,9 +5,11 @@ require_relative "../rakelib/release"
 require_relative "../rakelib/release_workflow"
 
 require_relative "release_support"
+require "program_support"
 
 class ReleaseTest < Minitest::Test
   include ReleaseFixtures
+  include ProgramSupport
 
   def test_preparation_updates_version_and_preserves_unreleased_for_next_changes
     repository do |root|
@@ -88,6 +90,23 @@ class ReleaseTest < Minitest::Test
     out, err, status = Open3.capture3(RbConfig.ruby, File.join(TestSupport::ROOT, "bin/release"), "01.2.3")
 
     assert_equal [1, "", "release: use a stable X.Y.Z version\n"], [status.exitstatus, out, err]
+  end
+
+  def test_bin_release_without_gh_says_how_to_install_it_and_resume
+    github_origin do |environment|
+      Dir.mktmpdir("rich-ri-no-gh-") do |bin|
+        link_ruby(bin, bundler: false)
+        link_program(bin, "git")
+        out, err, status = Open3.capture3(environment.merge("PATH" => bin), RbConfig.ruby,
+                                          File.join(TestSupport::ROOT, "bin/release"), "0.2.0")
+
+        assert_equal [1, "==> git remote get-url origin\n",
+                      "release: gh is not installed; install it with your package manager\n" \
+                      "After resolving the problem, rerun bin/release 0.2.0. " \
+                      "Existing pull requests and tags are inspected before any new action.\n"],
+                     [status.exitstatus, out, err]
+      end
+    end
   end
 
   def test_bin_release_keeps_the_class_and_backtrace_of_a_defect

@@ -2,6 +2,7 @@
 
 require "json"
 require "open3"
+require_relative "tools"
 
 module GitHub
   REPOSITORY = "hvpaiva/rich-ri"
@@ -43,7 +44,7 @@ module GitHub
       output, error, status = Open3.capture3(*argv, stdin_data: stdin_data, chdir: @root)
       [output.empty? ? error : output, status]
     rescue Errno::ENOENT
-      raise Error, "#{argv.first} is not installed or not on PATH"
+      raise Error, Tools.missing(argv.first)
     end
   end
 
