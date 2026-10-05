@@ -3,7 +3,7 @@
 require "test_helper"
 
 class EncodingTest < Minitest::Test
-  LATIN1 = "caf\xE9".dup.force_encoding(Encoding::ISO_8859_1).freeze
+  LATIN1 = "café".encode(Encoding::ISO_8859_1).freeze
   INVALID = "bad\xFFbyte"
 
   def test_text_from_outside_is_read_as_utf8

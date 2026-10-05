@@ -18,7 +18,7 @@ class DriverTest < Minitest::Test
   end
 
   def test_names_holding_pattern_characters_are_unknown_names
-    ["RichRIExample[", "RichRIExample(", "(", "[", ")", "**", "Rich(?<name>", "R{2,1}", "RichRIExampl?",
+    ["RichRIExample[", "RichRIExample(", "(", "[", ")", "**", "Rich(?<name>", "R{2,1}", "RichRIExamples?",
      "Rich+", "Rich|RichRIExample"].each do |name|
       out, err, status = cli(name)
 
@@ -45,7 +45,7 @@ class DriverTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_equal "RichRIExample::Nested\n", out
-    ["(", "Rich[", "Rich.*", "RichRIExampl.", "^Rich"].each do |name|
+    ["(", "Rich[", "Rich.*", "RichRIExample.", "^Rich"].each do |name|
       out, err, status = cli("--list", name)
 
       assert_predicate status, :success?, "#{name}: #{err}"

@@ -27,7 +27,7 @@ class ErrorMessagesTest < Minitest::Test
     { %w[--theme=] => "--theme must be one of terminal, dark, light", %w[--theme=d] => "--theme must be one of",
       %w[--color=] => "--color must be one of auto, always, never", %w[--color=n] => "--color must be one of",
       %w[--color-depth=true] => "--color-depth must be one of auto, basic, 256, truecolor",
-      %w[--completion=ba] => "--completion must be one of bash, zsh, fish",
+      %w[--completion=zs] => "--completion must be one of bash, zsh, fish",
       %w[-f m] => "--format must be one of ansi, bs, markdown, rdoc" }.each do |args, message|
       out, err, status = cli("--no-config", *args, "--show-config", docs: false)
 
