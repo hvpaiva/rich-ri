@@ -129,9 +129,8 @@ class InteractiveTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_includes out, "RichRIExample#ma not found, maybe you meant:"
-    assert_includes err, "rich-ri: RichRIExample[ not found\n"
-    assert_includes err, "rich-ri: NoSuchExample123 not found\n"
-    refute_match(/from .*\.rb:\d+/, err)
+    assert_equal "rich-ri: RichRIExample[ not found\nrich-ri: NoSuchExample123 not found\n" \
+                 "rich-ri: RichRIExample#ma not found\n", err
     assert_includes out, "Return transformed values."
   end
 

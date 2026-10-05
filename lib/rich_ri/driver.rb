@@ -221,7 +221,7 @@ module RichRI
     private
 
     def answer(name)
-      display_name(expand_name(name))
+      Error.report(LookupError.new(name)) unless display_name(expand_name(name))
     rescue StandardError, ScriptError => e
       Error.report(e.is_a?(NotFoundError) ? LookupError.from(e) : e)
     end
