@@ -146,8 +146,8 @@ namespace :docs do
   task check: %w[lint:links lint:spelling lint:changelog generate:check test:docs]
 end
 
-# The compatibility and fresh-dependency CI jobs install other bundles, so they stay separate:
-# test:compatibility runs the first locally, and only CI resolves the newest dependencies.
+# Left to CI: shell tests in a container (Docker or Podman even with native shells), the benchmark (timings only),
+# and the jobs for macOS, other Rubies and the newest dependencies; test:compatibility runs the oldest locally.
 desc "Run the checks of the CI quality job (native shells or Docker/Podman, and security database required)"
 task check: %w[rubocop lint:commits lint:changelog lint:shell lint:spelling lint:workflows lint:links lint:man
                generate:check test:cov test:shells package:check audit]

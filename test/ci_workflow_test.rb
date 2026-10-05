@@ -9,6 +9,9 @@ require_relative "../rakelib/tools"
 
 class CIWorkflowTest < Minitest::Test
   PUBLISH = "needs.verify.outputs.publish == 'true'"
+  # The quality steps rake check leaves out, for the reasons the comment above it in the Rakefile gives.
+  QUALITY_ONLY = ["bundle exec rake test:shells:container",
+                  "bundle exec ruby bin/benchmark --output benchmark.json"].freeze
 
   def test_required_check_covers_every_ci_job
     jobs = ci.fetch("jobs")
@@ -54,8 +57,8 @@ class CIWorkflowTest < Minitest::Test
     assert_empty %w[lint:commits lint:changelog] - check_tasks
   end
 
-  def test_the_quality_job_runs_rake_check
-    assert_includes commands("quality"), "bundle exec rake check"
+  def test_the_quality_job_runs_rake_check_and_only_the_steps_it_leaves_out
+    assert_equal ["bundle exec rake check", *QUALITY_ONLY], commands("quality").grep(/\Abundle exec /)
   end
 
   def test_the_compatibility_job_runs_the_local_compatibility_script
