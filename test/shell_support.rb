@@ -23,8 +23,7 @@ module ShellSupport
     %w[bash zsh fish].all? { |name| executable?(name) } && !bash_completion.nil?
   end
 
-  # Whether there is a bash the completion script supports. It needs none of
-  # bash-completion, but compopt, which came with bash 4.
+  # The completion script needs no bash-completion, but compopt, which came with bash 4.
   def self.bash?
     _out, _err, status = Open3.capture3(ENVIRONMENT, "bash", "--noprofile", "--norc", "-c",
                                         "(( BASH_VERSINFO[0] >= 4 ))")

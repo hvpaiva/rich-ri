@@ -122,14 +122,12 @@ class DriverTest < Minitest::Test
     end
   end
 
-  # The command over the gems of the suite alone.
   def gems(*words, complete: false)
     sources = ["--no-system", "--no-site", "--no-home"]
     cli(*(complete ? ["--complete", *sources] : sources), *words, docs: false, env: TestSupport.gem_environment)
   end
 
-  # The names --complete offers over those gems, without the last line of
-  # its answer, which says what the shell is to do with them.
+  # Without the last line of the answer, which is the action for the shell.
   def gem_candidates(word)
     gems(word, complete: true).first.lines(chomp: true)[0...-1].map { |line| line.split("\t").first }
   end

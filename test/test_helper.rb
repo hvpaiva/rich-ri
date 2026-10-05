@@ -28,15 +28,12 @@ module TestSupport
     RDoc::RDoc.new.document(["--ri", "--quiet", "--op", STORE, "example.rb", "GUIDE.rdoc"])
   end
 
-  # Gems as an installation leaves them: a specification and the RI data of
-  # the gem's files, in a gem home of their own. Every other store in the suite
-  # is a directory given with --doc-dir; these are the ones RubyGems finds and
-  # names by gem, version and platform. Each is a directory of fixtures with
-  # its version and platform, one of them for another system.
+  # Gems installed in a home of their own, which RubyGems finds and names by gem, version and
+  # platform, one of them for another system; every other store is given with --doc-dir.
   GEMS = { "inkwell" => %w[1.4.0 ruby], "inkwell-2" => %w[0.3.0 ruby],
            "inkwell-native" => %w[2.0.1 arm64-darwin-23] }.freeze
 
-  # The gem home, generated when a test first asks for it.
+  # Generated when a test first asks for it.
   def self.gem_home
     @gem_home ||= File.join(TEMP, "gems").tap do |home|
       FileUtils.mkdir_p(File.join(home, "specifications"))
@@ -44,7 +41,6 @@ module TestSupport
     end
   end
 
-  # The RI data of one of those gems, which is a store to give to --doc-dir too.
   def self.gem_store(name)
     version, platform = GEMS.fetch(name)
     File.join(gem_home, "doc", [name, version, *(platform unless platform == "ruby")].join("-"), "ri")
@@ -68,9 +64,8 @@ module TestSupport
   end
   private_class_method :install_gem
 
-  # The environment of a command that finds the gems of gem_home in place of
-  # the installed ones. Bundler would show it the bundle alone, so it runs
-  # without, and the libraries rich-ri requires come from this process's load path.
+  # Bundler would show the command the bundle alone, so it runs without, and the libraries
+  # rich-ri requires come from this process's load path.
   def self.gem_environment
     libraries = $LOAD_PATH.map(&:to_s).select { |path| File.absolute_path?(path) }
     ENV.keys.grep(/\ABUNDLER?_/).to_h { |key| [key, nil] }.merge(
@@ -95,8 +90,7 @@ module TestSupport
     RichRI::Driver.new(options.driver_options)
   end
 
-  # A copy of the fixture store whose cache also lists the given names. Yields
-  # the options that select it alone.
+  # Yields the options that select a copy of the fixture store whose cache also lists the names.
   def with_cached_names(modules: [], methods: [], pages: [])
     Dir.mktmpdir("rich-ri-names-") do |dir|
       path = File.join(dir, "ri")
@@ -111,7 +105,6 @@ module TestSupport
     end
   end
 
-  # A temporary configuration file holding the given YAML text or data.
   def with_config(data)
     Dir.mktmpdir("rich-ri-config-") do |dir|
       path = File.join(dir, "config.yml")

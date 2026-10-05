@@ -58,10 +58,8 @@ module ShellHarness
   end
 end
 
-# Types a line into an interactive shell, presses Tab at its end and reads the
-# words the shell then passes to rich-ri. The working and home directory hold
-# a directory and a file with a space in their names and directories named
-# like a class.
+# Types a line into an interactive shell, presses Tab and reads the words passed to rich-ri. Its
+# home holds a directory and a file with spaces in their names, and directories named like a class.
 module ShellInsertion
   include ShellHarness
   include TerminalTestSupport
@@ -100,9 +98,8 @@ module ShellInsertion
       # The line that 0.1.0 documented for an alias, still in many a ~/.bashrc.
       script += "source #{completion}\n#{capture}complete -o filenames -F _rich_ri ri\n"
       File.write(File.join(@bin, "bashrc"), script)
-      # bash reads the bashrc of the system before the file it is given, and
-      # some systems load bash-completion there. It reads none, and is then
-      # told to read this one.
+      # Some systems load bash-completion in the system bashrc, which bash reads before the file it
+      # is given; it reads none and is then told to source this one.
       environment["PS1"] = "RICH_START> "
       return [name, "--noprofile", "--norc", "-i"]
     end
@@ -117,10 +114,8 @@ module ShellInsertion
     [name, "-d", "-i"]
   end
 
-  # The words bash passes to rich-ri with ble.sh as its line editor, the keys
-  # of each step typed once the text before them has appeared. ble.sh drops a
-  # completion when a key arrives while it runs, so the key after a Tab waits
-  # for what the Tab changed: the text inserted, or the bell for nothing.
+  # ble.sh drops a completion when a key arrives while it runs, so the key after a Tab waits for
+  # what the Tab changed: the text inserted, or the bell for nothing.
   def ble_arguments(*steps, env: {})
     skip "ble.sh is not installed" unless File.file?(BLE)
     require_bash

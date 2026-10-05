@@ -6,11 +6,6 @@ module TerminalTestSupport
   # A real terminal is needed for color detection and shell insertion. Wait for
   # the prompt before typing so the terminal's initial line discipline cannot
   # consume Tab before Readline/ZLE starts.
-  #
-  # The input is typed at once, or is a list of [text, keys] pairs whose keys
-  # are each typed when the text has appeared after the keys before them. A
-  # line editor reads every key that is waiting before it draws, so a list of
-  # candidates is seen only by waiting for it.
   def terminal(*command, env: {}, prompt: nil, input: nil)
     output = +""
     status = nil
@@ -19,6 +14,8 @@ module TerminalTestSupport
       PTY.spawn(TestSupport::ENVIRONMENT.merge(env), *command) do |reader, writer, child|
         pid = child
         writer.winsize = [30, 120]
+        # input may be [text, keys] pairs, each typed once its text appears: a line editor reads
+        # every waiting key before it draws, so a list of candidates is seen only by waiting for it.
         (input.is_a?(Array) ? input : [[prompt, input]]).each do |awaited, keys|
           await(reader, output, awaited, command) if awaited
           writer.write(keys) if keys

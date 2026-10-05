@@ -6,10 +6,8 @@ require "shell_harness"
 class BashCompletionTest < Minitest::Test
   include ShellHarness
 
-  # What the function answers when bash calls it: its replies, each between
-  # brackets, then what it asked of compopt. bash breaks a word at each ":"
-  # and "=" outside quotes, hands over the pieces in COMP_WORDS and names, as
-  # the second argument, the text it is going to replace.
+  # Prints the replies in brackets, then what was asked of compopt. As bash does, the caller
+  # splits the line at ":" and "=" outside quotes and passes second the text to be replaced.
   ANSWER = <<~'BASH'
     [[ -n $1 ]] && source "$1"
     source "$2/completions/rich-ri.bash"
@@ -131,9 +129,8 @@ class BashCompletionTest < Minitest::Test
 
   private
 
-  # The replies and the compopt calls for a line whose pieces are the ones bash
-  # would break it into, the last being completed unless cword says otherwise.
-  # The library is bash-completion, or nil to do without.
+  # The last piece is completed unless cword says otherwise; library is bash-completion, or nil
+  # to do without.
   def bash_answer(line, *pieces, typed: pieces.last, library: bash_completion, **at)
     require_bash
     lines = shell("bash", ANSWER, library.to_s, TestSupport::ROOT, at.fetch(:type, 9).to_s, line,
@@ -143,13 +140,8 @@ class BashCompletionTest < Minitest::Test
   end
 end
 
-# ble.sh runs a completion function shaped like the ones cobra generates in a
-# way of its own (patch:cobraV2 in its core-complete.sh): it calls words[0]
-# through a function of its own that it can cancel, takes the lines with a
-# description for its menu and hands the others back in out. It breaks the
-# word at ":" and "=" itself, says in progcomp_prefix what comes before the
-# piece being completed, puts it back before every reply and quotes the reply.
-# ble.sh does not run in CI, so ANSWER does the same in plain bash.
+# ble.sh does not run in CI, so ANSWER calls the script as its patch:cobraV2 does: through
+# words[0], with progcomp_prefix, taking the described lines for its own menu.
 class BleCompletionTest < Minitest::Test
   include ShellInsertion
 
@@ -249,8 +241,7 @@ class BleCompletionTest < Minitest::Test
 
   private
 
-  # How the command was reached, the candidates ble.sh took, the replies and
-  # the compopt calls.
+  # Whether the command ran, the candidates ble.sh took, the replies and the compopt calls.
   def ble_answer(line, prefix, *pieces)
     require_bash
     marker = File.join(@bin, "invoked")
@@ -414,9 +405,8 @@ class ShellInsertionTest < Minitest::Test
     end
   end
 
-  # Operators end in characters at which a shell breaks words or that it reads
-  # as its own; a class can have the name of a directory, and a gem be given in
-  # two steps, before and after its colon.
+  # Operators end in characters a shell breaks words at or reads as its own; a class can share
+  # a directory's name, and a gem be given in two steps, before and after its colon.
   def check_names(name, **)
     { "rich-ri Inkwell#name=" => "Inkwell#name=", "rich-ri 'Inkwell#name=" => "Inkwell#name=",
       "rich-ri Inkwell#=~" => "Inkwell#=~", "rich-ri 'Inkwell#<=>" => "Inkwell#<=>",

@@ -135,7 +135,6 @@ class CompletionTest < Minitest::Test
   end
 end
 
-# The answer as the shell scripts read it: candidates, then what to do with them.
 class CompletionProtocolTest < Minitest::Test
   include CommandSupport
 
@@ -241,7 +240,6 @@ class CompletionProtocolTest < Minitest::Test
   end
 end
 
-# What is offered follows what the command itself would accept.
 class CommandLineCompletionTest < Minitest::Test
   def values(*words)
     RichRI::Completion.new.answer(words).candidates.map(&:first)
