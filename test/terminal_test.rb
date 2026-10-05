@@ -171,8 +171,7 @@ class TerminalTest < Minitest::Test
       output, status = terminal_cli(*SOURCES, env: environment, prompt: ">> ", input: "RichRIExample#ma\t\n\n")
 
       assert_equal 0, status, output
-      assert_includes output, "You can use tab to autocomplete."
-      assert_includes output, "Enter a blank line to exit."
+      assert_includes output, "Enter a name to look up; Tab completes it.\r\nEnter a blank line to exit.\r\n"
       assert_includes output, ">> RichRIExample#map"
       assert_includes output, "Return transformed values."
       refute_includes output, "Nothing known about"

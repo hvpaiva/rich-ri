@@ -161,8 +161,7 @@ module RichRI
     # and answers Ctrl-C with a successful exit. Here a failed lookup is
     # reported and the prompt returns; Ctrl-C reaches the command as Interrupt.
     def interactive
-      puts "\nEnter the method name you want to look up."
-      puts "You can use tab to autocomplete."
+      puts "\nEnter a name to look up; Tab completes it."
       puts "Enter a blank line to exit.\n\n"
       prompt = Prompt.new(method(:complete))
       while (name = prompt.read)

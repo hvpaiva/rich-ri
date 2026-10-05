@@ -158,7 +158,7 @@ class InteractiveTest < Minitest::Test
       assert_predicate status, :success?, err
       assert_empty err
       refute_match(/\e|>> /, out)
-      assert_operator out, :start_with?, "\nEnter the method name you want to look up.\n"
+      assert_operator out, :start_with?, "\nEnter a name to look up; Tab completes it.\nEnter a blank line to exit.\n\n"
       assert_includes out, "Return transformed values."
       assert_includes out, "Create an example."
       refute_includes out, "= RichRIExample < Object"

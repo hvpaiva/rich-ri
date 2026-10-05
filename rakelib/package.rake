@@ -51,7 +51,7 @@ namespace :package do
           ["--config", config, *sources, "RichRIExample#map"] => "\e[31;1mmap\e[0m",
           [*sources, "RichRIExample#map"] => "Return transformed values.",
           ["--complete", *sources, "RichRIExample#ma"] => "RichRIExample#map\t\n",
-          ["--no-standard-docs", "--interactive"] => "You can use tab to autocomplete.",
+          ["--no-standard-docs", "--interactive"] => "Enter a name to look up; Tab completes it.",
           ["--man"] => "DOCUMENTATION SOURCES"
         }.each do |args, expected|
           out, err, status = Open3.capture3(env.merge("MANPAGER" => "cat"), command, *args,
