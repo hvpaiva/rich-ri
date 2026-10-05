@@ -69,7 +69,7 @@ module GitHub
       pending = release ? changes.select(&:release) : changes
       unless pending.empty?
         descriptions = pending.map { |change| "- #{change.description}" }.join("\n")
-        raise Error, "Repository configuration needs attention:\n#{descriptions}\n" \
+        raise Error, "repository configuration needs attention:\n#{descriptions}\n" \
                      "Run bundle exec rake github:setup, then github:verify."
       end
 
@@ -118,7 +118,7 @@ module GitHub
 
     def repository_settings
       current = get("").body
-      raise Error, "Repository administrator access is required" unless current.dig("permissions", "admin")
+      raise Error, "repository administrator access is required" unless current.dig("permissions", "admin")
 
       plan("merge settings", "PATCH", "", MERGE_SETTINGS) unless matches?(current, MERGE_SETTINGS)
       presentation(current)
@@ -141,7 +141,7 @@ module GitHub
       existing = get("/rulesets").body
       [self.class.main_ruleset, self.class.tags_ruleset].each do |desired|
         found = existing.select { |ruleset| ruleset["name"] == desired["name"] }
-        raise Error, "Duplicate #{desired['name']} rulesets; reconcile them in GitHub first" if found.length > 1
+        raise Error, "duplicate #{desired['name']} rulesets; reconcile them in GitHub first" if found.length > 1
 
         path = found.empty? ? "/rulesets" : "/rulesets/#{found.first.fetch('id')}"
         next if found.any? && matches?(get(path).body, desired)

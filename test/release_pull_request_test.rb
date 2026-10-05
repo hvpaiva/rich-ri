@@ -56,7 +56,7 @@ class ReleasePullRequestTest < Minitest::Test
   def test_two_live_pull_requests_for_one_release_are_refused
     repository do |root|
       commands = []
-      assert_release_error(%r{Several pull requests use release/v0\.2\.0}) do
+      assert_release_error(%r{\Aseveral pull requests use release/v0\.2\.0; reconcile them before releasing$}) do
         release(root, commands, prs: [release_pr, release_pr("OPEN")])
       end
 

@@ -8,7 +8,7 @@ namespace :github do
     GitHub.verify_origin!
     GitHub::Configuration.new.setup
   rescue GitHub::Error => e
-    abort e.message
+    abort "rake: #{e.message}"
   end
 
   desc "Verify GitHub repository configuration without changing it"
@@ -16,6 +16,6 @@ namespace :github do
     GitHub.verify_origin!
     GitHub::Configuration.new.verify!
   rescue GitHub::Error => e
-    abort e.message
+    abort "rake: #{e.message}"
   end
 end

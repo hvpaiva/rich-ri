@@ -67,7 +67,7 @@ class ReleaseRecoveryTest < Minitest::Test
     repository do |root|
       commands = []
       state = { pr: release_pr("OPEN"), release_version: "0.3.0" }
-      assert_release_error(/Release tag must be v0\.3\.0/) do
+      assert_release_error(/\Arelease tag must be v0\.3\.0$/) do
         workflow("0.2.0", root: root, push: true, runner: workflow_runner(commands, state: state),
                           out: StringIO.new).run
       end

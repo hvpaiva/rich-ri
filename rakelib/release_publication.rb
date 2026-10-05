@@ -28,7 +28,7 @@ module Release
       verify_commit(sha)
       remote = remote_tag
       if remote.any? && remote["refs/tags/#{tag}^{}"] != sha
-        raise Error, "Remote #{tag} targets another commit; it will never be moved"
+        raise Error, "remote #{tag} targets another commit; it will never be moved"
       end
 
       exists = !@commands.call(["git", "tag", "--list", tag]).strip.empty?
@@ -90,7 +90,7 @@ module Release
     def verify_tag(sha)
       unless @commands.call(["git", "cat-file", "-t", "refs/tags/#{tag}"]).strip == "tag" &&
              @commands.call(["git", "rev-parse", "#{tag}^{commit}"]).strip == sha
-        raise Error, "Local #{tag} is not an annotated tag of the release merge; it will never be replaced"
+        raise Error, "local #{tag} is not an annotated tag of the release merge; it will never be replaced"
       end
 
       @commands.call(["git", "verify-tag", tag])

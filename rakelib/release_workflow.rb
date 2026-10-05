@@ -56,13 +56,13 @@ module Release
     def validate
       Release.validate_version(@version)
       unless GitHub.origin?(command(%w[git remote get-url origin]))
-        raise Error, "The origin repository must be #{GitHub::REPOSITORY}"
+        raise Error, "the origin repository must be #{GitHub::REPOSITORY}"
       end
 
       @configuration.verify!(release: true)
       command(%w[git fetch origin --tags])
       @current_branch = command(%w[git branch --show-current]).strip
-      raise Error, "Run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
+      raise Error, "run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
     end
 
     # gh matches the head branch by name, in forks too, and a pull request can never be deleted.
@@ -72,7 +72,7 @@ module Release
                                  "--json", "url,state,headRefOid,mergeCommit,isCrossRepository"])
       ignored, candidates = requests.partition { |request| reason_to_ignore(request) }
       ignored.each { |request| @out.puts "Ignoring #{request['url']}: #{reason_to_ignore(request)}." }
-      raise Error, "Several pull requests use #{branch}; reconcile them before releasing" if candidates.length > 1
+      raise Error, "several pull requests use #{branch}; reconcile them before releasing" if candidates.length > 1
 
       candidates.first
     end
@@ -84,14 +84,14 @@ module Release
     end
 
     def require_clean
-      raise Error, "Commit or stash unrelated work before continuing" unless command(%w[git status --porcelain]).empty?
+      raise Error, "commit or stash unrelated work before continuing" unless command(%w[git status --porcelain]).empty?
     end
 
     def resume_pull_request(request)
       require_clean
       @commit = request.fetch("headRefOid")
       if @current_branch == branch && command(%w[git rev-parse HEAD]).strip != @commit
-        raise Error, "Local #{branch} differs from the PR head. Push its reviewed changes before retrying"
+        raise Error, "local #{branch} differs from the PR head; push its reviewed changes before retrying"
       end
       return @out.puts "Existing release PR: #{request.fetch('url')} (dry run)." if @dry_run
 
@@ -103,7 +103,7 @@ module Release
         require_clean
         head = command(%w[git rev-parse HEAD])
         unless head == command(["git", "rev-parse", "origin/#{@base}"])
-          raise Error, "Local #{@base} must match origin/#{@base}; pull first"
+          raise Error, "local #{@base} must match origin/#{@base}; pull first"
         end
 
         changes = Release.changes(@version, root: @root)
@@ -123,7 +123,7 @@ module Release
 
     def resumed_changes
       dirty = command(%w[git status --porcelain]).lines.map { |line| line.chomp[3..] }
-      raise Error, "Unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
+      raise Error, "unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
 
       source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, command(["git", "show", "HEAD:#{path}"])] }
       if source.fetch("CHANGELOG.md").include?("## [#{@version}]")
@@ -196,7 +196,7 @@ module Release
 
         @sleeper.sleep(5)
       end
-      raise Error, "Timed out waiting for checks on #{url}; the existing PR will be reused on retry"
+      raise Error, "timed out waiting for checks on #{url}; the existing PR will be reused on retry"
     end
   end
 end

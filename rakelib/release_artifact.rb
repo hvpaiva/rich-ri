@@ -25,11 +25,11 @@ module Release
       gem = path(root: root)
       manifest = File.join(root, "pkg/SHA256SUMS")
       missing = [gem, manifest].reject { |file| File.file?(file) }.map { |file| file.delete_prefix("#{root}/") }
-      raise Error, "Release artifact is incomplete: #{missing.join(' and ')} not found" unless missing.empty?
+      raise Error, "release artifact is incomplete: #{missing.join(' and ')} not found" unless missing.empty?
 
       digest = Digest::SHA256.file(gem).hexdigest
       unless File.read(manifest) == "#{digest}  #{File.basename(gem)}\n" && (expected.nil? || expected == digest)
-        raise Error, "Release artifact checksum mismatch"
+        raise Error, "release artifact checksum mismatch"
       end
 
       verify_package(gem, Release.version(root: root))
@@ -41,9 +41,9 @@ module Release
       package.verify
       return if package.spec.name == "rich-ri" && package.spec.version.to_s == version
 
-      raise Error, "Release artifact name/version does not match the checkout"
+      raise Error, "release artifact name/version does not match the checkout"
     rescue Gem::Package::Error => e
-      raise Error, "Release artifact is not a valid gem: #{e.message}"
+      raise Error, "release artifact is not a valid gem: #{e.message}"
     end
   end
 end

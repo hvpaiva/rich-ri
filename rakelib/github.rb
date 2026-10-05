@@ -52,6 +52,6 @@ module GitHub
     origin, status = Open3.capture2("git", "remote", "get-url", "origin", chdir: root)
     return if status.success? && origin?(origin)
 
-    raise Error, "The origin repository must be #{REPOSITORY}"
+    raise Error, "the origin repository must be #{REPOSITORY}"
   end
 end

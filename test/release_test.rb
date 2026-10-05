@@ -23,11 +23,13 @@ class ReleaseTest < Minitest::Test
 
   def test_preparation_refuses_a_dirty_tree_and_invalid_versions
     repository do |root|
-      assert_release_error(/Version cannot go backwards/) { Release.changes("0.0.1", root: root) }
-      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.changes("01.2.3", root: root) }
-      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.changes("invalid", root: root) }
+      assert_release_error(/\Aversion cannot go backwards\z/) { Release.changes("0.0.1", root: root) }
+      assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes("01.2.3", root: root) }
+      assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes("invalid", root: root) }
       File.write(File.join(root, "unfinished"), "work")
-      assert_release_error(/Commit or stash changes/) { Release.changes("0.2.0", root: root) }
+      assert_release_error(/\Acommit or stash changes before preparing a release\z/) do
+        Release.changes("0.2.0", root: root)
+      end
     end
   end
 

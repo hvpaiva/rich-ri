@@ -49,7 +49,7 @@ class ProjectTest < Minitest::Test
     assert_equal RichRI::VERSION, Release.verify(tag: "v#{RichRI::VERSION}", changelog: changelog)
     error = assert_raises(Release::Error) { Release.verify(tag: "v9.9.9", changelog: changelog) }
 
-    assert_equal "Release tag must be v#{RichRI::VERSION}", error.message
+    assert_equal "release tag must be v#{RichRI::VERSION}", error.message
     error = assert_raises(Release::Error) do
       Release.verify(tag: "v#{RichRI::VERSION}",
                      changelog: "## [Unreleased]\n\n[Unreleased]: https://github.com/hvpaiva/rich-ri/commits/main\n")
@@ -63,7 +63,7 @@ class ProjectTest < Minitest::Test
                                        chdir: TestSupport::ROOT)
 
     refute_predicate status, :success?
-    assert_equal "release:verify: Release tag must be v#{RichRI::VERSION}\n", err
+    assert_equal "rake: release tag must be v#{RichRI::VERSION}\n", err
   end
 
   def test_every_rake_task_describes_itself
@@ -80,6 +80,6 @@ class ProjectTest < Minitest::Test
                                        chdir: TestSupport::ROOT)
 
     refute_predicate status, :success?
-    assert_includes err, "Publication runs only in the release workflow"
+    assert_equal "rake: publication runs only in the release workflow; use bin/release X.Y.Z --push\n", err
   end
 end
