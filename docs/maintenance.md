@@ -1,15 +1,15 @@
 # Maintenance
 
-## Repository and publisher setup
+## Release infrastructure
 
 `bundle exec rake github:verify` checks branch and tag protections, required CI
 checks, the release environment and security settings. `rake github:setup`
 applies the project policy. Both require repository administrator access.
 
-Configure a [RubyGems trusted publisher](https://guides.rubygems.org/trusted-publishing/)
-for `hvpaiva/rich-ri`, workflow `release.yml`, environment `release`.
-For the first publication, use a pending publisher for the name `rich-ri`.
-This RubyGems setting is separate from the GitHub configuration check.
+Publication uses [RubyGems Trusted Publishing](https://guides.rubygems.org/trusted-publishing/).
+The publisher must match repository `hvpaiva/rich-ri`, workflow `release.yml`
+and environment `release`. Update that binding in RubyGems if the integration
+changes. `github:verify` checks GitHub settings only.
 
 ## Release
 
