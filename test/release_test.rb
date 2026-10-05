@@ -110,17 +110,20 @@ class ReleaseTest < Minitest::Test
   end
 
   def test_bin_release_keeps_the_class_and_backtrace_of_a_defect
-    defect = File.join(TestSupport::TEMP, "release_defect.rb")
-    File.write(defect, <<~RUBY)
-      require #{File.join(TestSupport::ROOT, 'rakelib/release_workflow').dump}
-      Release::Workflow.prepend(Module.new { def run = raise(NoMethodError, "defect") })
-    RUBY
-    _out, err, status = Open3.capture3(RbConfig.ruby, "-r#{defect}", File.join(TestSupport::ROOT, "bin/release"),
-                                       "0.2.0")
+    github_origin do |environment|
+      Dir.mktmpdir("rich-ri-gh-") do |bin|
+        link_ruby(bin, bundler: false)
+        link_program(bin, "git")
+        # The repository settings arrive as a list, which the configuration code does not expect.
+        write_program(bin, "gh", "printf 'HTTP/2.0 200 OK\\r\\n\\r\\n[]'")
+        script = File.join(TestSupport::ROOT, "bin/release")
+        out, err, status = Open3.capture3(environment.merge("PATH" => bin), RbConfig.ruby, script, "0.2.0")
 
-    assert_equal 1, status.exitstatus
-    assert_match(/: defect \(NoMethodError\)$/, err.lines.first)
-    refute_match(/\Arelease: /, err)
+        assert_equal [1, "==> git remote get-url origin\n"], [status.exitstatus, out]
+        assert_match(/\A\S+:\d+:in '.+': no implicit conversion of String into Integer \(TypeError\)\n/, err)
+        assert_match(/^\tfrom #{Regexp.escape(script)}:\d+:in '<main>'\n\z/, err)
+      end
+    end
   end
 
   def test_failed_checks_leave_edits_for_review_without_a_commit_or_push
