@@ -43,21 +43,22 @@ class CIWorkflowTest < Minitest::Test
     assert_empty %w[opened edited synchronize reopened labeled unlabeled] - triggers.dig("pull_request", "types")
   end
 
-  def test_pull_requests_run_the_scripts_behind_the_local_commit_and_changelog_checks
-    commands = ci.dig("jobs", "commits", "steps").filter_map { |step| step["run"] }
-    local = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
+  def test_pull_requests_run_the_commit_and_changelog_scripts
+    scripts = commands("commits").filter_map { |command| command[%r{\Aruby bin/(lint-\w+) }, 1] }
 
-    %w[commits changelog].each do |check|
-      assert_includes commands.map { |command| command[%r{\Aruby bin/lint-(\w+) }, 1] }, check
-      assert_includes local, "lint:#{check}"
-    end
+    assert_equal %w[lint-commits lint-changelog], scripts
   end
 
-  def test_the_quality_job_and_the_compatibility_job_run_the_local_commands
-    commands = ci.fetch("jobs").transform_values { |job| job.fetch("steps").filter_map { |step| step["run"] } }
+  def test_rake_check_runs_the_commit_and_changelog_checks
+    assert_empty %w[lint:commits lint:changelog] - check_tasks
+  end
 
-    assert_includes commands.fetch("quality"), "bundle exec rake check"
-    assert_includes commands.fetch("compatibility"), "ruby bin/test-compatibility"
+  def test_the_quality_job_runs_rake_check
+    assert_includes commands("quality"), "bundle exec rake check"
+  end
+
+  def test_the_compatibility_job_runs_the_local_compatibility_script
+    assert_equal "ruby bin/test-compatibility", commands("compatibility").last
   end
 
   def test_the_changelog_waiver_in_ci_is_a_label_repository_setup_creates
@@ -68,14 +69,13 @@ class CIWorkflowTest < Minitest::Test
   end
 
   def test_ci_tests_the_oldest_ruby_the_gem_supports
-    floor = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec")).required_ruby_version
-    oldest = floor.requirements.map(&:last).min.segments.first(2).join(".")
-    matrix = ci.dig("jobs", "test", "strategy", "matrix")
+    assert_includes ci.dig("jobs", "test", "strategy", "matrix", "ruby"), oldest_ruby
+  end
 
-    assert_includes matrix.fetch("ruby"), oldest
-    compatibility = ci.dig("jobs", "compatibility", "steps").filter_map { |step| step.dig("with", "ruby-version") }
+  def test_the_compatibility_job_runs_on_the_oldest_ruby
+    versions = ci.dig("jobs", "compatibility", "steps").filter_map { |step| step.dig("with", "ruby-version") }
 
-    assert_equal [oldest], compatibility
+    assert_equal [oldest_ruby], versions
   end
 
   def test_workflows_only_read_the_repository_unless_a_release_job_asks_for_more
@@ -105,11 +105,13 @@ class CIWorkflowTest < Minitest::Test
   end
 
   def test_a_rehearsal_still_verifies_the_transferred_artifact
-    rehearsals = release.fetch("jobs").values.select { |job| job["if"] == PUBLISH.sub("==", "!=") }
-    commands = rehearsals.flat_map { |job| job.fetch("steps").filter_map { |step| step["run"] } }
+    commands = rehearsals.values.flat_map { |job| job.fetch("steps").filter_map { |step| step["run"] } }
 
     assert(commands.any? { |command| command.include?("sha256sum --check SHA256SUMS") })
-    assert(rehearsals.none? { |job| job.key?("permissions") })
+  end
+
+  def test_a_rehearsal_asks_for_no_permissions
+    assert_empty(rehearsals.select { |_name, job| job.key?("permissions") }.keys)
   end
 
   # mise installs the latest release of an unpinned tool, so CI would drift without failing.
@@ -137,6 +139,17 @@ class CIWorkflowTest < Minitest::Test
   def release = @release ||= workflow("release")
 
   def workflow(name) = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/#{name}.yml"))
+
+  def commands(job, workflow = ci) = workflow.dig("jobs", job, "steps").filter_map { |step| step["run"] }
+
+  def check_tasks = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
+
+  def rehearsals = release.fetch("jobs").select { |_name, job| job["if"] == PUBLISH.sub("==", "!=") }
+
+  def oldest_ruby
+    floor = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec")).required_ruby_version
+    floor.requirements.map(&:last).min.segments.first(2).join(".")
+  end
 
   # YAML 1.1 reads the bare key "on" as true.
   def triggers(workflow = ci) = workflow["on"] || workflow[true]

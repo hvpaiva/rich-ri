@@ -77,13 +77,18 @@ class CommitPolicyTest < Minitest::Test
                  CommitPolicy.check("Fix it.\n\n  Assisted-by: Codex  \nMore text.", subject: false)
   end
 
-  def test_attribution_in_commits_and_pr_bodies_is_rejected_with_the_offending_line
+  def test_attribution_in_a_pull_request_body_is_rejected_with_the_offending_line
     repository do |root|
       body = "Fix completion.\n\nhttps://claude.ai/code/session_01EXAMPLE0000000000000000"
       _out, err, status = lint(root, "HEAD", "PR_BODY" => body)
 
       assert_equal [1, "lint-commits: pull request body: remove generated attribution: " \
                        "https://claude.ai/code/session_01EXAMPLE0000000000000000\n"], [status.exitstatus, err]
+    end
+  end
+
+  def test_attribution_in_a_commit_is_rejected_with_the_offending_line
+    repository do |root|
       git(root, "commit", "--allow-empty", "-qm", "fix: correct rendering\n\nGenerated-with: Codex")
       sha = git(root, "rev-parse", "--short=8", "HEAD")
       _out, err, status = lint(root)
@@ -105,12 +110,21 @@ class CommitPolicyTest < Minitest::Test
     end
   end
 
-  def test_git_reverts_and_words_that_start_with_wip_are_accepted
-    accepted = ["fix: wipe stale caches", "fix: WIP-free path", 'Revert "fix: preserve documentation"',
-                'Reapply "fix: preserve documentation"', 'Revert "Revert "fix: preserve documentation""',
-                "revert: restore the previous pager default", "chore(deps): bump rdoc from 8.1.0 to 8.2.0"]
+  def test_reverts_of_conventional_subjects_are_accepted
+    accepted = ['Revert "fix: preserve documentation"', 'Reapply "fix: preserve documentation"',
+                'Revert "Revert "fix: preserve documentation""', "revert: restore the previous pager default"]
 
     assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
+  end
+
+  def test_words_that_start_with_wip_are_not_unfinished_work
+    accepted = ["fix: wipe stale caches", "fix: WIP-free path"]
+
+    assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
+  end
+
+  def test_a_scoped_dependency_update_is_accepted
+    assert_empty CommitPolicy.check("chore(deps): bump rdoc from 8.1.0 to 8.2.0", subject: true)
   end
 
   def test_a_revert_of_an_unstructured_subject_is_still_unstructured

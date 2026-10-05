@@ -29,12 +29,19 @@ class ReleaseArtifactTest < Minitest::Test
     end
   end
 
-  def test_an_artifact_whose_bytes_differ_from_the_recorded_checksum_is_refused
+  def test_an_artifact_with_another_digest_than_the_one_verified_upstream_is_refused
     repository do |root|
-      digest = artifact(root)
+      artifact(root)
+
       assert_release_error("release artifact checksum mismatch") do
         Release::Artifact.verify(root: root, expected: "0" * 64)
       end
+    end
+  end
+
+  def test_an_artifact_whose_bytes_differ_from_the_recorded_checksum_is_refused
+    repository do |root|
+      digest = artifact(root)
       File.binwrite(Release::Artifact.path(root: root), "tampered")
 
       assert_release_error("release artifact checksum mismatch") do

@@ -53,15 +53,16 @@ class ReleaseBranchTest < Minitest::Test
     assert_equal "hotfix/0.2", Release.validate_branch("hotfix/0.2", "0.2.1")
   end
 
+  def test_ci_accepts_a_release_commit_on_the_matching_hotfix_branch
+    hotfix_commit do |sha|
+      assert_nil Release.verify_ref(sha: sha, version: "0.2.1")
+    end
+  end
+
   def test_ci_refuses_a_release_commit_outside_main_and_the_matching_hotfix_branch
-    repository do |root|
-      sha = git(root, "rev-parse", "HEAD")
-      git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
-      Dir.chdir(root) do
-        Release.verify_ref(sha: sha, version: "0.2.1")
-        assert_release_error("release commit must belong to main or its matching hotfix branch") do
-          Release.verify_ref(sha: sha, version: "0.3.0")
-        end
+    hotfix_commit do |sha|
+      assert_release_error("release commit must belong to main or its matching hotfix branch") do
+        Release.verify_ref(sha: sha, version: "0.3.0")
       end
     end
   end
@@ -69,6 +70,17 @@ class ReleaseBranchTest < Minitest::Test
   def test_ci_refuses_to_check_ancestry_without_a_release_commit
     assert_release_error("invalid release commit: set GITHUB_SHA to a full commit ID") do
       Release.verify_ref(sha: nil, version: "0.2.1")
+    end
+  end
+
+  private
+
+  # verify_ref reads the remote branches of the repository it runs in.
+  def hotfix_commit
+    repository do |root|
+      sha = git(root, "rev-parse", "HEAD")
+      git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
+      Dir.chdir(root) { yield sha }
     end
   end
 end

@@ -23,23 +23,23 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
-  def test_partial_preparation_can_resume_on_a_later_day_without_overwriting_unrelated_edits
+  def test_partial_preparation_resumes_on_a_later_day
     repository do |root|
-      source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, File.read(File.join(root, path))] }
-      yesterday = Time.now.utc.to_date - 1
-      changes = Release.changes("0.2.0", root: root, date: yesterday)
-      File.write(File.join(root, "CHANGELOG.md"), changes.fetch("CHANGELOG.md"))
-      state = { branch: "release/v0.2.0", dirty: " M CHANGELOG.md\n", source: source.transform_keys do |key|
-        "HEAD:#{key}"
-      end }
+      changes, state = prepared_yesterday(root)
       commands = []
       workflow("0.2.0", root: root, runner: workflow_runner(commands, state: state), out: StringIO.new).run
 
       assert_equal changes.fetch("CHANGELOG.md"), File.read(File.join(root, "CHANGELOG.md"))
       assert_equal "0.2.0", Release.version(root: root)
       assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+    end
+  end
+
+  def test_a_resumed_preparation_never_commits_edits_beyond_the_release
+    repository do |root|
+      changes, state = prepared_yesterday(root)
       File.write(File.join(root, "CHANGELOG.md"), "#{changes.fetch('CHANGELOG.md')}unrelated\n")
-      commands.clear
+      commands = []
       assert_release_error("CHANGELOG.md has edits beyond release preparation; review them before retrying\n" \
                            "#{resume('bin/release 0.2.0')}") do
         workflow("0.2.0", root: root, runner: workflow_runner(commands, state: state), out: StringIO.new).run
@@ -190,5 +190,15 @@ class ReleaseRecoveryTest < Minitest::Test
     rejected.each do |reason, text|
       assert_release_error(reason) { Release.verify(tag: "v0.2.0", version: "0.2.0", changelog: text) }
     end
+  end
+
+  private
+
+  # The changelog as a preparation interrupted yesterday left it, and the branch state it committed.
+  def prepared_yesterday(root)
+    source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| ["HEAD:#{path}", File.read(File.join(root, path))] }
+    changes = Release.changes("0.2.0", root: root, date: Time.now.utc.to_date - 1)
+    File.write(File.join(root, "CHANGELOG.md"), changes.fetch("CHANGELOG.md"))
+    [changes, { branch: "release/v0.2.0", dirty: " M CHANGELOG.md\n", source: source }]
   end
 end
