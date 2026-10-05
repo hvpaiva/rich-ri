@@ -92,7 +92,7 @@ class CIWorkflowTest < Minitest::Test
   def test_a_manual_release_run_is_a_rehearsal_unless_it_starts_from_a_tag_without_dry_run
     decision = release.dig("jobs", "verify", "steps").find { |step| step["id"] == "decision" }.dig("env", "PUBLISH")
 
-    assert_same true, release_triggers.dig("workflow_dispatch", "inputs", "dry_run", "default")
+    assert_same true, triggers(release).dig("workflow_dispatch", "inputs", "dry_run", "default")
     assert_includes decision, "github.ref_type == 'tag'"
     assert_includes decision, "!inputs.dry_run"
   end
@@ -139,7 +139,5 @@ class CIWorkflowTest < Minitest::Test
   def workflow(name) = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/#{name}.yml"))
 
   # YAML 1.1 reads the bare key "on" as true.
-  def triggers = ci["on"] || ci[true]
-
-  def release_triggers = release["on"] || release[true]
+  def triggers(workflow = ci) = workflow["on"] || workflow[true]
 end

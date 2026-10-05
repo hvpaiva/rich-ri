@@ -3,10 +3,13 @@
 require "test_helper"
 require_relative "../rakelib/changelog_lint"
 require_relative "release_support"
+require "program_support"
 
 class ChangelogCommandTest < Minitest::Test
   include ReleaseFixtures
+  include ProgramSupport
 
+  UNWAIVED = GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => nil).freeze
   HELP = <<~TEXT
     Usage: ruby bin/lint-changelog [BASE]
 
@@ -90,7 +93,7 @@ class ChangelogCommandTest < Minitest::Test
     repository do |root|
       git(root, "update-ref", "refs/remotes/origin/main", git(root, "rev-parse", "HEAD"))
       commit(root, "lib/rich_ri.rb" => "# changed")
-      _out, err, status = rake(root, "lint:changelog")
+      _out, err, status = rake("lint:changelog", env: UNWAIVED, chdir: root)
 
       assert_equal 1, status.exitstatus
       assert_equal ["lint-changelog: CHANGELOG.md: #{Changelog::Lint::ENTRY_REQUIRED}\n"],
@@ -101,25 +104,20 @@ class ChangelogCommandTest < Minitest::Test
   def test_the_rake_task_checks_only_the_structure_in_a_clone_without_origin_main
     repository do |root|
       commit(root, "lib/rich_ri.rb" => "# changed")
-      _out, err, status = rake(root, "lint:changelog")
+      _out, err, status = rake("lint:changelog", env: UNWAIVED, chdir: root)
 
       assert_predicate status, :success?, err
     end
   end
 
   def test_the_documentation_check_includes_the_changelog_check
-    out, err, status = rake(TestSupport::ROOT, "--prereqs", "docs:check")
+    out, err, status = rake("--prereqs", "docs:check")
 
     assert_predicate status, :success?, err
     assert_includes out[/^rake docs:check\n((?:    .+\n)+)/, 1].split, "lint:changelog"
   end
 
   private
-
-  def rake(root, *)
-    Open3.capture3(GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => nil), RbConfig.ruby, Gem.bin_path("rake", "rake"),
-                   "-f", File.join(TestSupport::ROOT, "Rakefile"), *, chdir: root)
-  end
 
   def lint_changelog(root, *, waiver: nil)
     Open3.capture3(GitSupport::ENVIRONMENT.merge("SKIP_CHANGELOG" => waiver), RbConfig.ruby,

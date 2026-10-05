@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "program_support"
 require_relative "../rakelib/release"
 
 class ProjectTest < Minitest::Test
+  include ProgramSupport
+
   USER_GUIDES = %w[docs/compatibility.md docs/configuration.md docs/shell-completion.md docs/troubleshooting.md
                    docs/usage.md].freeze
   REPOSITORY_GUIDES = %w[docs/development.md docs/images/README.md docs/maintenance.md].freeze
@@ -70,20 +73,20 @@ class ProjectTest < Minitest::Test
   end
 
   def test_a_failed_release_check_reports_its_reason_without_a_backtrace
-    _out, err, status = rake({ "GITHUB_REF_NAME" => nil }, "release:verify")
+    _out, err, status = rake("release:verify", env: { "GITHUB_REF_NAME" => nil })
 
     refute_predicate status, :success?
     assert_equal "rake: release tag must be v#{RichRI::VERSION}\n", err
   end
 
   def test_a_release_commit_check_without_a_commit_reports_its_reason_without_a_backtrace
-    _out, err, status = rake({ "GITHUB_SHA" => nil }, "release:verify_ref")
+    _out, err, status = rake("release:verify_ref", env: { "GITHUB_SHA" => nil })
 
     assert_equal [1, "rake: invalid release commit: set GITHUB_SHA to a full commit ID\n"], [status.exitstatus, err]
   end
 
   def test_an_artifact_check_reports_its_reason_without_a_backtrace
-    _out, err, status = rake({ "RELEASE_SHA256" => "0" * 64 }, "release:verify_artifact")
+    _out, err, status = rake("release:verify_artifact", env: { "RELEASE_SHA256" => "0" * 64 })
 
     assert_equal 1, status.exitstatus
     assert_match(/\Arake: release artifact (?:is incomplete: .+ not found|checksum mismatch)\n\z/, err)
@@ -92,7 +95,7 @@ class ProjectTest < Minitest::Test
   def test_publication_in_the_release_workflow_reports_its_reason_without_a_backtrace
     workflow = { "GITHUB_ACTIONS" => "true", "GITHUB_REPOSITORY" => "hvpaiva/rich-ri",
                  "GITHUB_REF" => "refs/tags/v9.9.9", "GITHUB_REF_NAME" => "v9.9.9" }
-    _out, err, status = rake(workflow, "release")
+    _out, err, status = rake("release", env: workflow)
 
     assert_equal [1, "rake: release tag must be v#{RichRI::VERSION}\n"], [status.exitstatus, err]
   end
@@ -101,15 +104,14 @@ class ProjectTest < Minitest::Test
     Dir.mktmpdir("rich-ri-manual-") do |root|
       FileUtils.mkdir_p(File.join(root, "man/man1"))
       File.write(File.join(root, "man/man1/rich-ri.1"), ".TH STALE 1\n")
-      _out, err, status = Open3.capture3(RbConfig.ruby, Gem.bin_path("rake", "rake"), "-f",
-                                         File.join(TestSupport::ROOT, "Rakefile"), "generate:check", chdir: root)
+      _out, err, status = rake("generate:check", chdir: root)
 
       assert_equal [1, "rake: the manual is stale; run bundle exec rake generate\n"], [status.exitstatus, err]
     end
   end
 
   def test_every_rake_task_describes_itself
-    out, err, status = Open3.capture3("bundle", "exec", "rake", "--all", "--tasks", chdir: TestSupport::ROOT)
+    out, err, status = rake("--all", "--tasks")
     undescribed = out.lines.grep_v(/ # \S/).map { |line| line.split.fetch(1) }
 
     assert_predicate status, :success?, err
@@ -118,16 +120,9 @@ class ProjectTest < Minitest::Test
   end
 
   def test_local_release_is_refused_before_any_publish_action
-    _out, err, status = Open3.capture3({ "GITHUB_ACTIONS" => nil }, "bundle", "exec", "rake", "release",
-                                       chdir: TestSupport::ROOT)
+    _out, err, status = rake("release", env: { "GITHUB_ACTIONS" => nil })
 
     refute_predicate status, :success?
     assert_equal "rake: publication runs only in the release workflow; use bin/release X.Y.Z --push\n", err
-  end
-
-  private
-
-  def rake(environment, task)
-    Open3.capture3(environment, RbConfig.ruby, Gem.bin_path("rake", "rake"), task, chdir: TestSupport::ROOT)
   end
 end

@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "open3"
 
-# Programs for a PATH that a test builds itself, so the machine's own programs cannot answer.
+# Run the checkout's rake, or programs on a PATH the test builds so the machine's own cannot answer.
 module ProgramSupport
   def write_program(directory, name, body = "exit 0")
     path = File.join(directory, name)
@@ -19,6 +20,18 @@ module ProgramSupport
   def link_ruby(directory, bundler: true)
     link_program(directory, "ruby", RbConfig.ruby)
     link_program(directory, "bundle", Gem.bin_path("bundler", "bundle")) if bundler
+  end
+
+  def rake(*, env: {}, chdir: TestSupport::ROOT)
+    Open3.capture3(env, RbConfig.ruby, Gem.bin_path("rake", "rake"), "-f", File.join(TestSupport::ROOT, "Rakefile"), *,
+                   chdir: chdir)
+  end
+
+  # rake with nothing on PATH but Ruby, Bundler, rake and what the test puts in the directory.
+  def isolated_rake(bin, *)
+    link_ruby(bin)
+    link_program(bin, "rake", Gem.bin_path("rake", "rake"))
+    Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", *, chdir: TestSupport::ROOT)
   end
 
   def which(name)

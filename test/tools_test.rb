@@ -38,11 +38,8 @@ class ToolsTest < Minitest::Test
 
   def test_a_tool_mise_installed_but_left_off_path_asks_to_activate_mise
     Dir.mktmpdir("rich-ri-tools-") do |bin|
-      link_ruby(bin)
-      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
       write_program(bin, "mise", '[ "$1" = which ]')
-      _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", "lint:spelling",
-                                         chdir: TestSupport::ROOT)
+      _out, err, status = isolated_rake(bin, "lint:spelling")
 
       assert_equal [1, "rake: typos is installed by mise but not on PATH; activate mise in your shell " \
                        "(mise activate --help)\n"], [status.exitstatus, err]
@@ -50,31 +47,23 @@ class ToolsTest < Minitest::Test
   end
 
   def test_a_lint_task_without_its_program_explains_how_to_install_it
-    Dir.mktmpdir("rich-ri-tools-") do |bin|
-      link_ruby(bin)
-      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
-      { "lint:spelling" => "rake: typos is not installed; install the version mise.toml pins with: " \
-                           "mise install typos\n",
-        "lint:man" => "rake: groff is not installed; install it with your package manager\n" }.each do |task, advice|
-        _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", task,
-                                           chdir: TestSupport::ROOT)
+    { "lint:spelling" => "rake: typos is not installed; install the version mise.toml pins with: " \
+                         "mise install typos\n",
+      "lint:man" => "rake: groff is not installed; install it with your package manager\n" }.each do |task, advice|
+      Dir.mktmpdir("rich-ri-tools-") do |bin|
+        _out, err, status = isolated_rake(bin, task)
 
-        assert_equal 1, status.exitstatus
-        assert_equal advice, err
+        assert_equal [1, advice], [status.exitstatus, err]
       end
     end
   end
 
   def test_package_check_needs_groff_to_render_the_installed_manual
     Dir.mktmpdir("rich-ri-tools-") do |bin|
-      link_ruby(bin)
-      link_program(bin, "rake", Gem.bin_path("rake", "rake"))
       write_program(bin, "man")
-      _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", "package:check",
-                                         chdir: TestSupport::ROOT)
+      _out, err, status = isolated_rake(bin, "package:check")
 
-      assert_equal 1, status.exitstatus
-      assert_equal "rake: groff is not installed; install it with your package manager\n", err
+      assert_equal [1, "rake: groff is not installed; install it with your package manager\n"], [status.exitstatus, err]
     end
   end
 end
