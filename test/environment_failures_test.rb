@@ -35,16 +35,29 @@ class EnvironmentFailuresTest < Minitest::Test
     end
   end
 
-  def test_output_that_cannot_be_written_is_a_failure
-    skip "No /dev/full on this system" unless File.chardev?("/dev/full")
+  def version_written_to(output)
     IO.pipe do |reader, writer|
       pid = Process.spawn(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib",
-                          File.join(TestSupport::ROOT, "exe/rich-ri"), "--version", out: "/dev/full", err: writer)
+                          File.join(TestSupport::ROOT, "exe/rich-ri"), "--version", out: output, err: writer)
       writer.close
       _pid, status = Process.wait2(pid)
+      [status.exitstatus, reader.read]
+    end
+  end
 
-      assert_equal 1, status.exitstatus
-      assert_equal "rich-ri: standard output: No space left on device\n", reader.read
+  def test_output_that_cannot_be_written_is_a_failure
+    Dir.mktmpdir("rich-ri-output-") do |dir|
+      path = File.join(dir, "read-only")
+      File.write(path, "")
+      # Open for reading only, so every write fails on any system.
+      File.open(path) do |read_only|
+        outputs = { read_only => "Bad file descriptor" }
+        outputs["/dev/full"] = "No space left on device" if File.chardev?("/dev/full")
+
+        outputs.each do |output, reason|
+          assert_equal [1, "rich-ri: standard output: #{reason}\n"], version_written_to(output)
+        end
+      end
     end
   end
 
