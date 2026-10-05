@@ -67,6 +67,21 @@ class OptionsTest < Minitest::Test
     end
   end
 
+  def test_only_the_options_listed_in_help_exist
+    ["--*-completion-bash=--co", "--*-completion-zsh"].each do |option|
+      out, err, status = cli(option, docs: false)
+
+      assert_equal 2, status.exitstatus, option
+      assert_empty out
+      assert_equal "rich-ri: invalid option: #{option}\n", err.lines.first
+      out, err, status = cli("RichRIExample", env: { "RI" => option })
+
+      assert_equal 1, status.exitstatus, option
+      assert_empty out
+      assert_equal "rich-ri: RI: invalid option: #{option}\n", err
+    end
+  end
+
   def test_color_mode_uses_equals_and_bare_flag_preserves_the_subject
     options = parse("--color", "RichRIExample")
 

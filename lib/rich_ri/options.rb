@@ -18,6 +18,9 @@ module RichRI
       # Configuration selection and completion inspect flags before parsing.
       # Require the same full option names throughout those paths.
       @parser.require_exact = true
+      # Every OptionParser also answers --*-completion-bash=WORD and
+      # --*-completion-zsh, printing to stdout and exiting in mid-parse.
+      @parser.base.long.delete_if { |name, _switch| name.start_with?("*-") }
       @parser.banner = "Usage: rich-ri [options] [Class | Class#method | Class.method | gem:page ...]"
       configuration_options
       presentation_options
