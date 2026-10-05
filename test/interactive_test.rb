@@ -20,8 +20,7 @@ class InteractiveTest < Minitest::Test
   end
 
   def gem_session(keys)
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
+    with_session(TestSupport.gem_environment) do |environment|
       terminal_cli("--no-system", "--no-site", "--no-home", env: environment, prompt: ">> ", input: keys)
     end
   end
@@ -54,8 +53,7 @@ class InteractiveTest < Minitest::Test
       home = ENV.fetch("GEM_HOME").b
       Gem.paths = { "GEM_HOME" => home, "GEM_PATH" => home }
     RUBY
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
+    with_session(TestSupport.gem_environment) do |environment|
       output, status = with_planted(binary_paths, env: environment) do |env|
         terminal_cli("--no-system", "--no-site", "--no-home",
                      env: env, prompt: ">> ", input: "\tinkwell-2\t\nInkwell#filled\t\n\n")
@@ -78,8 +76,7 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_each_line_of_a_pasted_block_is_looked_up
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+    with_session do |environment|
       # Bracketed paste: the editor takes the line breaks inside it for text.
       pasted = "\e[200~RichRIExample#map\n\n  RichRIExample.build\n\e[201~"
       output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
@@ -96,8 +93,7 @@ class InteractiveTest < Minitest::Test
     names = { modules: ["RichRIUnsafe\e]52;c;AAAA\a", "RichRIUnsafe\e[31m"], methods: ["ma\e[31mx"],
               pages: ["GUIDE\u202e.rdoc"] }
     with_cached_names(**names) do |sources|
-      Dir.mktmpdir("rich-ri-interactive-") do |dir|
-        environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+      with_session do |environment|
         keys = [[">> ", "RichRIU\t\t"], ["RichRIU", "\u0015RichRIExample#ma\t\t"], ["RichRIExample#map", "\n"],
                 [">> ", "#{sources.last}:GUIDE\t\t"], ["GUIDE.rdoc", "\n\n"]]
         output, status = terminal_cli(*sources, env: environment, prompt: ">> ", input: keys)
@@ -142,10 +138,8 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_prompt_is_not_drawn_into_redirected_output
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = TestSupport::ENVIRONMENT.merge("HOME" => dir, "INPUTRC" => File::NULL, "TERM" => "xterm-256color")
-      command = [RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", File.join(TestSupport::ROOT, "exe/rich-ri"),
-                 "--no-standard-docs", "--doc-dir", TestSupport::STORE]
+    with_session(TestSupport::ENVIRONMENT.merge("COVERAGE_CHILD" => "1", "TERM" => "xterm-256color")) do |environment|
+      command = executable("--no-standard-docs", "--doc-dir", TestSupport::STORE)
       out, status = typed_into("RichRIExample#map\n\n", environment, *command)
 
       assert_predicate status, :success?, out
@@ -155,9 +149,7 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_session_continues_after_a_lookup_that_fails
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      store = File.join(dir, "ri")
-      FileUtils.cp_r(TestSupport::STORE, store)
+    with_store do |store|
       File.binwrite(File.join(store, "RichRIExample/map-i.ri"), "")
       out, err, status = cli("--no-standard-docs", "--doc-dir", store, "--interactive",
                              docs: false, stdin: "RichRIExample#map\nRichRIExample.build\n\n")
@@ -173,8 +165,7 @@ class InteractiveTest < Minitest::Test
       require "rich_ri"
       RichRI::Driver.prepend(Module.new { def complete(_name) = raise(EncodingError, "planted completion defect") })
     RUBY
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+    with_session do |environment|
       output, status = with_planted(defect, env: environment) do |env|
         terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
                      env: env, prompt: ">> ", input: "Rich\tRichRIExample#map\n\n")

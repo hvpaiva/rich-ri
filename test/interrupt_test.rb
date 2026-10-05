@@ -32,8 +32,7 @@ class InterruptTest < Minitest::Test
   end
 
   def paged_lookup(pager, input)
-    terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, *SOURCES, "RichRIExample#map",
-             env: { "RI_PAGER" => pager, "NO_COLOR" => nil }, prompt: "PROGRAM READY", input: input)
+    terminal_cli(*SOURCES, "RichRIExample#map", env: { "RI_PAGER" => pager }, prompt: "PROGRAM READY", input: input)
   end
 
   def test_ctrl_c_is_left_to_a_pager_that_handles_it
@@ -70,8 +69,7 @@ class InterruptTest < Minitest::Test
   def test_ctrl_c_is_left_to_the_manual_viewer
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
       terminal_program(File.join(dir, "man"), :handles)
-      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, "--man",
-                                env: { "PATH" => dir }, prompt: "PROGRAM READY", input: "\u0003q\n")
+      output, status = terminal_cli("--man", env: { "PATH" => dir }, prompt: "PROGRAM READY", input: "\u0003q\n")
 
       assert_equal 0, status, output
       assert_equal "interrupted\nfinished\n", File.read(File.join(dir, "log"))
@@ -104,10 +102,8 @@ class InterruptTest < Minitest::Test
   end
 
   def test_ctrl_c_at_the_interactive_prompt_exits_as_an_interrupt
-    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
-      environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
-      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, *SOURCES,
-                                env: environment, prompt: ">> ", input: "\u0003")
+    with_session do |environment|
+      output, status = terminal_cli(*SOURCES, env: environment, prompt: ">> ", input: "\u0003")
 
       assert_equal 130, status, output
       refute_match(/Interrupt|from .*\.rb:\d+/, output)

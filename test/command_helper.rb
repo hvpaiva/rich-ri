@@ -13,6 +13,28 @@ module CommandSupport
     end
   end
 
+  # An interactive session with a home of its own and no line editor settings of the user's.
+  def with_session(env = {})
+    Dir.mktmpdir("rich-ri-session-") do |home|
+      yield({ "HOME" => home, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }.merge(env))
+    end
+  end
+
+  # A copy of the fixture store that a test may damage.
+  def with_store
+    Dir.mktmpdir("rich-ri-store-") do |dir|
+      store = File.join(dir, "ri")
+      FileUtils.cp_r(TestSupport::STORE, store)
+      yield store
+    end
+  end
+
+  # The command that cli runs, for a test that connects its streams itself.
+  def executable(*)
+    coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
+    [RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", File.join(TestSupport::ROOT, "exe/rich-ri"), *]
+  end
+
   private
 
   def current(env, name)

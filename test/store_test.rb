@@ -1,20 +1,15 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "command_helper"
 
 class StoreTest < Minitest::Test
+  include CommandSupport
+
   DAMAGED = { "empty" => "", "truncated" => Marshal.dump({ modules: %w[One Two] })[0, 9],
               "nil" => Marshal.dump(nil), "text" => Marshal.dump("cache") }.freeze
   # As written by another RDoc version: an object of RDoc::RetiredMethod, a class this one lacks.
   RETIRED_CLASS_DATA = "\x04\bo:\x18RDoc::RetiredMethod\x00".b.freeze
-
-  def with_store
-    Dir.mktmpdir("rich-ri-store-") do |dir|
-      store = File.join(dir, "ri")
-      FileUtils.cp_r(TestSupport::STORE, store)
-      yield store
-    end
-  end
 
   def lookup(store, *)
     cli("--no-standard-docs", "--doc-dir", store, *, docs: false)
