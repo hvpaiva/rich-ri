@@ -10,23 +10,73 @@ require "rdoc/rdoc"
 # Measure complete CLI invocations against a fixed, local documentation store.
 class BenchmarkCLI
   ROOT = File.expand_path("..", __dir__)
+  ITERATIONS = 1..50
+  CASES = %w[startup render completion].freeze
 
-  def initialize(argv)
+  # A problem with the inputs or the measured program, reported without a backtrace.
+  class Error < StandardError; end
+
+  attr_reader :parser
+
+  def initialize
     @iterations = 5
-    OptionParser.new do |parser|
+    @parser = OptionParser.new do |parser|
       parser.banner = "Usage: ruby bin/benchmark [--output FILE] [--compare FILE] [--iterations N]"
-      parser.on("--output=FILE") { |path| @output = path }
-      parser.on("--compare=FILE") { |path| @baseline = path }
-      parser.on("--iterations=N", Integer) { |count| @iterations = count }
-    end.parse!(argv)
-    raise ArgumentError, "Use 1 to 50 iterations" unless argv.empty? && (1..50).cover?(@iterations)
-
+      parser.on("--output=FILE", "Save the JSON report") { |path| @output = path }
+      parser.on("--compare=FILE", "Fail when a case is over 30% and 50 ms slower than this report") do |path|
+        @baseline = path
+      end
+      parser.on("--iterations=N", Integer, "Measured runs per case, 1 to 50 (default: 5)") do |count|
+        @iterations = count
+      end
+    end
     @environment = ENV.keys.grep(/\ARICH_RI_/).to_h { |key| [key, nil] }.merge(
       "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => nil, "BAT_THEME" => nil
     )
   end
 
-  def run
+  def run(argv)
+    parse(argv)
+    # Read the baseline first: a mistyped path must not cost a whole measurement.
+    previous = @baseline && baseline
+    measurements = measure_cases
+    report = { "ruby" => RUBY_DESCRIPTION, "rdoc" => RDoc::VERSION, "iterations" => @iterations,
+               "median_ms" => measurements }
+    json = "#{JSON.pretty_generate(report)}\n"
+    save(json) if @output
+    puts json
+    compare(measurements, previous) if previous
+  end
+
+  private
+
+  def parse(argv)
+    extra = @parser.parse(argv)
+    raise OptionParser::NeedlessArgument, extra.first unless extra.empty?
+    return if ITERATIONS.cover?(@iterations)
+
+    raise OptionParser::InvalidArgument, "--iterations=#{@iterations} (use #{ITERATIONS.min} to #{ITERATIONS.max})"
+  end
+
+  def baseline
+    report = JSON.parse(File.read(@baseline))
+    medians = report["median_ms"] if report.is_a?(Hash)
+    return medians if medians.is_a?(Hash) && CASES.all? { |name| medians[name].is_a?(Numeric) }
+
+    raise Error, "#{@baseline} is not a benchmark report"
+  rescue JSON::ParserError
+    raise Error, "#{@baseline} is not a benchmark report"
+  rescue SystemCallError => e
+    raise Error, "Cannot read #{@baseline}: #{e.class.new.message}"
+  end
+
+  def save(json)
+    File.write(@output, json)
+  rescue SystemCallError => e
+    raise Error, "Cannot write #{@output}: #{e.class.new.message}"
+  end
+
+  def measure_cases
     Dir.mktmpdir("rich-ri-benchmark-") do |directory|
       store = File.join(directory, "ri")
       RDoc::RDoc.new.document(["--ri", "--quiet", "--op", store, "#{ROOT}/test/fixtures/example.rb"])
@@ -34,38 +84,37 @@ class BenchmarkCLI
       cases = { "startup" => %w[--no-config --version],
                 "render" => [*sources, "--no-pager", "--color=always", "RichRIExample"],
                 "completion" => ["--complete", *sources, "RichRIExample#"] }
-      measurements = cases.transform_values { |args| measure(args) }
-      report = { "ruby" => RUBY_DESCRIPTION, "rdoc" => RDoc::VERSION, "iterations" => @iterations,
-                 "median_ms" => measurements }
-      json = "#{JSON.pretty_generate(report)}\n"
-      File.write(@output, json) if @output
-      puts json
-      compare(measurements) if @baseline
+      cases.transform_values { |args| measure(args) }
     end
   end
-
-  private
 
   def measure(args)
     samples = Array.new(@iterations + 1) do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       _output, error, status = Open3.capture3(@environment, RbConfig.ruby, "-I#{ROOT}/lib", "#{ROOT}/exe/rich-ri",
                                               *args)
-      raise error unless status.success?
+      raise Error, "rich-ri #{args.join(' ')} failed:\n#{error}" unless status.success?
 
       (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000
     end
     samples.drop(1).sort[@iterations / 2].round(2)
   end
 
-  def compare(measurements)
-    previous = JSON.parse(File.read(@baseline)).fetch("median_ms")
+  def compare(measurements, previous)
     regressions = measurements.filter_map do |name, value|
       old = previous.fetch(name)
       name if value > old * 1.3 && value - old > 50
     end
-    abort "Slower by more than 30% and 50 ms: #{regressions.join(', ')}" unless regressions.empty?
+    raise Error, "Slower by more than 30% and 50 ms: #{regressions.join(', ')}" unless regressions.empty?
   end
 end
 
-BenchmarkCLI.new(ARGV).run
+benchmark = BenchmarkCLI.new
+begin
+  benchmark.run(ARGV)
+rescue OptionParser::ParseError => e
+  warn "benchmark: #{e.message}\n#{benchmark.parser}"
+  exit 2
+rescue BenchmarkCLI::Error => e
+  abort "benchmark: #{e.message}"
+end
