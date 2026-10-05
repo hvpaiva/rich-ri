@@ -3,6 +3,7 @@
 require "test_helper"
 require "yaml"
 require_relative "../rakelib/github_configuration"
+require_relative "../rakelib/ci"
 
 class GitHubTest < Minitest::Test
   class MemoryClient
@@ -130,13 +131,33 @@ class GitHubTest < Minitest::Test
     assert_raises(GitHub::Error) { response.call(500).request("/immutable-releases") }
   end
 
-  def test_required_check_names_follow_real_ci_jobs
+  def test_required_check_covers_every_ci_job
+    jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml"))["jobs"]
+    gate = jobs.fetch("ci")
+
+    assert_equal ["ci"], GitHub::Configuration::REQUIRED_CHECKS
+    assert_equal "${{ always() }}", gate.fetch("if")
+    assert_equal (jobs.keys - ["ci"]).sort, gate.fetch("needs").sort
+    assert_equal CI::JOBS.sort, gate.fetch("needs").sort
+  end
+
+  def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
     jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml"))["jobs"]
     matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")
-    checks = jobs.keys - ["test"]
-    matrix.fetch("os").product(matrix.fetch("ruby")).each { |os, ruby| checks << "test (#{os}, #{ruby})" }
-    matrix.fetch("include").each { |entry| checks << "test (#{entry.fetch('os')}, #{entry.fetch('ruby')})" }
+    platforms = matrix.fetch("os").product(matrix.fetch("ruby"))
+    platforms += matrix.fetch("include").map { |entry| entry.values_at("os", "ruby") }
 
-    assert_equal checks.sort, GitHub::Configuration::REQUIRED_CHECKS.sort
+    assert_equal [["macos-latest", "4.0"], ["ubuntu-latest", "3.4"], ["ubuntu-latest", "4.0"]], platforms.sort
+  end
+
+  def test_reusable_ci_and_release_explicitly_require_the_full_suite
+    workflow = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml"))
+    triggers = workflow["on"] || workflow[true]
+    release = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/release.yml"))
+
+    assert_same true, triggers.dig("workflow_call", "inputs", "force_full", "default")
+    assert_same true, release.dig("jobs", "ci", "with", "force_full")
+    refute triggers.fetch("pull_request").key?("paths")
+    refute triggers.fetch("pull_request").key?("paths-ignore")
   end
 end

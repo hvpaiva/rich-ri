@@ -46,6 +46,11 @@ Metrics/CyclomaticComplexity:
 Metrics/PerceivedComplexity:
   Max: 18
 
+Metrics/ParameterLists:
+  # CI needs the event, ref, both commits and release override; root isolates Git fixtures.
+  Exclude:
+    - rakelib/ci.rb
+
 Naming/MethodName:
   # This is the RDoc visitor API spelling.
   AllowedPatterns:

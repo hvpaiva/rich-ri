@@ -29,6 +29,8 @@ User-visible changes are recorded here. This project follows
 
 ### Fixed
 
+- Required shell tests fail when Fish or Zsh is unavailable; test environment
+  cleanup preserves the suite's shell requirement flag.
 - Optional bat highlighting has time and size limits, handles invalid encoding
   and falls back to the original text without blocking subsequent examples.
 - Incompatible RI cache formats explain how to regenerate documentation.

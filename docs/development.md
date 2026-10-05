@@ -1,7 +1,33 @@
 # Development checks
 
 Use [Contributing](../CONTRIBUTING.md) for the usual edit, test and PR workflow.
-The commands here cover dependency compatibility and performance work.
+The commands here cover CI, dependency compatibility and performance work.
+
+## Documentation checks
+
+For documentation changes, run:
+
+```sh
+bundle exec rake docs:check
+```
+
+This checks local links, spelling, the generated manual and runnable examples
+from the usage and configuration guides. It does not need the optional shells
+or system manual tools.
+
+CI uses these checks for changes limited to Markdown guides in `docs`, the
+configuration example, PNG comparison images, the PR template and the root README,
+architecture, contribution, changelog, security and code of conduct documents.
+Pull requests also run the commit checks.
+
+Code, dependencies, scripts, workflows, test fixtures, the generated manual and
+unrecognized paths run the full suite. CI considers the entire PR, including
+deleted and renamed files; an unavailable comparison also runs the full suite.
+The required `ci` check verifies that every expected job succeeded before a
+change can merge.
+
+Releases always run the full suite, including workflow dry runs. Scheduled runs
+check the dependency advisory database.
 
 ## Compatibility checks
 
