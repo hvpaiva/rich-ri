@@ -144,11 +144,12 @@ class LocaleTest < Minitest::Test
 
       assert_predicate status, :success?, err
       assert_equal "#{store}\n".b, out
-      out, err, status = posix("--no-standard-docs", "--doc-dir", store, "RichRIExample#map")
+      # Wide enough that no temporary directory, however long or spaced, wraps the path.
+      out, err, status = posix("--no-standard-docs", "--doc-dir", store, "--width=10000", "RichRIExample#map")
 
       assert_predicate status, :success?, err
       assert_includes out, "Return transformed values."
-      assert_includes out.delete("\n"), "(from #{store})".b.delete("\n")
+      assert_includes out, "(from #{store})".b
     end
   end
 
