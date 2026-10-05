@@ -63,6 +63,27 @@ module RichRI
       super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
     end
 
+    # RDoc interpolates the name into a pattern unescaped. A class name holds
+    # only word characters and "::", so anything else abbreviates no class.
+    def expand_class(klass)
+      raise NotFoundError, klass unless klass.match?(/\A[\w:]*\z/)
+
+      super
+    end
+
+    # RDoc reads the names as patterns as well; they are prefixes.
+    def list_known_classes(names = [])
+      classes = stores.flat_map(&:module_names).uniq.sort
+      classes = classes.select { |name| name.start_with?(*names) } unless names.empty?
+      page do |io|
+        if paging? || io.tty?
+          io.puts "Classes and Modules #{names.empty? ? 'known to ri' : "starting with #{names.join(', ')}"}:"
+          io.puts
+        end
+        io.puts classes.join("\n")
+      end
+    end
+
     def start_server
       optional_gem("webrick", "--server")
       super
