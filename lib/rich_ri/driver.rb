@@ -103,8 +103,9 @@ module RichRI
       end
     end
 
-    # RDoc's own loop leaves on the first exception other than an unknown name.
-    # Here a failed lookup is reported and the prompt returns.
+    # RDoc's own loop leaves on the first exception other than an unknown name
+    # and answers Ctrl-C with a successful exit. Here a failed lookup is
+    # reported and the prompt returns; Ctrl-C reaches the command as Interrupt.
     def interactive
       puts "\nEnter the method name you want to look up."
       Reline.completion_proc = method(:complete)
@@ -113,8 +114,6 @@ module RichRI
       while (name = read_name)
         answer(name)
       end
-    rescue Interrupt
-      exit
     end
 
     def start_server

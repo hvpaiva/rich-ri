@@ -5,6 +5,11 @@
 lib = File.expand_path("../lib", __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
-require "rich_ri"
+# Loading takes most of a short run, so Ctrl-C often arrives during it.
+begin
+  require "rich_ri"
 
-exit RichRI::CLI.run(ARGV)
+  exit RichRI::CLI.run(ARGV)
+rescue Interrupt
+  exit 130
+end
