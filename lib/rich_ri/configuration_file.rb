@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module RichRI
-  # Reads the selected YAML file as plain data: one document holding a mapping,
-  # with no alias, object tag or duplicate key. What is wrong is described
-  # without the path, which Configuration puts in front.
+  # Reads the selected YAML file as plain data: a single document of bounded
+  # size and depth, with no alias, object tag or duplicate key. What is wrong
+  # is described without the path, which Configuration puts in front.
   class ConfigurationFile
     MAX_BYTES = 65_536
     MAX_DEPTH = 20

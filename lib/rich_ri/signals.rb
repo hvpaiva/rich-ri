@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 module RichRI
+  # A pager or man(1) shares the terminal's foreground process group with this
+  # process, so Ctrl-C reaches both. Leaving first would orphan a child that
+  # still holds the terminal in raw mode while the shell takes it back.
   module Signals
-    # A pager or man(1) shares the terminal's foreground process group with
-    # this process, so Ctrl-C reaches both. Leaving first would orphan a child
-    # that still holds the terminal in raw mode while the shell takes it back.
-    # While active says such a child is running, Ctrl-C is only recorded and
-    # the child decides what it means; otherwise it interrupts as usual.
-    # Returns whether Ctrl-C was recorded.
+    # Runs the block with Ctrl-C only recorded for as long as active says such
+    # a child is running, so that the child decides what the key means;
+    # otherwise Ctrl-C interrupts as usual. Returns whether it was recorded.
     def self.defer_interrupt(active = -> { true })
       interrupted = false
       # A handler block, not "IGNORE": an ignored signal would be inherited by
