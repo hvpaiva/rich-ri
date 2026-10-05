@@ -176,19 +176,12 @@ jobs:
         with:
           ruby-version: '3.4'
       - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
-      - name: Generate an older RI store
-        run: |
-          BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle install
-          BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle exec ruby -rrdoc/rdoc -e \
-            'RDoc::RDoc.new.document(ARGV)' -- --ri --quiet --op "$RUNNER_TEMP/legacy-ri" test/fixtures/example.rb
-      - name: Test the minimum runtime dependencies and older store
+      # The command contributors run through bundle exec rake test:compatibility. It installs
+      # the RDoc 6.14 bundle and the minimum bundle in private directories and needs no other.
+      - name: Test the minimum runtime dependencies and an older store
         env:
-          LEGACY_RI_STORE: ${{ runner.temp }}/legacy-ri
-          BUNDLE_GEMFILE: gemfiles/minimum.gemfile
           RICH_RI_REQUIRE_SHELLS: '1'
-        run: |
-          bundle install
-          bundle exec ruby bin/test-compatibility
+        run: ruby bin/test-compatibility
 
   commits:
     if: github.event_name == 'pull_request'

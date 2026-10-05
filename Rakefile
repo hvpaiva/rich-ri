@@ -41,6 +41,11 @@ namespace :test do
     sh({ "COVERAGE" => "1" }, "bundle", "exec", "rake", "test")
   end
 
+  desc "Run runtime tests with the minimum dependencies and an RDoc 6.14 store, in private gem directories"
+  task :compatibility do
+    sh RbConfig.ruby, "bin/test-compatibility"
+  end
+
   desc "Run all shell integrations locally, or in Docker/Podman when shells are missing"
   task :shells do
     require_relative "rakelib/shell_tests"

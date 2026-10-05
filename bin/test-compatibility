@@ -1,14 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-root = File.expand_path("..", __dir__)
-$LOAD_PATH.unshift(File.join(root, "lib"), File.join(root, "test"))
-# Release, CI and repository tooling is tested with the development bundle only.
-maintenance = %w[benchmark changelog commit_policy github project setup shell_runner test_environment
-                 tools].freeze
-Dir[File.join(root, "test/*_test.rb")].each do |path|
-  name = File.basename(path, "_test.rb")
-  next if maintenance.include?(name) || name.start_with?("ci_", "release_") || %w[ci release].include?(name)
+require_relative "../rakelib/compatibility"
 
-  require path
+begin
+  Compatibility.run
+rescue Compatibility::Error => e
+  abort "test-compatibility: #{e.message}"
 end
