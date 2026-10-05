@@ -140,7 +140,9 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: cannot read CHANGELOG.md in #{root}: No such file or directory\n", err
+      # The working directory comes back with links resolved, as /private/var for the macOS /var.
+      assert_equal "lint-changelog: cannot read CHANGELOG.md in #{File.realpath(root)}: No such file or directory\n",
+                   err
     end
   end
 
