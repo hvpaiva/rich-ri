@@ -14,6 +14,7 @@ User-visible changes are recorded here. This project follows
   stopping every command.
 - Names with pattern characters, such as `Array[`, are reported as unknown and no
   longer end interactive lookup.
+- Configuration paths outside ASCII are read under the C locale.
 
 ## [0.1.0] - 2026-10-05
 

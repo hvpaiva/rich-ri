@@ -42,7 +42,7 @@ module RichRI
     end
 
     def self.text!(value, name)
-      if value.is_a?(String) && !value.strip.empty? && RichRI.sanitize(value) == value && !value.match?(/[\r\n\t]/)
+      if value.is_a?(String) && !value.strip.empty? && RichRI.sanitize(value).b == value.b && !value.match?(/[\r\n\t]/)
         return
       end
 

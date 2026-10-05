@@ -146,6 +146,17 @@ class ConfigurationCLITest < Minitest::Test
     assert_includes err, "Configuration path"
   end
 
+  def test_configuration_path_outside_ascii_is_read_under_the_c_locale
+    Dir.mktmpdir("rich-ri-locale-") do |dir|
+      path = File.join(dir, "pr\u00e9f\u00e9rences.yml")
+      File.write(path, "width: 60\n")
+      out, err, status = cli("--show-config", env: { "LC_ALL" => "C", "RICH_RI_CONFIG" => path }, docs: false)
+
+      assert_predicate status, :success?, err
+      assert_includes out, "width: 60"
+    end
+  end
+
   def test_rich_pager_environment_is_restored_after_lookup
     with_environment(TestSupport::ENVIRONMENT.merge("RI_PAGER" => "original", "LESS" => "-i")) do
       _out, err = capture_io do
