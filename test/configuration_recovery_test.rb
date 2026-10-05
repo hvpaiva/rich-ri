@@ -6,6 +6,16 @@ require "command_helper"
 class ConfigurationRecoveryTest < Minitest::Test
   include CommandSupport
 
+  # What a recovery action prints, with the configuration file it reports.
+  def recovered(action, path)
+    case action
+    when "--help", "-h" then RichRI::Options.new.parser.to_s
+    when "--version", "-v" then "rich-ri #{RichRI::VERSION}\n"
+    when "--config-path" then "#{path}\n"
+    when "--completion=bash" then File.read(File.join(TestSupport::ROOT, "completions/rich-ri.bash"))
+    end
+  end
+
   def test_invalid_ri_abbreviations_fail_lookup_but_allow_recovery_actions
     environment = { "RI" => "--wid=44" }
     out, err, status = cli("--show-config", docs: false, env: environment)
@@ -14,11 +24,12 @@ class ConfigurationRecoveryTest < Minitest::Test
     assert_empty out
     assert_includes err, "invalid option: --wid"
     refute_includes err, "--help"
+    default = File.join(TestSupport::TEMP, "config/rich-ri/config.yml")
     %w[--help --version --config-path --completion=bash].each do |action|
       out, err, status = cli(action, docs: false, env: environment)
 
       assert_predicate status, :success?, err
-      refute_empty out
+      assert_equal recovered(action, default), out
     end
     # The command line is read first, so its own mistake is the one reported.
     _out, err, status = cli("--vers", docs: false, env: environment)
@@ -30,11 +41,12 @@ class ConfigurationRecoveryTest < Minitest::Test
   def test_recovery_actions_are_recognized_as_the_parser_reads_them
     with_config("theme: [broken") do |path|
       environment = { "RICH_RI_CONFIG" => path }
-      [%w[-ah], %w[-Tv], %w[--width 44 --help], %w[RichRIExample -h]].each do |args|
+      { %w[-ah] => "--help", %w[-Tv] => "--version", %w[--width 44 --help] => "--help",
+        %w[RichRIExample -h] => "--help" }.each do |args, action|
         out, err, status = cli(*args, docs: false, env: environment)
 
         assert_predicate status, :success?, "#{args.inspect}: #{err}"
-        refute_empty out
+        assert_equal recovered(action, path), out
       end
       # Here --help is the pager command, not a request for help.
       out, err, status = cli("--pager-command", "--help", "--show-config", docs: false, env: environment)
@@ -57,7 +69,7 @@ class ConfigurationRecoveryTest < Minitest::Test
         out, err, status = cli("--config", path, action, docs: false)
 
         assert_predicate status, :success?, "#{action}: #{err}"
-        refute_empty out
+        assert_equal recovered(action, path), out
       end
       _out, err, status = cli("--config", path, "--show-config", docs: false)
 
@@ -80,7 +92,7 @@ class ConfigurationRecoveryTest < Minitest::Test
         out, err, status = cli("--config", path, action, docs: false)
 
         assert_predicate status, :success?, err
-        refute_empty out
+        assert_equal recovered(action, path), out
       end
     end
   end
@@ -96,7 +108,7 @@ class ConfigurationRecoveryTest < Minitest::Test
         out, err, status = run.call(action)
 
         assert_predicate status, :success?, "#{action}: #{err}"
-        refute_empty out
+        assert_equal recovered(action, path), out
       end
       out, err, status = run.call("--show-config")
 

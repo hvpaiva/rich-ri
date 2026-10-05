@@ -157,18 +157,28 @@ class ConfigurationCLITest < Minitest::Test
     assert_includes err, "rich-ri: Tried to dump unspecified class: Object"
   end
 
+  TEXT = "must be a nonempty string without control characters"
+  ROLES = RichRI::Theme::ROLES.join(", ")
+  REFUSED_VALUES = {
+    "--theme=missing" => '--theme must be one of terminal, dark, light, not "missing"',
+    "--style=unknown=red" => %(style "unknown": unknown style role "unknown"; choose #{ROLES}),
+    "--style=method=999" => 'style "method": invalid color "999"; use an ANSI name, 0..255, #RRGGBB or default',
+    "--color-depth=bad" => '--color-depth must be one of auto, basic, 256, truecolor, not "bad"',
+    "--bat-theme=" => "--bat-theme #{TEXT}", "--shell-theme=" => "--shell-theme #{TEXT}",
+    "--pager-command=" => "--pager-command #{TEXT}"
+  }.freeze
+
   def test_explicit_themes_and_color_depth_reach_help_and_errors_are_controlled
     out, err, status = cli("--no-config", "--theme=light", "--color-depth=truecolor", "--color", "--help", docs: false)
 
     assert_predicate status, :success?, err
     assert_includes out, "\e[38;2;"
-    ["--theme=missing", "--style=unknown=red", "--style=method=999", "--color-depth=bad",
-     "--bat-theme=", "--shell-theme=", "--pager-command="].each do |option|
-      _out, err, status = cli("--no-config", option, "--show-config", docs: false)
+    REFUSED_VALUES.each do |option, message|
+      out, err, status = cli("--no-config", option, "--show-config", docs: false)
 
-      assert_equal 2, status.exitstatus
-      assert_includes err, "Run rich-ri --help for usage."
-      refute_match(/from .*\.rb:\d+/, err)
+      assert_equal 2, status.exitstatus, option
+      assert_empty out
+      assert_equal "rich-ri: #{message}\nRun rich-ri --help for usage.\n", err
     end
   end
 

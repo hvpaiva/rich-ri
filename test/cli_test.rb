@@ -6,6 +6,19 @@ require "command_helper"
 class CLITest < Minitest::Test
   include CommandSupport
 
+  MISTAKES = {
+    "--unknown" => "invalid option: --unknown",
+    "--color=invalid" => '--color must be one of auto, always, never, not "invalid"',
+    "--width=0" => '--width must be an integer from 20 to 10000, not "0"',
+    "--doc-dir=/no/such/directory" => '--doc-dir must be a directory, not "/no/such/directory"',
+    "--style=unknown=red" => %(style "unknown": unknown style role "unknown"; choose #{RichRI::Theme::ROLES.join(', ')})
+  }.freeze
+  FAILURES = {
+    %w[NoSuchExample123] => "Nothing known about NoSuchExample123",
+    %w[--dump=/no/such/cache.ri] => "RI cache must be a readable regular file: /no/such/cache.ri",
+    %w[--config=/no/such/config.yml RichRIExample] => "/no/such/config.yml: not a readable regular file"
+  }.freeze
+
   def test_version_and_help_are_owned_by_rich_ri
     out, err, status = cli("--version", docs: false)
 
@@ -68,24 +81,22 @@ class CLITest < Minitest::Test
   end
 
   def test_command_line_mistakes_exit_with_2_and_point_at_help
-    ["--unknown", "--color=invalid", "--width=0", "--doc-dir=/no/such/directory", "--style=unknown=red"].each do |arg|
+    MISTAKES.each do |arg, message|
       out, err, status = cli(arg, "RichRIExample")
 
       assert_equal 2, status.exitstatus, arg
       assert_empty out
-      assert_match(/\Arich-ri: \S/, err)
-      assert_equal "Run rich-ri --help for usage.\n", err.lines.last
+      assert_equal "rich-ri: #{message}\nRun rich-ri --help for usage.\n", err
     end
   end
 
   def test_failures_outside_the_command_line_exit_with_1_and_no_usage_hint
-    [%w[NoSuchExample123], %w[--dump=/no/such/cache.ri], %w[--config=/no/such/config.yml RichRIExample]].each do |args|
+    FAILURES.each do |args, message|
       out, err, status = cli(*args)
 
       assert_equal 1, status.exitstatus, args.inspect
       assert_empty out
-      refute_empty err
-      refute_includes err, "--help"
+      assert_equal "rich-ri: #{message}\n", err
     end
   end
 

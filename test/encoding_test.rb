@@ -26,7 +26,7 @@ class EncodingTest < Minitest::Test
     assert_equal "bad�byte", RichRI.plain(INVALID)
     assert_equal 4, RichRI.width("café".b)
     assert_equal 4, RichRI.width(LATIN1)
-    assert_kind_of Integer, RichRI.width(INVALID)
+    assert_equal 8, RichRI.width(INVALID)
     assert RichRI.printable?("café".b)
     assert RichRI.printable?(INVALID)
     refute RichRI.printable?("café\e[0m".b)

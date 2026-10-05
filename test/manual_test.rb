@@ -54,17 +54,23 @@ class ManualInstallTest < Minitest::Test
     Dir.mktmpdir do |directory|
       file = File.join(directory, "man1")
       File.write(file, "keep")
-      ["", directory, file, File.join(directory, "\nbad/man1")].each do |target|
-        _out, err, status = cli("--install-man=#{target}", docs: false)
+      refusals = { "" => "--install-man=DIR must not be empty",
+                   directory => "manual destination must be a man1 directory, such as ~/.local/share/man/man1",
+                   file => "manual destination is not a directory: #{file}",
+                   File.join(directory, "\nbad/man1") => "manual destination must not contain control characters" }
+      refusals.each do |target, message|
+        out, err, status = cli("--install-man=#{target}", docs: false)
 
         assert_equal 2, status.exitstatus
-        assert_includes err, "Run rich-ri --help for usage."
-        refute_match(/from .*\.rb:\d+/, err)
+        assert_empty out
+        assert_equal "rich-ri: #{message}\nRun rich-ri --help for usage.\n", err
       end
-      _out, err, status = cli("--install-man", "somewhere", docs: false)
+      out, err, status = cli("--install-man", "somewhere", docs: false)
 
       assert_equal 2, status.exitstatus
-      assert_includes err, "use --install-man=DIR"
+      assert_empty out
+      assert_equal "rich-ri: --install-man does not accept lookup names; use --install-man=DIR\n" \
+                   "Run rich-ri --help for usage.\n", err
       assert_equal "keep", File.read(file)
     end
   end
