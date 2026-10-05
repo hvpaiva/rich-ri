@@ -70,11 +70,31 @@ class ProjectTest < Minitest::Test
   end
 
   def test_a_failed_release_check_reports_its_reason_without_a_backtrace
-    _out, err, status = Open3.capture3({ "GITHUB_REF_NAME" => nil }, "bundle", "exec", "rake", "release:verify",
-                                       chdir: TestSupport::ROOT)
+    _out, err, status = rake({ "GITHUB_REF_NAME" => nil }, "release:verify")
 
     refute_predicate status, :success?
     assert_equal "rake: release tag must be v#{RichRI::VERSION}\n", err
+  end
+
+  def test_a_release_commit_check_without_a_commit_reports_its_reason_without_a_backtrace
+    _out, err, status = rake({ "GITHUB_SHA" => nil }, "release:verify_ref")
+
+    assert_equal [1, "rake: invalid release commit: set GITHUB_SHA to a full commit ID\n"], [status.exitstatus, err]
+  end
+
+  def test_an_artifact_check_reports_its_reason_without_a_backtrace
+    _out, err, status = rake({ "RELEASE_SHA256" => "0" * 64 }, "release:verify_artifact")
+
+    assert_equal 1, status.exitstatus
+    assert_match(/\Arake: release artifact (?:is incomplete: .+ not found|checksum mismatch)\n\z/, err)
+  end
+
+  def test_publication_in_the_release_workflow_reports_its_reason_without_a_backtrace
+    workflow = { "GITHUB_ACTIONS" => "true", "GITHUB_REPOSITORY" => "hvpaiva/rich-ri",
+                 "GITHUB_REF" => "refs/tags/v9.9.9", "GITHUB_REF_NAME" => "v9.9.9" }
+    _out, err, status = rake(workflow, "release")
+
+    assert_equal [1, "rake: release tag must be v#{RichRI::VERSION}\n"], [status.exitstatus, err]
   end
 
   def test_every_rake_task_describes_itself
@@ -92,5 +112,11 @@ class ProjectTest < Minitest::Test
 
     refute_predicate status, :success?
     assert_equal "rake: publication runs only in the release workflow; use bin/release X.Y.Z --push\n", err
+  end
+
+  private
+
+  def rake(environment, task)
+    Open3.capture3(environment, RbConfig.ruby, Gem.bin_path("rake", "rake"), task, chdir: TestSupport::ROOT)
   end
 end

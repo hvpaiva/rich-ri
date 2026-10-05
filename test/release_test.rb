@@ -84,6 +84,26 @@ class ReleaseTest < Minitest::Test
     end
   end
 
+  def test_bin_release_reports_a_condition_the_maintainer_can_correct_in_one_line
+    out, err, status = Open3.capture3(RbConfig.ruby, File.join(TestSupport::ROOT, "bin/release"), "01.2.3")
+
+    assert_equal [1, "", "release: use a stable X.Y.Z version\n"], [status.exitstatus, out, err]
+  end
+
+  def test_bin_release_keeps_the_class_and_backtrace_of_a_defect
+    defect = File.join(TestSupport::TEMP, "release_defect.rb")
+    File.write(defect, <<~RUBY)
+      require #{File.join(TestSupport::ROOT, 'rakelib/release_workflow').dump}
+      Release::Workflow.prepend(Module.new { def run = raise(NoMethodError, "defect") })
+    RUBY
+    _out, err, status = Open3.capture3(RbConfig.ruby, "-r#{defect}", File.join(TestSupport::ROOT, "bin/release"),
+                                       "0.2.0")
+
+    assert_equal 1, status.exitstatus
+    assert_match(/: defect \(NoMethodError\)$/, err.lines.first)
+    refute_match(/\Arelease: /, err)
+  end
+
   def test_failed_checks_leave_edits_for_review_without_a_commit_or_push
     repository do |root|
       commands = []
