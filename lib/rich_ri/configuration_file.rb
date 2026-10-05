@@ -15,14 +15,17 @@ module RichRI
     def read
       raise ConfigurationError, "not a readable regular file" unless File.file?(@path)
 
-      content = File.read(@path, MAX_BYTES + 1)
+      # A bounded read answers nil, not an empty string, at the end of a file.
+      content = File.read(@path, MAX_BYTES + 1) || ""
       raise ConfigurationError, "larger than #{MAX_BYTES} bytes" if content.bytesize > MAX_BYTES
 
       stream = Psych.parse_stream(content, filename: @path)
       raise ConfigurationError, "must contain a single YAML document" if stream.children.length > 1
 
       check_structure(stream)
-      Psych.safe_load(content, permitted_classes: [], permitted_symbols: [], aliases: false, filename: @path) || {}
+      data = Psych.safe_load(content, permitted_classes: [], permitted_symbols: [], aliases: false, filename: @path)
+      # A file with no document, or only comments, sets nothing.
+      data.nil? ? {} : data
     rescue Psych::Exception => e
       raise ConfigurationError, problem(e)
     end

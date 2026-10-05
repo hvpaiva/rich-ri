@@ -92,6 +92,49 @@ class ConfigurationCLITest < Minitest::Test
     end
   end
 
+  def test_empty_file_means_no_overrides
+    defaults, err, status = cli("--no-config", "--show-config", docs: false)
+
+    assert_predicate status, :success?, err
+    ["", "\n", "# nothing yet\n", "---\n", "--- ~\n"].each do |content|
+      with_config(content) do |path|
+        out, err, status = cli("--show-config", docs: false, env: { "RICH_RI_CONFIG" => path })
+
+        assert_predicate status, :success?, "#{content.inspect}: #{err}"
+        assert_equal defaults, out
+        out, err, status = cli("RichRIExample#map", env: { "RICH_RI_CONFIG" => path })
+
+        assert_predicate status, :success?, "#{content.inspect}: #{err}"
+        assert_includes out, "Return transformed values."
+      end
+    end
+  end
+
+  def test_recovery_actions_survive_any_failure_to_read_the_configuration
+    source = <<~RUBY
+      require "rich_ri"
+      RichRI::ConfigurationFile.prepend(Module.new { def read = raise(NoMethodError, "planted defect") })
+      exit RichRI::CLI.run(ARGV)
+    RUBY
+    with_config({ "width" => 44 }) do |path|
+      run = lambda do |*args|
+        Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source,
+                       "--", "--config", path, *args)
+      end
+      ["--help", "--version", "--config-path", "--completion=bash"].each do |action|
+        out, err, status = run.call(action)
+
+        assert_predicate status, :success?, "#{action}: #{err}"
+        refute_empty out
+      end
+      out, err, status = run.call("--show-config")
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
+      assert_equal "rich-ri: planted defect\n", err
+    end
+  end
+
   def test_help_and_version_work_with_unreadable_file
     with_config({ "theme" => "dark" }) do |path|
       File.chmod(0o000, path)

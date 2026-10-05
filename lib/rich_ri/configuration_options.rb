@@ -74,7 +74,9 @@ module RichRI
       parse_defaults(words, "RI")
       parse_defaults(Configuration.new(argv).arguments, "configuration") if enabled
       words
-    rescue Error, SystemCallError
+    rescue StandardError
+      # Help, the version and the file's path are how a broken setup is found;
+      # nothing that goes wrong while reading defaults may take them away.
       raise unless recovery_request?(argv)
 
       initialize

@@ -79,7 +79,8 @@ class ConfigurationTest < Minitest::Test
   end
 
   def test_invalid_documents_fail_without_evaluating_yaml
-    invalid = ["theme: [dark]", "width: 12", "width: '80'", "pager: 0", "sources: []", "sources: {gmes: true}",
+    invalid = ["false", "0", "theme: [dark]", "width: 12", "width: '80'", "pager: 0", "sources: []",
+               "sources: {gmes: true}",
                "sources: {gems: 'yes'}", "doc_dirs: docs", "doc_dirs: [false]", "unknown: true", "--- []",
                "styles: {method: 208}", "styles: {unknown: cyan}", "styles: {method: bogus}",
                "theme: dark\ntheme: light", "styles: {method: red, method: blue}",
