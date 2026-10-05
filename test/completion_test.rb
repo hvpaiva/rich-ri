@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "command_helper"
 
 class CompletionTest < Minitest::Test
   def test_ri_option_terminator_does_not_hide_explicit_sources
@@ -136,6 +137,8 @@ end
 
 # The answer as the shell scripts read it: candidates, then what to do with them.
 class CompletionProtocolTest < Minitest::Test
+  include CommandSupport
+
   def test_protocol_discards_terminal_controls_in_values_and_descriptions
     completion_class = Class.new(RichRI::Completion) do
       def answer(_words)
@@ -218,6 +221,16 @@ class CompletionProtocolTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_equal ":\n", out
+  end
+
+  def test_a_defect_while_reading_the_options_offers_nothing_instead_of_other_candidates
+    defect = "require 'optparse'\nclass OptionParser; def permute(*) = nil.size!; end\n"
+    words = ["--complete", "--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#ma"]
+    out, err, status = with_planted(defect) { |env| cli(*words, docs: false, env: env) }
+
+    assert_predicate status, :success?, err
+    assert_equal ":\n", out
+    assert_empty err
   end
 
   def test_flag_protocol_includes_descriptions

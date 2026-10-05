@@ -107,7 +107,7 @@ module RichRI
       nil
     rescue OptionParser::MissingArgument => e
       e.args.first
-    rescue StandardError
+    rescue OptionParser::ParseError, Error
       nil
     end
 
