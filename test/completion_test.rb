@@ -121,6 +121,16 @@ class CompletionTest < Minitest::Test
     assert_equal "Valid\tDescription\n", output.string
   end
 
+  def test_names_holding_terminal_controls_are_not_candidates
+    with_cached_names(modules: ["RichRIUnsafe\e[31m"], methods: ["ma\ax"], pages: ["GUIDE\u202e.rdoc"]) do |sources|
+      instance = RichRI::Driver.new(RichRI::Options.new.parse(sources, defaults: "").driver_options)
+
+      assert_equal %w[RichRIExample], instance.complete("RichRI")
+      assert_equal %w[RichRIExample#map], instance.complete("RichRIExample#ma")
+      assert_equal ["#{sources.last}:GUIDE.rdoc"], instance.complete("#{sources.last}:GUIDE")
+    end
+  end
+
   def test_page_completion_and_missing_sources
     instance = driver
     store = instance.stores.first

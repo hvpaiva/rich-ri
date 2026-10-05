@@ -177,10 +177,11 @@ module RichRI
 
     # RDoc completes classes and methods. The sources of pages and the pages
     # themselves come from the loaded stores, so that discovery follows this
-    # Ruby and --doc-dir.
+    # Ruby and --doc-dir. A line editor and a shell write a candidate as it
+    # is, so a name from a store that holds a terminal control is not offered.
     def complete(name)
       candidates = PageSources::NAME.match?(name) ? [] : super + selectors(name)
-      (candidates + page_sources.complete(name)).uniq.sort
+      (candidates + page_sources.complete(name)).uniq.select { |candidate| RichRI.printable?(candidate) }.sort
     end
 
     def render_method_arguments(out, arglists)

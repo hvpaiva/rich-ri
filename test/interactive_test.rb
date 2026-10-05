@@ -96,6 +96,24 @@ class InteractiveTest < Minitest::Test
     end
   end
 
+  def test_tab_offers_no_name_that_holds_a_terminal_control
+    names = { modules: ["RichRIUnsafe\e]52;c;AAAA\a", "RichRIUnsafe\e[31m"], methods: ["ma\e[31mx"],
+              pages: ["GUIDE\u202e.rdoc"] }
+    with_cached_names(**names) do |sources|
+      Dir.mktmpdir("rich-ri-interactive-") do |dir|
+        environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+        keys = [[">> ", "RichRIU\t\t"], ["RichRIU", "\u0015RichRIExample#ma\t\t"], ["RichRIExample#map", "\n"],
+                [">> ", "#{sources.last}:GUIDE\t\t"], ["GUIDE.rdoc", "\n\n"]]
+        output, status = terminal_cli(*sources, env: environment, prompt: ">> ", input: keys)
+
+        assert_equal 0, status, output
+        refute_match(/\e\]52|\e\[31m|\a|\u202e|Unsafe/, output.dup.force_encoding(Encoding::UTF_8))
+        assert_includes output, "Return transformed values."
+        assert_includes output, "= Example guide"
+      end
+    end
+  end
+
   def test_session_continues_after_names_that_cannot_be_looked_up
     names = "RichRIExample[\nNoSuchExample123\nRichRIExample#ma\nRichRIExample#map\n\n"
     out, err, status = cli("--interactive", stdin: names)

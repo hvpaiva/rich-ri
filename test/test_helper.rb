@@ -86,6 +86,22 @@ module TestSupport
     RichRI::Driver.new(options.driver_options)
   end
 
+  # A copy of the fixture store whose cache also lists the given names. Yields
+  # the options that select it alone.
+  def with_cached_names(modules: [], methods: [], pages: [])
+    Dir.mktmpdir("rich-ri-names-") do |dir|
+      path = File.join(dir, "ri")
+      FileUtils.cp_r(STORE, path)
+      store = RDoc::RI::Store.new(RDoc::Options.new, path: path, type: :extra)
+      store.load_cache
+      store.cache[:modules].concat(modules)
+      store.cache[:instance_methods]["RichRIExample"].concat(methods)
+      store.cache[:pages].concat(pages)
+      store.save_cache
+      yield ["--no-standard-docs", "--doc-dir", path]
+    end
+  end
+
   # A temporary configuration file holding the given YAML text or data.
   def with_config(data)
     Dir.mktmpdir("rich-ri-config-") do |dir|

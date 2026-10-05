@@ -54,20 +54,6 @@ class DriverTest < Minitest::Test
     end
   end
 
-  # A copy of the fixture store whose cache also lists the given names.
-  def with_cached_names(modules: [], methods: [])
-    Dir.mktmpdir("rich-ri-names-") do |dir|
-      path = File.join(dir, "ri")
-      FileUtils.cp_r(TestSupport::STORE, path)
-      store = RDoc::RI::Store.new(RDoc::Options.new, path: path, type: :extra)
-      store.load_cache
-      store.cache[:modules].concat(modules)
-      store.cache[:instance_methods]["RichRIExample"].concat(methods)
-      store.save_cache
-      yield ["--no-standard-docs", "--doc-dir", path]
-    end
-  end
-
   def test_unknown_name_is_reported_by_rich_ri_without_ending_the_process
     name = "NoSuch\e]52;c;AAAA\aName"
     out, err, status = cli(name)
