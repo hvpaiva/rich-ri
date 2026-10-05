@@ -36,19 +36,25 @@ class ReleaseCommandsTest < Minitest::Test
   end
 
   def test_a_failed_command_reports_its_output_and_diagnostics
-    error = assert_release_error(/ failed\.$/) do
+    error = assert_raises(Release::Error) do
       @commands.call([RbConfig.ruby, "-e", "puts 'partial'; warn 'fatal: reason'; exit 1"])
     end
 
-    assert_includes error.message, "partial"
-    assert_includes error.message, "fatal: reason"
+    assert_equal "#{RbConfig.ruby} -e puts 'partial'; warn 'fatal: reason'; exit 1 failed.\npartial\nfatal: reason\n",
+                 error.message
   end
 
-  def test_unreadable_output_and_missing_programs_are_reported_as_release_errors
-    assert_release_error(/returned unreadable JSON/) { @commands.json([RbConfig.ruby, "-e", "puts 'not JSON'"]) }
-    assert_release_error(/\Arich-ri-missing-program is not installed/) { @commands.call(["rich-ri-missing-program"]) }
-    assert_release_error(/\Arich-ri-missing-program is not installed/) do
-      @commands.call(["rich-ri-missing-program"], stream: true)
+  def test_unreadable_json_is_a_release_error
+    error = assert_raises(Release::Error) { @commands.json([RbConfig.ruby, "-e", "puts 'not JSON'"]) }
+
+    assert_match(/\A#{Regexp.escape(RbConfig.ruby)} -e puts 'not JSON' returned unreadable JSON: /, error.message)
+  end
+
+  def test_a_missing_program_is_a_release_error_whether_captured_or_streamed
+    [false, true].each do |stream|
+      error = assert_raises(Release::Error) { @commands.call(["rich-ri-missing-program"], stream: stream) }
+
+      assert_equal "rich-ri-missing-program is not installed or not on PATH", error.message
     end
   end
 end

@@ -42,6 +42,9 @@ class ChangelogTest < Minitest::Test
 
     assert_empty Changelog.problems(RELEASED, today: TODAY)
     assert_empty Changelog.problems(unreleased, today: TODAY)
+  end
+
+  def test_releases_are_read_newest_first_with_yanked_ones
     assert_equal %w[0.2.0 0.1.0], Changelog.releases(RELEASED).map(&:version)
   end
 
@@ -58,12 +61,18 @@ class ChangelogTest < Minitest::Test
     end
   end
 
-  def test_releases_are_unique_newest_first_and_never_empty
-    swapped = RELEASED.sub("2026-10-04", "2026-09-30")
+  def test_releases_must_be_listed_newest_first
+    assert_includes Changelog.problems(RELEASED.sub("2026-10-04", "2026-09-30"), today: TODAY),
+                    "releases must be listed newest first"
+  end
+
+  def test_a_release_must_appear_once
     repeated = RELEASED.sub("## [0.1.0] - 2026-10-01 [YANKED]", "## [0.2.0] - 2026-10-01")
 
-    assert_includes Changelog.problems(swapped, today: TODAY), "releases must be listed newest first"
     assert_includes Changelog.problems(repeated, today: TODAY), "[0.2.0] appears more than once"
+  end
+
+  def test_a_release_must_have_entries
     assert_includes Changelog.problems(RELEASED.sub("- The first release.\n", ""), today: TODAY),
                     '[0.1.0] has no entries; add at least one "- " line'
   end
@@ -98,7 +107,8 @@ class ChangelogTest < Minitest::Test
     TEXT
 
     assert_empty Changelog.problems(text, today: TODAY)
-    assert_equal 1, Changelog.problems(text.sub("compare/v0.2.0", "compare/v0.1.1"), today: TODAY).length
+    assert_equal ["link references must be, in this order:\n#{text.lines.last(3).join.chomp}"],
+                 Changelog.problems(text.sub("compare/v0.2.0", "compare/v0.1.1"), today: TODAY)
   end
 
   def test_cutting_a_release_dates_the_entries_and_lists_its_link_first
@@ -115,6 +125,9 @@ class ChangelogTest < Minitest::Test
     assert_equal "### Fixed\n\n- A pending fix.", Changelog.notes(RELEASED, "Unreleased")
     assert_equal "### Added\n\n- The first release.", Changelog.notes(RELEASED, "0.1.0")
     assert_empty Changelog.notes(RELEASED, "9.9.9")
+  end
+
+  def test_a_version_is_released_only_with_its_full_heading
     assert Changelog.released?(RELEASED, "0.1.0")
     refute Changelog.released?(RELEASED, "0.1")
   end

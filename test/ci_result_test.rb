@@ -30,21 +30,27 @@ class CIResultTest < Minitest::Test
     end
   end
 
-  def test_missing_results_and_broken_change_detection_cannot_pass
+  def test_missing_results_cannot_pass
     data = results("full")
     data.delete("test")
 
-    assert_rejected(/Incomplete CI job results/, data)
+    assert_rejected(/\AIncomplete CI job results\z/, data)
+  end
+
+  def test_change_detection_that_did_not_succeed_cannot_pass
     %w[failure cancelled skipped].each do |result|
       data = results("docs")
       data.fetch("changes")["result"] = result
 
-      assert_rejected(/Change detection did not succeed/, data)
+      assert_rejected(/\AChange detection did not succeed\z/, data)
     end
+  end
+
+  def test_an_unknown_scope_cannot_pass
     data = results("docs")
     data.fetch("changes")["outputs"] = { "scope" => "unknown" }
 
-    assert_rejected(/Unknown CI scope: "unknown"/, data)
+    assert_rejected(/\AUnknown CI scope: "unknown"\z/, data)
   end
 
   def test_a_scheduled_run_needs_the_audit_and_freshly_resolved_dependencies
@@ -57,12 +63,20 @@ class CIResultTest < Minitest::Test
     end
   end
 
-  def test_a_release_cannot_pass_using_only_documentation_or_scheduled_checks
-    assert_rejected(/requires the full suite/, results("docs"), force_full: true)
-    assert_rejected(/Only scheduled runs/, results("scheduled", event: "push"), event: "push")
-    assert_rejected(/Only pushes and pull requests/, results("docs", event: "workflow_dispatch"),
-                    event: "workflow_dispatch")
-    assert_rejected(/Only pushes and pull requests/, results("docs", event: "schedule"), event: "schedule")
+  def test_a_release_cannot_pass_with_only_documentation_checks
+    assert_rejected(/\AThis run requires the full suite\z/, results("docs"), force_full: true)
+  end
+
+  def test_only_a_scheduled_run_can_use_the_scheduled_checks
+    assert_rejected(/\AOnly scheduled runs may use scheduled scope\z/, results("scheduled", event: "push"),
+                    event: "push")
+  end
+
+  def test_only_pushes_and_pull_requests_can_use_the_documentation_checks
+    %w[workflow_dispatch schedule].each do |event|
+      assert_rejected(/\AOnly pushes and pull requests may use docs scope\z/, results("docs", event: event),
+                      event: event)
+    end
   end
 
   private

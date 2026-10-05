@@ -7,6 +7,8 @@ require_relative "../rakelib/commits"
 class CommitPolicyTest < Minitest::Test
   include GitSupport
 
+  UNSTRUCTURED = 'use a Conventional Commit subject, "type(scope): summary" with one of feat, fix, docs, test, ' \
+                 "refactor, perf, build, ci, chore, revert: "
   TOOL_ADDRESSES = %w[noreply@anthropic.com codex@openai.com noreply@openai.com cursoragent@cursor.com
                       aider@aider.chat noreply@aider.chat copilot@github.com noreply@opencode.ai amp@ampcode.com
                       198982749+Copilot@users.noreply.github.com 218195315+gemini-cli@users.noreply.github.com
@@ -41,17 +43,21 @@ class CommitPolicyTest < Minitest::Test
                    File.join(TestSupport::ROOT, "bin/lint-commits"), range, chdir: root)
   end
 
-  def test_real_messages_separators_titles_and_human_coauthors
+  def test_a_conventional_commit_with_a_human_coauthor_and_title_passes
     repository do |root|
       git(root, "commit", "--allow-empty", "-qm",
           "fix: preserve documentation\n\nCo-Authored-By: Claude Monet <claude@example.org>")
       _out, err, status = lint(root, "HEAD", "PR_TITLE" => "fix: preserve documentation")
 
-      assert_predicate status, :success?, err
+      assert_equal [0, ""], [status.exitstatus, err]
+    end
+  end
+
+  def test_an_unstructured_pull_request_title_is_rejected
+    repository do |root|
       _out, err, status = lint(root, "HEAD", "PR_TITLE" => "An unstructured title")
 
-      refute_predicate status, :success?
-      assert_includes err, "lint-commits: PR title: use a Conventional Commit"
+      assert_equal [1, "lint-commits: PR title: #{UNSTRUCTURED}An unstructured title\n"], [status.exitstatus, err]
     end
   end
 
@@ -99,20 +105,28 @@ class CommitPolicyTest < Minitest::Test
     end
   end
 
-  def test_unfinished_subjects_are_rejected_and_git_reverts_are_accepted
+  def test_unfinished_subjects_are_rejected
     unfinished = ["fix: wip", "fix: WIP still broken", "fix(cli): wip", "WIP", "wip: try things",
                   "fixup! fix: preserve documentation", "squash! fix: preserve documentation",
-                  "amend! fix: preserve documentation", 'Revert "fixup! fix: preserve documentation"']
+                  "amend! fix: preserve documentation"].to_h { |subject| [subject, subject] }
+    unfinished['Revert "fixup! fix: preserve documentation"'] = "fixup! fix: preserve documentation"
+
+    unfinished.each do |subject, quoted|
+      assert_equal ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{quoted}"],
+                   CommitPolicy.check(subject, subject: true)
+    end
+  end
+
+  def test_git_reverts_and_words_that_start_with_wip_are_accepted
     accepted = ["fix: wipe stale caches", "fix: WIP-free path", 'Revert "fix: preserve documentation"',
                 'Reapply "fix: preserve documentation"', 'Revert "Revert "fix: preserve documentation""',
                 "revert: restore the previous pager default", "chore(deps): bump rdoc from 8.1.0 to 8.2.0"]
 
-    assert_equal(unfinished, (unfinished + accepted).select do |subject|
-      CommitPolicy.check(subject, subject: true).grep(/\Afinish this commit first/).any?
-    end)
     assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
-    assert_match(/\Ause a Conventional Commit subject, "type\(scope\): summary" with one of feat, fix, .+: Revert it\z/,
-                 CommitPolicy.check('Revert "Revert it"', subject: true).first)
+  end
+
+  def test_a_revert_of_an_unstructured_subject_is_still_unstructured
+    assert_equal ["#{UNSTRUCTURED}Revert it"], CommitPolicy.check('Revert "Revert it"', subject: true)
   end
 
   def test_shallow_merge_uses_stored_parents_but_still_checks_its_body
@@ -143,8 +157,7 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-commits: #{sha}: use a Conventional Commit subject, \"type(scope): summary\" with one of " \
-                   "feat, fix, docs, test, refactor, perf, build, ci, chore, revert: unstructured commit\n", err
+      assert_equal "lint-commits: #{sha}: #{UNSTRUCTURED}unstructured commit\n", err
     end
   end
 
@@ -164,8 +177,7 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root, "PR_BODY" => "Notes\n\nhttps://claude.ai/code/session_1 \e[2J")
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-commits: #{sha}: use a Conventional Commit subject, \"type(scope): summary\" with one of " \
-                   "feat, fix, docs, test, refactor, perf, build, ci, chore, revert: \\e]0;renamed\\a\\e[31mred\n" \
+      assert_equal "lint-commits: #{sha}: #{UNSTRUCTURED}\\e]0;renamed\\a\\e[31mred\n" \
                    "lint-commits: PR body: remove generated attribution: https://claude.ai/code/session_1 \\e[2J\n",
                    err
     end

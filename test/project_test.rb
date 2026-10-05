@@ -7,6 +7,13 @@ class ProjectTest < Minitest::Test
   USER_GUIDES = %w[docs/compatibility.md docs/configuration.md docs/shell-completion.md docs/troubleshooting.md
                    docs/usage.md].freeze
   REPOSITORY_GUIDES = %w[docs/development.md docs/images/README.md docs/maintenance.md].freeze
+  RELEASED = <<~TEXT.freeze
+    ## [Unreleased]
+    ## [#{RichRI::VERSION}] - 2026-10-04
+    - Add the documentation reader.
+    [Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v#{RichRI::VERSION}...HEAD
+    [#{RichRI::VERSION}]: https://github.com/hvpaiva/rich-ri/releases/tag/v#{RichRI::VERSION}
+  TEXT
   SHIPPED = (USER_GUIDES + %w[docs/config.example.yml exe/rich-ri completions/rich-ri.bash completions/rich-ri.fish
                               completions/rich-ri.zsh man/man1/rich-ri.1 README.md CHANGELOG.md LICENSE.txt
                               SECURITY.md]).freeze
@@ -35,21 +42,25 @@ class ProjectTest < Minitest::Test
 
     assert_empty floors.keys - pins.keys
     assert_empty(floors.reject { |name, floor| Gem::Version.new(pins.fetch(name)) == Gem::Version.new(floor) })
-    assert(spec.runtime_dependencies.all? { |dependency| dependency.requirement.to_s.start_with?("~> ") })
   end
 
-  def test_release_requires_matching_version_tag_and_dated_changelog
-    changelog = <<~TEXT
-      ## [Unreleased]
-      ## [#{RichRI::VERSION}] - 2026-10-04
-      - Add the documentation reader.
-      [Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v#{RichRI::VERSION}...HEAD
-      [#{RichRI::VERSION}]: https://github.com/hvpaiva/rich-ri/releases/tag/v#{RichRI::VERSION}
-    TEXT
-    assert_equal RichRI::VERSION, Release.verify(tag: "v#{RichRI::VERSION}", changelog: changelog)
-    error = assert_raises(Release::Error) { Release.verify(tag: "v9.9.9", changelog: changelog) }
+  def test_every_runtime_dependency_allows_only_compatible_releases
+    spec = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec"))
+
+    assert_empty(spec.runtime_dependencies.reject { |dependency| dependency.requirement.to_s.start_with?("~> ") })
+  end
+
+  def test_a_release_with_its_tag_and_dated_changelog_is_verified
+    assert_equal RichRI::VERSION, Release.verify(tag: "v#{RichRI::VERSION}", changelog: RELEASED)
+  end
+
+  def test_a_release_tag_must_name_the_version
+    error = assert_raises(Release::Error) { Release.verify(tag: "v9.9.9", changelog: RELEASED) }
 
     assert_equal "release tag must be v#{RichRI::VERSION}", error.message
+  end
+
+  def test_a_release_needs_its_dated_changelog_heading
     error = assert_raises(Release::Error) do
       Release.verify(tag: "v#{RichRI::VERSION}",
                      changelog: "## [Unreleased]\n\n[Unreleased]: https://github.com/hvpaiva/rich-ri/commits/main\n")
