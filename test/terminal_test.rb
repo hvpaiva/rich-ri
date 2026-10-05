@@ -30,15 +30,18 @@ class TerminalTest < Minitest::Test
       pager = File.join(dir, "pager.rb")
       capture = File.join(dir, "output")
       File.write(pager, "File.write(ARGV.fetch(0), ENV.fetch('LESS', '') + \"\\n\" + STDIN.read)\n")
-      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "LESS" => "-i", "PAGER" => "missing" }
-      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
-                                    env: environment)
-      page = File.read(capture)
+      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "PAGER" => "missing" }
+      # An option of less that takes a string, such as a prompt, runs to the end of LESS.
+      { "-i" => "-R -i", "-Pmyprompt" => "-R -Pmyprompt", "" => "-R ", nil => "-R -Fi" }.each do |less, expected|
+        output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
+                                      env: environment.merge("LESS" => less))
+        page = File.read(capture)
 
-      assert_equal 0, status, output
-      assert_equal "-i -R\n", page.lines.first
-      assert_includes page, "\e["
-      assert_includes RichRI.plain(page), "Return transformed values."
+        assert_equal 0, status, output
+        assert_equal "#{expected}\n", page.lines.first
+        assert_includes page, "\e["
+        assert_includes RichRI.plain(page), "Return transformed values."
+      end
     end
   end
 

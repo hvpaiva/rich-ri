@@ -87,7 +87,9 @@ module RichRI
       previous_pager = ENV.fetch("RI_PAGER", nil)
       ENV["RI_PAGER"] = command if command
       previous = ENV.fetch("LESS", nil)
-      ENV["LESS"] = "#{previous || '-Fi'} -R"
+      # less shows colors only with -R. It goes first: an option that takes a
+      # string, such as -Pprompt, runs to the end of LESS and would take it in.
+      ENV["LESS"] = "-R #{previous || '-Fi'}"
       yield
     ensure
       ENV["LESS"] = previous

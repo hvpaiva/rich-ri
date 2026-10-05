@@ -280,7 +280,9 @@ module Manual
       PAGER is the fallback. --pager-command takes precedence over both.
       .TP
       .B LESS
-      Options for less. rich-ri adds -R for its documentation pager only.
+      Your options for less. For its own pager only, rich-ri puts -R ahead of
+      them so that colors show. When LESS is unset it uses -R -Fi: leave at once
+      if the page fits the screen, and ignore case in searches.
       .TP
       .B NO_COLOR, TERM
       A nonempty NO_COLOR or TERM=dumb disables automatic colors.
