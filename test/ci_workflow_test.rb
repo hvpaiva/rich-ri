@@ -33,6 +33,12 @@ class CIWorkflowTest < Minitest::Test
     assert_equal ["docs"], jobs.fetch("docs")
   end
 
+  def test_fresh_dependencies_resolve_every_gem_again
+    commands = ci.dig("jobs", "fresh-dependencies", "steps").filter_map { |step| step["run"] }
+
+    assert_includes commands, "bundle update --all"
+  end
+
   def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
     jobs = ci.fetch("jobs")
     matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")

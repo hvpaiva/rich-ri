@@ -157,7 +157,7 @@ jobs:
           persist-credentials: false
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
       - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
-      - run: bundle update
+      - run: bundle update --all
       - run: bundle exec rake test package:check
 
   compatibility:
