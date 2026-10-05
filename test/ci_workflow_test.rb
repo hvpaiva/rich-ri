@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "yaml"
+require "workflow_expression"
 require_relative "../rakelib/ci"
 require_relative "../rakelib/github_configuration"
 require_relative "../rakelib/tools"
@@ -70,6 +71,31 @@ class CIWorkflowTest < Minitest::Test
 
   def test_ci_tests_the_oldest_ruby_the_gem_supports
     assert_includes ci.dig("jobs", "test", "strategy", "matrix", "ruby"), oldest_ruby
+  end
+
+  def test_ci_tests_the_ruby_mise_toml_pins_on_linux_and_macos
+    pinned = File.read(File.join(TestSupport::ROOT, "mise.toml"))[/^ruby = "(\d+\.\d+)\./, 1]
+    matrix = ci.dig("jobs", "test", "strategy", "matrix")
+    runs = matrix.fetch("os").product(matrix.fetch("ruby")) +
+           Array(matrix["include"]).map { |run| run.values_at("os", "ruby") }
+
+    assert_equal %w[macos-latest ubuntu-latest], runs.select { |_os, ruby| ruby == pinned }.map(&:first).sort
+  end
+
+  def test_fresh_dependencies_are_resolved_before_the_tests_run
+    steps = commands("fresh-dependencies")
+
+    assert_operator steps.index("bundle update --all"), :<, steps.index("bundle exec rake test package:check")
+  end
+
+  # A shared group would cancel a waiting push run and leave that commit without a complete result.
+  def test_only_runs_for_the_same_pull_request_share_a_concurrency_group
+    runs = [1, 2]
+    groups = %w[pull_request push schedule workflow_dispatch].to_h do |event|
+      [event, runs.map { |run| concurrency_group(event, run) }.uniq.length]
+    end
+
+    assert_equal({ "pull_request" => 1, "push" => 2, "schedule" => 2, "workflow_dispatch" => 2 }, groups)
   end
 
   def test_the_compatibility_job_runs_on_the_oldest_ruby
@@ -144,6 +170,11 @@ class CIWorkflowTest < Minitest::Test
   def check_tasks = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
 
   def rehearsals = release.fetch("jobs").select { |_name, job| job["if"] == PUBLISH.sub("==", "!=") }
+
+  def concurrency_group(event, run)
+    github = { "workflow" => "CI", "event_name" => event, "ref" => "refs/pull/7/merge", "run_id" => run }
+    WorkflowExpression.render(ci.dig("concurrency", "group"), "github" => github)
+  end
 
   def oldest_ruby
     floor = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec")).required_ruby_version
