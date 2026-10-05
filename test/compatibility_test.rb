@@ -10,8 +10,8 @@ class CompatibilityTest < Minitest::Test
   include ProgramSupport
 
   # They test the repository's own tooling, which the minimum bundle does not install.
-  MAINTENANCE = %w[benchmark changelog changelog_command changelog_lint ci ci_result ci_workflow commit_policy
-                   compatibility github github_templates project release release_artifact release_branch
+  MAINTENANCE = %w[benchmark changelog changelog_command changelog_lint ci ci_result ci_workflow commit_command
+                   commit_policy compatibility github github_templates project release release_artifact release_branch
                    release_commands release_publication release_pull_request release_recovery setup shell_runner
                    test_environment tools].freeze
 
