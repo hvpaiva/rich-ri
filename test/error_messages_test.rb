@@ -63,7 +63,7 @@ class ErrorMessagesTest < Minitest::Test
   def test_unknown_keys_are_answered_with_the_keys_accepted_there
     unknown = { "colour: always" => %(unknown key "colour"; choose #{RichRI::Configuration::KEYS.join(', ')}),
                 "sources: {gem: false}" => 'unknown key "sources.gem"; choose system, site, home, gems',
-                "styles: {methd: red}" => %(unknown key "styles.methd"; choose #{RichRI::Theme::ROLES.join(', ')}) }
+                "styles: {keywords: red}" => %(unknown key "styles.keywords"; choose #{RichRI::Theme::ROLES.join(', ')}) }
     unknown.each do |data, message|
       with_config(data) do |path|
         out, err, status = cli("--config", path, "--show-config", docs: false)
