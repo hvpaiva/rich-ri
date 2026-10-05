@@ -90,7 +90,10 @@ class BashCompletionTest < Minitest::Test
       ["rich-ri #{TestSupport::STORE}:G", TestSupport::STORE, ":", "G"] => ["GUIDE.rdoc"],
       ["rich-ri --color=a", "--color", "=", "a"] => %w[always auto],
       ["rich-ri --style=met", "--style", "=", "met"] => ["method="],
-      ["rich-ri -a  Inkwell#[]=", "-a", "Inkwell#[]", "="] => [""] }.each do |(line, *pieces), replies|
+      ["rich-ri -a  Inkwell#[]=", "-a", "Inkwell#[]", "="] => [""],
+      # An operator in a name is no redirection when it is quoted or escaped.
+      ["rich-ri 'Inkwell#<=>' Inkwell#fi", "'Inkwell#<=>'", "Inkwell#fi"] => ["Inkwell#fill", "Inkwell#filled\\?"],
+      ["rich-ri Inkwell#\\<=", "Inkwell#\\<", "="] => ["", "\\>"] }.each do |(line, *pieces), replies|
       replaced = typed.fetch(pieces.last, pieces.last)
 
       assert_equal replies, bash_answer(line, *pieces, typed: replaced, library: nil).first, line

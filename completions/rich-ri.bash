@@ -156,8 +156,10 @@ __rich_ri_dequote() {
 # Without bash-completion, bash breaks words at ":" and "="; pieces with no blank between them
 # are joined again in words, with cword and cur for the word under the cursor.
 __rich_ri_words() {
-    # After a redirection the word is the name of a file.
-    if [[ ${COMP_WORDS[COMP_CWORD - 1]-} == *[\<\>]* ]]; then
+    # After a redirection the word is the name of a file. Bash gives an operator a word of its
+    # own, so a word with anything else, such as a quoted 'Array#<=>', is no redirection.
+    local operator=${COMP_WORDS[COMP_CWORD - 1]-}
+    if [[ $operator == *[\<\>]* && $operator != *[!\<\>\&\|]* ]]; then
         compopt -o default 2>/dev/null
         return 1
     fi
