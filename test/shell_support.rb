@@ -23,6 +23,16 @@ module ShellSupport
     %w[bash zsh fish].all? { |name| executable?(name) } && !bash_completion.nil?
   end
 
+  # Whether there is a bash the completion script supports. It needs none of
+  # bash-completion, but compopt, which came with bash 4.
+  def self.bash?
+    _out, _err, status = Open3.capture3(ENVIRONMENT, "bash", "--noprofile", "--norc", "-c",
+                                        "(( BASH_VERSINFO[0] >= 4 ))")
+    status.success?
+  rescue Errno::ENOENT
+    false
+  end
+
   def self.executable?(name)
     ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |directory|
       path = File.join(directory, name)

@@ -42,6 +42,13 @@ module ShellHarness
     skip "#{name} is not installed; CI runs all shell tests"
   end
 
+  def require_bash
+    return if ShellSupport.bash?
+
+    flunk "bash is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
+    skip "bash 4 or later is not installed; CI runs all shell tests"
+  end
+
   def bash_completion
     completion = ShellSupport.bash_completion
     return completion if completion
@@ -61,13 +68,15 @@ module ShellInsertion
 
   private
 
-  def inserted_arguments(name, line, env: {})
+  def inserted_arguments(name, line, env: {}, **)
     ["docs spaced", "RichRIExample", "NoSuchExample"].each { |directory| FileUtils.mkdir_p(File.join(@bin, directory)) }
     File.write(File.join(@bin, "settings spaced.yml"), "theme: terminal\n")
     environment = @env.merge("HOME" => @bin, "HISTFILE" => File::NULL, "XDG_CONFIG_HOME" => File.join(@bin, "config"),
                              "XDG_DATA_HOME" => File.join(@bin, "data")).merge(env)
-    command = interactive_command(name, environment)
-    output, status = terminal(*command, env: environment, prompt: "RICH_READY> ", input: "#{line}\t\nexit\n")
+    command = interactive_command(name, environment, **)
+    input = [["RICH_READY> ", "#{line}\t\nexit\n"]]
+    input.unshift(["RICH_START> ", " source #{File.join(@bin, 'bashrc').shellescape}\n"]) if name == "bash"
+    output, status = terminal(*command, env: environment, input: input)
     @terminal_output = output
 
     assert_equal 0, status, output
@@ -76,18 +85,23 @@ module ShellInsertion
     missing(name)
   end
 
-  def interactive_command(name, environment)
+  def interactive_command(name, environment, library: :bash_completion)
     completion = File.join(TestSupport::ROOT, "completions", "rich-ri.#{name}").shellescape
     capture = "rich-ri() { printf '__RICH_ARG__%s\\n' \"$@\"; }\nalias ri=rich-ri\n"
     return fish_command(completion) if name == "fish"
 
     script = "PS1='RICH_READY> '\ncd #{@bin.shellescape}\n"
     if name == "bash"
-      script += "source #{bash_completion.shellescape}\n"
+      require_bash
+      script += "source #{bash_completion.shellescape}\n" if library
       # The line that 0.1.0 documented for an alias, still in many a ~/.bashrc.
-      rc = File.join(@bin, "bashrc")
-      File.write(rc, "#{script}source #{completion}\n#{capture}complete -o filenames -F _rich_ri ri\n")
-      return [name, "--noprofile", "--rcfile", rc, "-i"]
+      script += "source #{completion}\n#{capture}complete -o filenames -F _rich_ri ri\n"
+      File.write(File.join(@bin, "bashrc"), script)
+      # bash reads the bashrc of the system before the file it is given, and
+      # some systems load bash-completion there. It reads none, and is then
+      # told to read this one.
+      environment["PS1"] = "RICH_START> "
+      return [name, "--noprofile", "--norc", "-i"]
     end
 
     script += "autoload -Uz compinit\ncompinit -D -u\nbindkey '^I' complete-word\nsource #{completion}\n"

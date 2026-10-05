@@ -11,7 +11,7 @@ class BashCompletionTest < Minitest::Test
   # and "=" outside quotes, hands over the pieces in COMP_WORDS and names, as
   # the second argument, the text it is going to replace.
   ANSWER = <<~'BASH'
-    source "$1"
+    [[ -n $1 ]] && source "$1"
     source "$2/completions/rich-ri.bash"
     asked=()
     compopt() { asked+=("$*"); }
@@ -82,12 +82,45 @@ class BashCompletionTest < Minitest::Test
                  bash_answer("rich-ri \"Inkwell#[", "\"Inkwell#[", typed: "Inkwell#[").first
   end
 
+  def test_bash_completes_without_bash_completion
+    # What readline replaces: after the "=" it breaks at, inside the open quote.
+    typed = { "=" => "", "'Inkwell#<=" => "Inkwell#<=" }
+
+    { ["rich-ri Inkwell#fi", "Inkwell#fi"] => ["Inkwell#fill", "Inkwell#filled\\?"],
+      ["rich-ri Inkwell#name=", "Inkwell#name", "="] => [""],
+      ["rich-ri 'Inkwell#<=", "'Inkwell#<="] => ["Inkwell#<=", "Inkwell#<=>"],
+      ["rich-ri #{TestSupport::STORE}:G", TestSupport::STORE, ":", "G"] => ["GUIDE.rdoc"],
+      ["rich-ri --color=a", "--color", "=", "a"] => %w[always auto],
+      ["rich-ri --style=met", "--style", "=", "met"] => ["method="],
+      ["rich-ri -a  Inkwell#[]=", "-a", "Inkwell#[]", "="] => [""] }.each do |(line, *pieces), replies|
+      replaced = typed.fetch(pieces.last, pieces.last)
+
+      assert_equal replies, bash_answer(line, *pieces, typed: replaced, library: nil).first, line
+    end
+  end
+
+  def test_bash_without_bash_completion_reads_the_word_under_the_cursor
+    line = "rich-ri Inkwell#fi --all"
+    replies, = bash_answer(line, "Inkwell#fi", "--all", typed: "Inkwell#fi", point: 18, cword: 1, library: nil)
+
+    assert_equal ["Inkwell#fill", "Inkwell#filled\\?"], replies
+    replies, = bash_answer("rich-ri --color=always", "--color", "=", "always", typed: "a", point: 17, library: nil)
+
+    assert_equal %w[always auto], replies
+    replies, asked = bash_answer("rich-ri Inkwell > pa", "Inkwell", ">", "pa", library: nil)
+
+    assert_empty replies
+    assert_equal ["-o default"], asked
+  end
+
   private
 
   # The replies and the compopt calls for a line whose pieces are the ones bash
   # would break it into, the last being completed unless cword says otherwise.
-  def bash_answer(line, *pieces, typed: pieces.last, **at)
-    lines = shell("bash", ANSWER, bash_completion, TestSupport::ROOT, at.fetch(:type, 9).to_s, line,
+  # The library is bash-completion, or nil to do without.
+  def bash_answer(line, *pieces, typed: pieces.last, library: bash_completion, **at)
+    require_bash
+    lines = shell("bash", ANSWER, library.to_s, TestSupport::ROOT, at.fetch(:type, 9).to_s, line,
                   at.fetch(:point, line.length).to_s, at.fetch(:cword, pieces.length).to_s, typed, "rich-ri", *pieces)
     replies, asked = lines.slice_after("--").to_a
     [replies[0...-1].map { |reply| reply[1..-2] }, asked.to_a]
@@ -194,6 +227,14 @@ class ShellInsertionTest < Minitest::Test
     check_names("bash")
   end
 
+  def test_bash_inserts_without_bash_completion
+    check_names("bash", library: nil)
+
+    assert_equal ["--theme=dark"], inserted_arguments("bash", "rich-ri --theme=da", library: nil), @terminal_output
+    assert_equal ["--doc-dir", "#{@bin}/docs spaced/"],
+                 inserted_arguments("bash", "rich-ri --doc-dir ~/doc", library: nil), @terminal_output
+  end
+
   def test_zsh_inserts_names_that_no_shell_takes_unquoted
     check_names("zsh")
   end
@@ -229,16 +270,16 @@ class ShellInsertionTest < Minitest::Test
   # Operators end in characters at which a shell breaks words or that it reads
   # as its own; a class can have the name of a directory, and a gem be given in
   # two steps, before and after its colon.
-  def check_names(name)
+  def check_names(name, **)
     { "rich-ri Inkwell#name=" => "Inkwell#name=", "rich-ri 'Inkwell#name=" => "Inkwell#name=",
       "rich-ri Inkwell#=~" => "Inkwell#=~", "rich-ri 'Inkwell#<=>" => "Inkwell#<=>",
       "rich-ri Inkwell#fil" => "Inkwell#fill", "rich-ri RichRIExam" => "RichRIExample",
       "rich-ri #{TestSupport::STORE[0..-2]}\tG" => "#{TestSupport::STORE}:GUIDE.rdoc",
       "rich-ri NoSuchExam" => "NoSuchExam" }.each do |line, argument|
-      assert_equal [argument], inserted_arguments(name, line), "#{line.inspect}\n#{@terminal_output}"
+      assert_equal [argument], inserted_arguments(name, line, **), "#{line.inspect}\n#{@terminal_output}"
     end
     environment = TestSupport.gem_environment.merge("RI" => "--no-system --no-site --no-home")
-    result = inserted_arguments(name, "rich-ri inkwell-n\tB", env: environment)
+    result = inserted_arguments(name, "rich-ri inkwell-n\tB", env: environment, **)
 
     assert_equal ["inkwell-native:BUILDING.rdoc"], result, @terminal_output
   end

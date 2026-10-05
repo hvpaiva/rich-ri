@@ -1,13 +1,22 @@
-# bash completion for rich-ri; requires bash-completion 2.x.
+# bash completion for rich-ri
+#
+# bash-completion is used when it is loaded and is not required.
+#
 # shellcheck shell=bash
 
 _rich_ri() {
-    # _init_completion assigns prev through Bash's dynamic scope.
+    # prev is assigned by the initializers of bash-completion; it stays local.
     # shellcheck disable=SC2034
     local cur prev words cword value _description directive="" typed=${2-}
     local -a names=()
     COMPREPLY=()
-    _init_completion -n ':=' || return
+    if declare -F _comp_initialize >/dev/null 2>&1; then
+        _comp_initialize -n ':=' -- "$@" || return
+    elif declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion -n ':=' || return
+    else
+        __rich_ri_words || return
+    fi
     while IFS=$'\t' read -r value _description; do
         if [[ $value == :* ]]; then
             directive=${value#:}
@@ -70,6 +79,34 @@ __rich_ri_dequote() {
             *) REPLY+=$char ;;
         esac
     done
+}
+
+# Without bash-completion: bash breaks a word at each ":" and "=", so the
+# pieces that no blank separates on the line are put together again in words,
+# with cword for the one under the cursor and cur for it up to the cursor.
+__rich_ri_words() {
+    # After a redirection the word is the name of a file.
+    if [[ ${COMP_WORDS[COMP_CWORD - 1]-} == *[\<\>]* ]]; then
+        compopt -o default 2>/dev/null
+        return 1
+    fi
+    local line=$COMP_LINE rest piece last="" i past
+    words=() cword=0 cur=""
+    for i in "${!COMP_WORDS[@]}"; do
+        piece=${COMP_WORDS[i]}
+        rest=${line#"${line%%[![:blank:]]*}"}
+        if (( i > 0 )) && [[ $rest == "$line" && ($piece != *[!:=]* || $last != *[!:=]*) ]]; then
+            words[${#words[@]} - 1]+=$piece
+        else
+            words+=("$piece")
+        fi
+        line=${rest#"$piece"} last=$piece
+        (( i == COMP_CWORD )) || continue
+        cword=$(( ${#words[@]} - 1 )) cur=${words[cword]}
+        past=$(( ${#COMP_LINE} - ${#line} - COMP_POINT ))
+        (( past > 0 && past <= ${#cur} )) && cur=${cur:0:${#cur} - past}
+    done
+    return 0
 }
 
 complete -F _rich_ri rich-ri
