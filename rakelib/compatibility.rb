@@ -7,8 +7,8 @@ require "fileutils"
 module Compatibility
   ROOT = File.expand_path("..", __dir__)
   HOME = File.join(ROOT, "tmp/compatibility")
-  MAINTENANCE = %w[benchmark changelog commit_policy compatibility project setup shell_runner test_environment
-                   tools].freeze
+  MAINTENANCE = %w[benchmark changelog changelog_command commit_policy compatibility project setup shell_runner
+                   test_environment tools].freeze
 
   class Error < StandardError; end
 
