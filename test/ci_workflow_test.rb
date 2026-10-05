@@ -39,6 +39,10 @@ class CIWorkflowTest < Minitest::Test
     assert triggers.key?("workflow_dispatch")
   end
 
+  def test_pull_request_title_body_and_label_changes_rerun_the_commit_checks
+    assert_empty %w[opened edited synchronize reopened labeled unlabeled] - triggers.dig("pull_request", "types")
+  end
+
   def test_pull_requests_run_the_scripts_behind_the_local_commit_and_changelog_checks
     commands = ci.dig("jobs", "commits", "steps").filter_map { |step| step["run"] }
     local = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
@@ -65,6 +69,25 @@ class CIWorkflowTest < Minitest::Test
     compatibility = ci.dig("jobs", "compatibility", "steps").filter_map { |step| step.dig("with", "ruby-version") }
 
     assert_equal [oldest], compatibility
+  end
+
+  def test_workflows_only_read_the_repository_unless_a_release_job_asks_for_more
+    [ci, release].each { |workflow| assert_equal({ "contents" => "read" }, workflow.fetch("permissions")) }
+    writes = ci.fetch("jobs").select { |_name, job| job.fetch("permissions", {}).value?("write") }
+
+    assert_empty writes.keys
+  end
+
+  def test_a_second_release_run_for_the_same_ref_never_cancels_a_publication
+    assert_same false, release.dig("concurrency", "cancel-in-progress")
+  end
+
+  def test_a_manual_release_run_is_a_rehearsal_unless_it_starts_from_a_tag_without_dry_run
+    decision = release.dig("jobs", "verify", "steps").find { |step| step["id"] == "decision" }.dig("env", "PUBLISH")
+
+    assert_same true, release_triggers.dig("workflow_dispatch", "inputs", "dry_run", "default")
+    assert_includes decision, "github.ref_type == 'tag'"
+    assert_includes decision, "!inputs.dry_run"
   end
 
   def test_only_a_run_that_publishes_receives_an_identity_token
@@ -110,4 +133,6 @@ class CIWorkflowTest < Minitest::Test
 
   # YAML 1.1 reads the bare key "on" as true.
   def triggers = ci["on"] || ci[true]
+
+  def release_triggers = release["on"] || release[true]
 end
