@@ -115,12 +115,22 @@ class CIWorkflowTest < Minitest::Test
     assert_same false, release.dig("concurrency", "cancel-in-progress")
   end
 
-  def test_a_manual_release_run_is_a_rehearsal_unless_it_starts_from_a_tag_without_dry_run
-    decision = release.dig("jobs", "verify", "steps").find { |step| step["id"] == "decision" }.dig("env", "PUBLISH")
-
+  def test_a_manual_release_run_is_a_rehearsal_by_default
     assert_same true, triggers(release).dig("workflow_dispatch", "inputs", "dry_run", "default")
-    assert_includes decision, "github.ref_type == 'tag'"
-    assert_includes decision, "!inputs.dry_run"
+  end
+
+  def test_only_a_tag_run_that_is_not_a_rehearsal_publishes
+    decision = release.dig("jobs", "verify", "steps").find { |step| step["id"] == "decision" }.dig("env", "PUBLISH")
+    # A push carries no inputs; a manual run says whether it is a dry run.
+    runs = [["push", "tag", nil], ["push", "branch", nil]] +
+           %w[tag branch].product([true, false]).map { |ref_type, dry_run| ["workflow_dispatch", ref_type, dry_run] }
+    published = runs.select do |event, ref_type, dry_run|
+      inputs = dry_run.nil? ? {} : { "dry_run" => dry_run }
+      context = { "github" => { "event_name" => event, "ref_type" => ref_type }, "inputs" => inputs }
+      WorkflowExpression.render(decision, context) == "true"
+    end
+
+    assert_equal [["push", "tag", nil], ["workflow_dispatch", "tag", false]], published
   end
 
   def test_only_a_run_that_publishes_receives_an_identity_token
