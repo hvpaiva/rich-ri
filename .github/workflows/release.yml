@@ -81,7 +81,11 @@ jobs:
           cd pkg
           sha256sum --check SHA256SUMS
           test "$(cut -d ' ' -f 1 SHA256SUMS)" = "$RELEASE_SHA256"
+      # An attestation is public and permanent, and names only the repository and workflow.
+      # A rehearsal therefore stops after checking the transferred artifact: a gem built from
+      # an unreleased commit must not verify as a build of this project.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        if: needs.verify.outputs.publish == 'true'
         with:
           subject-path: pkg/*.gem
           create-storage-record: false

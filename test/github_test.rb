@@ -160,6 +160,18 @@ class GitHubTest < Minitest::Test
     assert_equal [["macos-latest", "4.0"], ["ubuntu-latest", "3.4"], ["ubuntu-latest", "4.0"]], platforms.sort
   end
 
+  def test_a_rehearsal_checks_the_artifact_but_only_a_publication_attests_it
+    jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/release.yml")).fetch("jobs")
+    steps = jobs.fetch("attest").fetch("steps")
+    attestation = steps.find { |step| step["uses"].to_s.start_with?("actions/attest@") }
+
+    assert_equal "needs.verify.outputs.publish == 'true'", attestation.fetch("if")
+    assert_equal([attestation], steps.select { |step| step.key?("if") })
+    refute jobs.fetch("attest").key?("if")
+    assert_equal "needs.verify.outputs.publish == 'true'", jobs.fetch("publish").fetch("if")
+    assert_equal %w[verify attest], jobs.fetch("publish").fetch("needs")
+  end
+
   def test_reusable_ci_and_release_explicitly_require_the_full_suite
     workflow = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml"))
     triggers = workflow["on"] || workflow[true]
