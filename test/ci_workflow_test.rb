@@ -53,6 +53,13 @@ class CIWorkflowTest < Minitest::Test
     end
   end
 
+  def test_the_quality_job_and_the_compatibility_job_run_the_local_commands
+    commands = ci.fetch("jobs").transform_values { |job| job.fetch("steps").filter_map { |step| step["run"] } }
+
+    assert_includes commands.fetch("quality"), "bundle exec rake check"
+    assert_includes commands.fetch("compatibility"), "ruby bin/test-compatibility"
+  end
+
   def test_the_changelog_waiver_in_ci_is_a_label_repository_setup_creates
     step = ci.dig("jobs", "commits", "steps").find { |entry| entry["run"].to_s.include?("lint-changelog") }
     label = step.dig("env", "SKIP_CHANGELOG")[/labels\.\*\.name, '([^']+)'/, 1]

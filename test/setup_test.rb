@@ -7,7 +7,8 @@ require_relative "../rakelib/tools"
 class SetupTest < Minitest::Test
   include ProgramSupport
 
-  NEXT_STEPS = "Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n"
+  NEXT_STEPS = "Run bundle exec rake for tests and Ruby lint, bundle exec rake check for the CI quality checks\n" \
+               "and bundle exec rake test:compatibility for the oldest supported dependencies.\n"
   NO_SHELLS = "setup: shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, or a running " \
               "Docker or Podman engine. Start the engine and rerun bundle exec rake test:shells.\n"
 

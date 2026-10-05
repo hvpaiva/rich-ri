@@ -23,5 +23,6 @@ ruby -r ./rakelib/shell_tests -e '
     abort "setup: #{e.message}"
   end
 ' || status=1
-printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'
+printf 'Run bundle exec rake for tests and Ruby lint, bundle exec rake check for the CI quality checks\n'
+printf 'and bundle exec rake test:compatibility for the oldest supported dependencies.\n'
 exit "$status"
