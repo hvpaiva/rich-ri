@@ -79,7 +79,8 @@ namespace :lint do
     sh RbConfig.ruby, File.join(__dir__, "bin/lint-commits"), args[:range] || (base ? "#{base}..HEAD" : "HEAD")
   end
 
-  desc "Check CHANGELOG.md and the entry for user-visible changes since base (origin/main); SKIP_CHANGELOG=1 waives it"
+  desc "Check CHANGELOG.md, and an Unreleased entry for user-visible changes since base (origin/main); " \
+       "SKIP_CHANGELOG=1 or true waives the entry"
   task :changelog, [:base] do |_task, args|
     sh RbConfig.ruby, File.join(__dir__, "bin/lint-changelog"), *(args[:base] || default_base.call)
   end

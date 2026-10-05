@@ -7,9 +7,12 @@ require_relative "../rakelib/changelog_lint"
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby bin/lint-changelog [BASE]"
   opts.separator ""
-  opts.separator "Checks the structure of CHANGELOG.md in the current repository. With BASE, a revision"
-  opts.separator "such as origin/main, a branch that changes lib/, exe/, completions/, man/ or"
-  opts.separator 'rich-ri.gemspec also needs an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives it.'
+  opts.separator "Checks the structure of CHANGELOG.md in the current directory."
+  opts.separator ""
+  opts.separator "BASE is a revision such as origin/main. When it is given, a branch that changes"
+  opts.separator "lib/, exe/, completions/, man/ or rich-ri.gemspec needs a new entry under"
+  opts.separator '"## [Unreleased]". SKIP_CHANGELOG=1 or SKIP_CHANGELOG=true waives that entry;'
+  opts.separator "the structure is still checked."
 end
 
 begin

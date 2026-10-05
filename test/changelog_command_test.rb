@@ -13,10 +13,16 @@ class ChangelogCommandTest < Minitest::Test
   HELP = <<~TEXT
     Usage: ruby bin/lint-changelog [BASE]
 
-    Checks the structure of CHANGELOG.md in the current repository. With BASE, a revision
-    such as origin/main, a branch that changes lib/, exe/, completions/, man/ or
-    rich-ri.gemspec also needs an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives it.
+    Checks the structure of CHANGELOG.md in the current directory.
+
+    BASE is a revision such as origin/main. When it is given, a branch that changes
+    lib/, exe/, completions/, man/ or rich-ri.gemspec needs a new entry under
+    "## [Unreleased]". SKIP_CHANGELOG=1 or SKIP_CHANGELOG=true waives that entry;
+    the structure is still checked.
   TEXT
+  ENTRY_REQUIRED = "lint-changelog: CHANGELOG.md: changes to lib/, exe/, completions/, man/ or rich-ri.gemspec " \
+                   'need a new entry under "## [Unreleased]"; if users cannot see the change, set ' \
+                   "SKIP_CHANGELOG=1 and ask a maintainer for the skip-changelog label on the pull request\n"
 
   def test_checks_the_repository_it_runs_in
     repository do |root|
@@ -25,7 +31,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root, base)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: CHANGELOG.md: #{Changelog::Lint::ENTRY_REQUIRED}\n", err
+      assert_equal ENTRY_REQUIRED, err
     end
   end
 
@@ -109,8 +115,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = rake("lint:changelog", env: UNWAIVED, chdir: root)
 
       assert_equal 1, status.exitstatus
-      assert_equal ["lint-changelog: CHANGELOG.md: #{Changelog::Lint::ENTRY_REQUIRED}\n"],
-                   err.lines.grep(/\Alint-changelog: /)
+      assert_equal [ENTRY_REQUIRED], err.lines.grep(/\Alint-changelog: /)
     end
   end
 
@@ -121,6 +126,14 @@ class ChangelogCommandTest < Minitest::Test
 
       assert_predicate status, :success?, err
     end
+  end
+
+  def test_the_rake_task_names_both_waiver_values
+    description = "Check CHANGELOG.md, and an Unreleased entry for user-visible changes since base (origin/main); " \
+                  "SKIP_CHANGELOG=1 or true waives the entry"
+    out, err, status = rake("--describe", "lint:changelog")
+
+    assert_equal [0, "", "rake lint:changelog[base]\n    #{description}\n\n"], [status.exitstatus, err, out]
   end
 
   def test_the_documentation_check_includes_the_changelog_check
