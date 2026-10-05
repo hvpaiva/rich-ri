@@ -25,6 +25,7 @@ module RichRI
     end
 
     STANDARD_SOURCES = Configuration::SOURCES.map { |source| :"use_#{source}" }.freeze
+    LAYOUT_CONTROLS = /[\t\r\n]/
 
     def self.default_options
       columns = $stdout.tty? ? $stdout.winsize.last : 80
@@ -171,11 +172,12 @@ module RichRI
       Server.new(port: @server, doc_dirs: @stores.select { |store| store.type == :extra }.map(&:path)).start
     end
 
-    # Pages come from the loaded stores, so discovery follows this Ruby and --doc-dir. A shell
-    # inserts a candidate as it is, so one holding a terminal control is not offered.
+    # Pages come from the loaded stores, so discovery follows this Ruby and --doc-dir. A candidate is
+    # inserted and listed as it is, so one holding a terminal control, a tab or a line break is not offered.
     def complete(name)
       candidates = PageSources::NAME.match?(name) ? [] : super + selectors(name)
-      (candidates + page_sources.complete(name)).uniq.select { |candidate| RichRI.printable?(candidate) }.sort
+      found = (candidates + page_sources.complete(name)).uniq
+      found.select { |candidate| RichRI.printable?(candidate) && !candidate.match?(LAYOUT_CONTROLS) }.sort
     end
 
     def render_method_arguments(out, arglists)

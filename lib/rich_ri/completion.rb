@@ -40,7 +40,7 @@ module RichRI
         found = answer(words)
         # A line break or a tab inside a candidate would pass for the protocol's own.
         shown = found.candidates.reject do |pair|
-          pair.any? { |text| text.match?(/[\t\r\n]/) || !RichRI.printable?(text) }
+          pair.any? { |text| text.match?(Driver::LAYOUT_CONTROLS) || !RichRI.printable?(text) }
         end
         [*shown.map { |value, description| "#{value}\t#{description}" }, ":#{found.action}"]
       end

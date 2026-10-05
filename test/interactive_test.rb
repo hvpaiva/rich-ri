@@ -118,7 +118,8 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_tab_offers_no_name_that_holds_a_terminal_control
-    names = { modules: ["RichRIUnsafe\e]52;c;AAAA\a", "RichRIUnsafe\e[31m"], methods: ["ma\e[31mx"],
+    names = { modules: ["RichRIUnsafe\e]52;c;AAAA\a", "RichRIUnsafe\e[31m", "RichRIUnsafe\tTab", "RichRIUnsafe\nLine"],
+              methods: ["ma\e[31mx"],
               pages: ["GUIDE\u202e.rdoc"] }
     with_cached_names(**names) do |sources|
       with_session do |environment|
