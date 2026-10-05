@@ -127,8 +127,8 @@ module RichRI
       @driver_options[:names] = names
     end
 
-    def toggle(option, name, chosen)
-      chosen ? @actions.choose(option, name) : @actions.decline(name)
+    def toggle(option, chosen)
+      chosen ? @actions.choose(option) : @actions.decline(option)
     end
 
     def presentation_options
@@ -157,18 +157,18 @@ module RichRI
       @parser.separator "Lookup:"
       @parser.on("-i", "--[no-]interactive",
                  "Repeated lookup with Tab completion; takes no names (--no-interactive needs one).") do |value|
-        toggle("--interactive", :interactive, value)
+        toggle("--interactive", value)
       end
       @parser.on("-a", "--[no-]all", "Include all methods in a class page.") do |value|
         @driver_options[:show_all] = value
       end
-      @parser.on("-l", "--[no-]list", "List known classes and modules.") { |value| toggle("--list", :list, value) }
+      @parser.on("-l", "--[no-]list", "List known classes and modules.") { |value| toggle("--list", value) }
       @parser.on("--[no-]expand-refs", "Expand RDoc references at the end of a page.") do |value|
         @driver_options[:expand_refs] = value
       end
       ports = "port #{PORTS.min} to #{PORTS.max}, default #{DEFAULT_PORT}"
       @parser.on("--server[=PORT]", "Serve RDoc in a browser (#{ports}; requires webrick).") do |port|
-        @actions.choose("--server", :server, port ? integer("--server", port, PORTS) : DEFAULT_PORT)
+        @actions.choose("--server", port ? integer("--server", port, PORTS) : DEFAULT_PORT)
       end
     end
 
@@ -187,7 +187,7 @@ module RichRI
         end
       end
       @parser.on("--[no-]list-doc-dirs", "List the directories searched for RI documentation.") do |value|
-        toggle("--list-doc-dirs", :list_doc_dirs, value)
+        toggle("--list-doc-dirs", value)
       end
     end
 
@@ -195,23 +195,23 @@ module RichRI
       @parser.separator ""
       @parser.separator "Tools:"
       @parser.on("--completion=SHELL", "Print a completion script for bash, zsh or fish.") do |shell|
-        @actions.choose("--completion", :completion, choice("--completion", shell, Completion::SHELLS))
+        @actions.choose("--completion", choice("--completion", shell, Completion::SHELLS))
       end
-      @parser.on("--man", "Open the bundled manual with man.") { @actions.choose("--man", :man) }
-      @parser.on("--man-path", "Print the path to the bundled manual.") { @actions.choose("--man-path", :man_path) }
+      @parser.on("--man", "Open the bundled manual with man.") { @actions.choose("--man") }
+      @parser.on("--man-path", "Print the path to the bundled manual.") { @actions.choose("--man-path") }
       @parser.on("--install-man[=DIR]", "Install or update the manual in a user man1 directory.") do |directory|
-        @actions.choose("--install-man", :install_man, directory)
+        @actions.choose("--install-man", directory)
       end
       @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") do |path|
         raise UsageError, '--dump must be a readable regular file, not ""' if path.empty?
 
-        @actions.choose("--dump", :dump, path)
+        @actions.choose("--dump", path)
       end
       @parser.on("--[no-]profile", "Run Ruby's profiler (requires the profile gem).") do |value|
         @driver_options[:profile] = value
       end
-      @parser.on("-h", "--help", "Show this help.") { @actions.choose("--help", :help) }
-      @parser.on("-v", "--version", "Show the rich-ri version.") { @actions.choose("--version", :version) }
+      @parser.on("-h", "--help", "Show this help.") { @actions.choose("--help") }
+      @parser.on("-v", "--version", "Show the rich-ri version.") { @actions.choose("--version") }
     end
   end
 end

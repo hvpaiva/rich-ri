@@ -262,6 +262,25 @@ class ManualDisplayTest < Minitest::Test
     assert_equal 2, source.scan("from 20 to 10000").length
   end
 
+  def test_page_lists_the_actions_and_pagers_the_code_knows
+    source = ::Manual.render
+    actions = source[/^No two of (.*) can be combined\.$/, 1]
+    pagers = source[/When none is named, (.*)\n/, 1]
+
+    assert_equal (RichRI::Actions::OPTIONS.keys - %w[--help --version]).map { |option| ::Manual.escape(option) },
+                 actions.split(/, | and /)
+    assert_equal RichRI::Pager::USUAL, pagers.split(/, | and /)
+  end
+
+  def test_help_and_page_give_the_exit_statuses_of_the_errors
+    statuses = [0, RichRI::Error.new.exit_status, RichRI::UsageError.new.exit_status, 130]
+    help = RichRI::Options.new.parser.to_s[/^Exit status: .*$/]
+    page = ::Manual.render[/^\.SH EXIT STATUS\n.*?^\.SH /m]
+
+    assert_equal statuses, help.scan(/\d+/).map(&:to_i)
+    assert_equal statuses, page.scan(/^\.B (\d+)$/).flatten.map(&:to_i)
+  end
+
   # How groff without a distribution's adjustments typesets these characters.
   TYPOGRAPHY = { "-" => "u2010", "'" => "u2019", "`" => "u2018", "^" => "u02C6", "~" => "u02DC" }.freeze
   LITERALS = ["rich-ri 'Array.[]'", "alias ri='rich-ri'", 'data=${XDG_DATA_HOME:-"$HOME/.local/share"}',

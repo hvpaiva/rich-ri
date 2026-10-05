@@ -5,6 +5,11 @@ module RichRI
   # --version win and any other two conflict; a later layer (RI, file, command line) replaces it.
   class Actions
     FIRST = %i[help version].freeze
+    # Every option that asks for an action, so the manual can list them.
+    OPTIONS = { "--help" => :help, "--version" => :version, "--config-path" => :config_path,
+                "--show-config" => :show_config, "--completion" => :completion, "--man" => :man,
+                "--man-path" => :man_path, "--install-man" => :install_man, "--dump" => :dump, "--list" => :list,
+                "--list-doc-dirs" => :list_doc_dirs, "--server" => :server, "--interactive" => :interactive }.freeze
 
     attr_reader :current
 
@@ -14,12 +19,14 @@ module RichRI
       @declined = []
     end
 
-    def choose(option, name, *arguments)
+    def choose(option, *arguments)
+      name = OPTIONS.fetch(option)
       @declined.delete(name)
       @chosen[name] = [option, [name, *arguments]]
     end
 
-    def decline(name)
+    def decline(option)
+      name = OPTIONS.fetch(option)
       @declined |= [name]
       @chosen.delete(name)
       @current = nil if @current&.first == name

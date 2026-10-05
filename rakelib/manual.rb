@@ -60,9 +60,8 @@ module Manual
       .PP
       A command does one thing. --help answers before anything else and
       --version before the rest, so either can be added to any command line.
-      No two of --config-path, --show-config, --completion, --man, --man-path,
-      --install-man, --dump, --list, --list-doc-dirs, --server and --interactive
-      can be combined. --interactive takes no names; --no-interactive requires one.
+      No two of #{listing(exclusive_actions)} can be combined.
+      --interactive takes no names; --no-interactive requires one.
       An action given on the command line replaces one set in RI.
       #{options}
       .SH EXAMPLES
@@ -146,6 +145,14 @@ module Manual
     ROFF
   end
 
+  def self.exclusive_actions
+    RichRI::Actions::OPTIONS.reject { |_option, name| RichRI::Actions::FIRST.include?(name) }.keys
+  end
+
+  def self.listing(words)
+    "#{words[0...-1].join(', ')} and #{words.last}"
+  end
+
   def self.release_date
     File.read(CHANGELOG)[RELEASE, 1] or
       raise Error, "#{CHANGELOG} has no \"## [#{RichRI::VERSION}] - YYYY-MM-DD\" heading"
@@ -223,7 +230,7 @@ module Manual
       the command line it pages even when the file says false.
       PAGER is used when none of them names a pager.
       A pager named in any of these ways has to start and to end without failure,
-      or the lookup fails with status 1. When none is named, pager, less and more
+      or the lookup fails with status 1. When none is named, #{listing(RichRI::Pager::USUAL)}
       are tried, and the page is written to the terminal if none exists.
       --no-pager disables paging; redirected output is not paged.
       .TP

@@ -26,10 +26,10 @@ module RichRI
         @configuration_file = :none
       end
       @parser.on("--config-path", "Print the selected configuration path; blank when disabled.") do
-        @actions.choose("--config-path", :config_path)
+        @actions.choose("--config-path")
       end
       @parser.on("--show-config", "Print effective preferences as YAML without opening documentation.") do
-        @actions.choose("--show-config", :show_config)
+        @actions.choose("--show-config")
       end
       theme_options
     end
