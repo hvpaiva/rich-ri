@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 module RichRI
-  # The protocol is tab-separated value/description pairs. Only source options
-  # reach the driver: pressing Tab can never start a pager, server or cache dump.
+  # The protocol is tab-separated value/description pairs. The words are read
+  # by the parser of the command itself, so that what is offered is what the
+  # command accepts, but only the choice of sources reaches the driver:
+  # pressing Tab can never start a pager, server or cache dump.
   class Completion
     SHELLS = %w[bash zsh fish].freeze
-    SOURCES = /\A--(?:no-)?(?:#{Regexp.union(Configuration::SOURCES)}|standard-docs)\z/
-    VALUES = %w[-w --width --server --dump --bat-theme --shell-theme --pager-command].freeze
 
     def write(words, io)
       # Bound discovery even when a documentation store is unusually large.
@@ -26,8 +26,8 @@ module RichRI
     def candidates(words)
       return [] if words[0...-1].include?("--install-man")
 
-      current, previous, prefix = context(words)
-      values = option_values(previous, current)
+      current, option, prefix = context(words)
+      values = option_values(option, current)
       values ||= if current.start_with?("-") && !words[0...-1].include?("--")
                    Options.new.entries
                  else
@@ -39,8 +39,9 @@ module RichRI
 
     private
 
-    def option_values(previous, current)
-      case previous
+    def option_values(option, current)
+      case option
+      when nil then nil
       when "--color" then Configuration::COLOR_MODES.map { |v| [v, "Color mode"] }
       when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
       when "--completion" then SHELLS.map { |v| [v, "Shell completion script"] }
@@ -49,7 +50,7 @@ module RichRI
       when "--style" then styles(current)
       when "--config" then paths(current)
       when "--doc-dir", "-d", "--install-man" then directories(current)
-      when *VALUES then []
+      else []
       end
     end
 
@@ -65,18 +66,26 @@ module RichRI
       word
     end
 
+    # The word being typed, the option it is the value of and what precedes
+    # that value in the word.
     def context(words)
       current = words.last || ""
-      previous = words[-2]
-      prefix = ""
-      if current.start_with?("--") && current.include?("=")
-        previous, current = current.split("=", 2)
-        prefix = "#{previous}="
-      elsif previous == "--color"
-        # Optional values require '='; a bare switch does not consume a name.
-        previous = nil
-      end
-      [current, previous, prefix]
+      return [current, awaited_option(words[0...-1]), ""] unless current.start_with?("--") && current.include?("=")
+
+      option, value = current.split("=", 2)
+      [value, option, "#{option}="]
+    end
+
+    # The option whose value is the next word, as the parser reads the words
+    # so far. It is none after "--", after an option whose value is optional
+    # and comes only with "=", or when the last word was itself a value.
+    def awaited_option(words)
+      Options.new.parser.permute(words)
+      nil
+    rescue OptionParser::MissingArgument => e
+      e.args.first
+    rescue StandardError
+      nil
     end
 
     def styles(prefix)
@@ -101,38 +110,13 @@ module RichRI
       end
     end
 
+    # A command line the reader refuses has no names to offer: it is read
+    # here as the lookup would read it, with RI and the configuration under it
+    # and the name being typed at its end, which --interactive does not take.
     def names(words, prefix)
-      defaults = Shellwords.split(RichRI.utf8(ENV.fetch("RI", "")))
-      # The name being typed is part of the command line: -i takes none.
-      command = Options.new.command_line([*words, prefix])
-      configured = Configuration.new(command.configuration_file).arguments
-      args = [defaults, configured, words].flat_map { |layer| source_arguments(layer) }
-      options = Options.new.parse(args, defaults: "", configuration: false).driver_options
-      Driver.new(options.merge(use_stdout: true, interactive: false)).complete(prefix)
-    end
-
-    def source_arguments(words)
-      args = []
-      flags = Options.new.entries.map { |flag, _description| flag.delete_suffix("=") }
-      index = 0
-      while index < words.length
-        word = words[index]
-        break if word == "--"
-
-        raise OptionParser::InvalidOption, word if word.start_with?("--") && !flags.include?(word.split("=", 2).first)
-
-        if word.match?(SOURCES) || word.start_with?("--doc-dir=") || (word.start_with?("-d") && word.length > 2)
-          args << word
-        elsif %w[--doc-dir -d].include?(word)
-          args.concat(words[index, 2])
-          index += 1
-        elsif Configuration::VALUE_OPTIONS.include?(word) || word == "--config"
-          # An option value that resembles a source flag is still just data.
-          index += 1
-        end
-        index += 1
-      end
-      args
+      options = Options.new.parse([*words, prefix]).driver_options
+      sources = options.slice(*Driver::STANDARD_SOURCES, :extra_doc_dirs)
+      Driver.new(sources.merge(use_stdout: true)).complete(prefix)
     end
   end
 end

@@ -13,8 +13,6 @@ module RichRI
       "RICH_RI_THEME" => "theme", "RICH_RI_COLOR" => "color", "RICH_RI_COLOR_DEPTH" => "color_depth",
       "RICH_RI_WIDTH" => "width", "RICH_RI_BAT_THEME" => "bat_theme", "RICH_RI_SHELL_THEME" => "shell_theme"
     }.freeze
-    VALUE_OPTIONS = %w[-w --width -f --format -d --doc-dir --dump --completion --theme --color-depth
-                       --style --bat-theme --shell-theme --pager-command].freeze
     # Rules and padding are built one column at a time, so an unbounded width
     # is an unbounded allocation. No terminal comes near the upper limit.
     WIDTH = 20..10_000

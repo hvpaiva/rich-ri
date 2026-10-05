@@ -89,22 +89,26 @@ class CompletionTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_includes lookup, "Return transformed values."
-    environment = { "RI" => "#{defaults} --server --dump=/missing --profile" }
-    out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+    ["--server --profile", "--dump=/missing", "--man", "--list-doc-dirs"].each do |action|
+      out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: { "RI" => "#{defaults} #{action}" })
 
-    assert_predicate status, :success?, err
-    assert_empty err
-    assert_equal "RichRIExample#map\t\n", out
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_equal "RichRIExample#map\t\n", out, action
+    end
   end
 
   def test_explicit_sources_follow_ri_defaults
-    with_environment("RI" => "--no-standard-docs --no-gems") do
-      completion = RichRI::Completion.new
-      args = completion.send(:source_arguments, Shellwords.split(ENV.fetch("RI")) + ["--gems"])
-      options = RichRI::Options.new.parse(args, defaults: "").driver_options
+    environment = TestSupport.gem_environment.merge("RI" => "--no-standard-docs --no-gems")
+    out, err, status = cli("--complete", "inkwell-n", docs: false, env: environment)
 
-      assert options[:use_gems]
-      refute options[:use_system]
+    assert_predicate status, :success?, err
+    assert_empty out
+    out, err, status = cli("--complete", "--gems", "inkwell-n", docs: false, env: environment)
+
+    assert_predicate status, :success?, err
+    assert_equal "inkwell-native:\t\n", out
+    with_environment("RI" => "--no-standard-docs --no-gems") do
       assert_includes values("--doc-dir", TestSupport::STORE, "RichRIExample#ma"), "RichRIExample#map"
     end
   end
@@ -192,6 +196,46 @@ class CompletionTest < Minitest::Test
   end
 end
 
+# What is offered follows what the command itself would accept.
+class CommandLineCompletionTest < Minitest::Test
+  def values(*words)
+    RichRI::Completion.new.candidates(words).map(&:first)
+  end
+
+  def test_names_are_not_offered_for_a_command_line_the_lookup_refuses
+    sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
+    refused = [[["-x"], {}], [["--bogus"], {}], [["--width=abc"], {}], [["--width", "5"], {}], [["--theme=nope"], {}],
+               [["-ax"], {}], [[], { "RI" => "-x" }], [[], { "RI" => "--width=abc" }], [[], { "RI" => "--theme=nope" }],
+               [[], { "RI" => "--server --dump=/missing" }], [[], { "RICH_RI_WIDTH" => "abc" }]]
+    refused.each do |words, environment|
+      _out, err, status = cli(*sources, *words, "RichRIExample#map", docs: false, env: environment)
+
+      refute_predicate status, :success?, [words, environment].inspect
+      refute_empty err
+      out, err, status = cli("--complete", *sources, *words, "RichRIExample#ma", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_empty out, [words, environment].inspect
+      assert_empty err
+    end
+    assert_equal "RichRIExample#map\t\n", cli("--complete", *sources, "-a", "RichRIExample#ma", docs: false).first
+  end
+
+  def test_the_word_after_an_option_is_its_value_only_where_the_parser_takes_it
+    sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
+
+    assert_includes values("--server", "--doc"), "--doc-dir"
+    assert_includes values(*sources, "--server", "RichRIExample#ma"), "RichRIExample#map"
+    assert_includes values(*sources, "--server=8214", "RichRIExample#ma"), "RichRIExample#map"
+    assert_empty values("--server=")
+    assert_equal %w[dark light terminal], values("-a", "--theme", "")
+    assert_equal %w[markdown], values("-af", "mark")
+    assert_includes values(*sources, "--pager-command", "--theme", "RichRIExample#ma"), "RichRIExample#map"
+    assert_includes values(*sources, "--", "--theme", "RichRIExample#ma"), "RichRIExample#map"
+    assert_raises(RichRI::UsageError) { values(*sources, "--the", "da") }
+  end
+end
+
 class ConfigurationCompletionTest < Minitest::Test
   def values(*words)
     RichRI::Completion.new.candidates(words).map(&:first)
@@ -236,12 +280,13 @@ class ConfigurationCompletionTest < Minitest::Test
 
       assert_predicate status, :success?, err
       assert_includes lookup, "Return transformed values."
-      environment["RI"] = "--server --dump=/missing --profile"
-      out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment)
+      ["--server --profile", "--dump=/missing"].each do |action|
+        out, err, status = cli("--complete", "RichRIExample#ma", docs: false, env: environment.merge("RI" => action))
 
-      assert_predicate status, :success?, err
-      assert_empty err
-      assert_equal "RichRIExample#map\t\n", out
+        assert_predicate status, :success?, err
+        assert_empty err
+        assert_equal "RichRIExample#map\t\n", out
+      end
       refute_path_exists marker
     end
   end
