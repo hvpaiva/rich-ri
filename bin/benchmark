@@ -6,6 +6,7 @@ require "open3"
 require "optparse"
 require "tmpdir"
 require "rdoc/rdoc"
+require_relative "../rakelib/system_error"
 
 # Measure complete CLI invocations against a fixed, local documentation store.
 class BenchmarkCLI
@@ -70,13 +71,13 @@ class BenchmarkCLI
   rescue JSON::ParserError
     raise Error, "#{@baseline} is not a benchmark report"
   rescue SystemCallError => e
-    raise Error, "cannot read #{@baseline}: #{e.message.split(' @ ').first}"
+    raise Error, "cannot read #{@baseline}: #{SystemError.reason(e)}"
   end
 
   def save(json)
     File.write(@output, json)
   rescue SystemCallError => e
-    raise Error, "cannot write #{@output}: #{e.message.split(' @ ').first}"
+    raise Error, "cannot write #{@output}: #{SystemError.reason(e)}"
   end
 
   def measure_cases

@@ -3,6 +3,7 @@
 require "open3"
 require_relative "changelog"
 require_relative "ci"
+require_relative "system_error"
 
 module Changelog
   module Lint
@@ -57,7 +58,7 @@ module Changelog
     def self.read(root)
       File.read(File.join(root, Changelog::PATH))
     rescue SystemCallError => e
-      raise Error, "cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
+      raise Error, "cannot read #{Changelog::PATH} in #{root}: #{SystemError.reason(e)}"
     end
 
     private_class_method :user_visible?, :changed_paths, :fork_point_text, :git, :entry_added?, :read

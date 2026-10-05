@@ -11,6 +11,8 @@ class BenchmarkTest < Minitest::Test
     @calls = File.join(@tree, "calls.log")
     FileUtils.mkdir_p(File.join(@tree, "bin"))
     FileUtils.cp(File.join(TestSupport::ROOT, "bin/benchmark"), File.join(@tree, "bin"))
+    FileUtils.mkdir_p(File.join(@tree, "rakelib"))
+    FileUtils.cp(File.join(TestSupport::ROOT, "rakelib/system_error.rb"), File.join(@tree, "rakelib"))
     FileUtils.mkdir_p(File.join(@tree, "test/fixtures"))
     FileUtils.cp(File.join(TestSupport::ROOT, "test/fixtures/example.rb"), File.join(@tree, "test/fixtures"))
     rich_ri("File.write(#{@calls.dump}, \"\#{ARGV.join(' ')}\\n\", mode: 'a')")
