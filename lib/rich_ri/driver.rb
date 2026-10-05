@@ -76,7 +76,8 @@ module RichRI
           next if (store.cache[:pages] || []).empty?
 
           source = store.type == :gem ? store.source.sub(/-\d[^-]*\z/, "") : store.source
-          candidates << "#{source}:" if source.start_with?(name)
+          # RubyGems reports its directories as binary strings, which Reline refuses to offer.
+          candidates << "#{source}:".force_encoding(Encoding::UTF_8) if source.start_with?(name)
         end
       end
       candidates.uniq.sort

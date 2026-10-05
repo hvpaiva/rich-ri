@@ -33,4 +33,20 @@ class DriverTest < Minitest::Test
       assert_includes output, "Return transformed values."
     end
   end
+
+  def test_gem_page_sources_complete_as_utf8_whatever_the_encoding_of_the_gem_directory
+    Dir.mktmpdir("rich-ri-gems-") do |dir|
+      path = File.join(dir, "example-1.2.3", "ri")
+      FileUtils.mkdir_p(File.dirname(path))
+      FileUtils.cp_r(TestSupport::STORE, path)
+      options = RichRI::Options.new.parse(["--no-standard-docs", "--doc-dir", path], defaults: "")
+      instance = RichRI::Driver.new(options.driver_options)
+      store = instance.stores.first
+      store.type = :gem
+      store.path = store.path.b
+      source = instance.complete("").find { |candidate| candidate == "example:" }
+
+      assert_equal Encoding::UTF_8, source&.encoding
+    end
+  end
 end

@@ -6,6 +6,11 @@ User-visible changes are recorded here. This project follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Tab at the interactive prompt no longer ends the session when an installed gem
+  has documentation pages.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added
