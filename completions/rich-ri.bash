@@ -11,9 +11,8 @@
 #
 # shellcheck shell=bash
 
-# The function names and the words, cur and out variables are the ones of the
-# scripts cobra generates. ble.sh knows that shape: it runs the command without
-# blocking the line and shows the descriptions in its own menu.
+# Named and shaped like the scripts cobra generates, which ble.sh recognizes: it then runs
+# the command without blocking the line and shows the descriptions in its own menu.
 __start_rich_ri() {
     # prev is assigned by the initializers of bash-completion; it stays local.
     # shellcheck disable=SC2034
@@ -103,9 +102,8 @@ __rich_ri_handle_completion_types() {
         replies[i]=$reply
     done
 
-    # A list is asked for by the second Tab (63) or shown along with what is
-    # inserted (33 and 64). Only the first inserts nothing, so it can show the
-    # names whole; all of them can carry the descriptions.
+    # A second Tab (63) only lists, so it can show the names whole; a list shown along with an
+    # insertion (33 and 64) shows the replies. Both carry the descriptions.
     case ${COMP_TYPE-}:${#replies[@]} in
         *:[01]) COMPREPLY=("${replies[@]}") ;;
         63:*) __rich_ri_describe "${names[@]}" ;;
@@ -114,7 +112,6 @@ __rich_ri_handle_completion_types() {
     esac
 }
 
-# Replies with the given texts, each followed by its description in a column.
 __rich_ri_describe() {
     local text note line width=0 room
     for text in "$@"; do (( ${#text} > width )) && width=${#text}; done
@@ -132,9 +129,8 @@ __rich_ri_describe() {
     done
 }
 
-# Leaves in REPLY the text as the command would receive it, without quotes and
-# backslashes and with nothing in it evaluated, and in quote the quote that is
-# still open at its end.
+# Sets REPLY to the text as the command would receive it, evaluating nothing, and quote to
+# the quote still open at its end.
 __rich_ri_dequote() {
     local text=$1 char
     REPLY="" quote=""
@@ -153,9 +149,8 @@ __rich_ri_dequote() {
     done
 }
 
-# Without bash-completion: bash breaks a word at each ":" and "=", so the
-# pieces that no blank separates on the line are put together again in words,
-# with cword for the one under the cursor and cur for it up to the cursor.
+# Without bash-completion, bash breaks words at ":" and "="; pieces with no blank between them
+# are joined again in words, with cword and cur for the word under the cursor.
 __rich_ri_words() {
     # After a redirection the word is the name of a file.
     if [[ ${COMP_WORDS[COMP_CWORD - 1]-} == *[\<\>]* ]]; then
