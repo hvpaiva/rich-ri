@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: '0 7 * * 1'
   workflow_call:
+    inputs:
+      force_full:
+        description: Run the full suite regardless of changed files
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -17,8 +22,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - id: scope
+        env:
+          CI_FORCE_FULL: ${{ inputs.force_full || false }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          scope=$(ruby bin/ci scope)
+          echo "$scope" >> "$GITHUB_OUTPUT"
+          echo "$scope"
+
+  docs:
+    needs: changes
+    if: needs.changes.outputs.scope == 'docs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          bundler-cache: true
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          version: 2026.10.2
+          install_args: typos lychee
+      - run: bundle exec rake docs:check
+
   quality:
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -50,9 +95,12 @@ jobs:
           path: benchmark.json
 
   test:
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    env:
+      RICH_RI_REQUIRE_SHELLS: '1'
     strategy:
       fail-fast: false
       matrix:
@@ -76,6 +124,8 @@ jobs:
       - run: bundle exec rake test package:check
 
   audit:
+    needs: changes
+    if: needs.changes.outputs.scope == 'full' || needs.changes.outputs.scope == 'audit'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -88,9 +138,12 @@ jobs:
       - run: bundle exec rake audit
 
   fresh-dependencies:
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      RICH_RI_REQUIRE_SHELLS: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,7 +154,8 @@ jobs:
       - run: bundle exec rake test package:check
 
   compatibility:
-    if: github.event_name != 'schedule'
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -151,3 +205,19 @@ jobs:
             echo '::error::Add a user-visible change under Unreleased in CHANGELOG.md.'
             exit 1
           fi
+
+  ci:
+    if: ${{ always() }}
+    needs: [changes, docs, quality, test, audit, fresh-dependencies, compatibility, commits]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+      - name: Verify all expected jobs completed
+        env:
+          CI_FORCE_FULL: ${{ inputs.force_full || false }}
+          CI_RESULTS: ${{ toJSON(needs) }}
+        run: ruby bin/ci verify

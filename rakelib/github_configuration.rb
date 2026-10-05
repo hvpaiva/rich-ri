@@ -6,8 +6,7 @@ module GitHub
   # These are repository policy, not release credentials. RubyGems trust remains
   # the maintainer's separate setup; this task cannot publish a gem.
   class Configuration
-    REQUIRED_CHECKS = ["quality", "commits", "audit", "fresh-dependencies", "compatibility",
-                       "test (ubuntu-latest, 3.4)", "test (ubuntu-latest, 4.0)", "test (macos-latest, 4.0)"].freeze
+    REQUIRED_CHECKS = ["ci"].freeze
     ACTIONS_APP_ID = 15_368
     MERGE_SETTINGS = {
       "allow_merge_commit" => true, "allow_squash_merge" => false, "allow_rebase_merge" => false,

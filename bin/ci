@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "json"
+require_relative "../rakelib/ci"
+
+begin
+  event = ENV.fetch("GITHUB_EVENT_NAME")
+  force_full = ENV["CI_FORCE_FULL"] == "true"
+  case ARGV
+  when ["scope"]
+    scope = CI.scope(event: event, ref: ENV.fetch("GITHUB_REF", ""), base: ENV.fetch("CI_BASE", nil),
+                     head: ENV.fetch("CI_HEAD", nil), force_full: force_full)
+    puts "scope=#{scope}"
+  when ["verify"]
+    scope = CI.verify!(JSON.parse(ENV.fetch("CI_RESULTS")), event: event, force_full: force_full)
+    puts "CI: #{scope} checks passed."
+  else abort "Usage: ruby bin/ci scope|verify"
+  end
+rescue KeyError, JSON::ParserError, RuntimeError => e
+  abort "CI: #{e.message}"
+end

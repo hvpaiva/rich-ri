@@ -20,6 +20,8 @@ concurrency:
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository]
+    with:
+      force_full: true
     permissions:
       contents: read
 

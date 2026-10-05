@@ -10,6 +10,12 @@ Rake::TestTask.new(:test) do |task|
   task.warning = true
 end
 
+Rake::TestTask.new("test:docs") do |task|
+  task.libs << "test" << "lib"
+  task.pattern = "test/{configuration_docs,documentation}_test.rb"
+  task.warning = true
+end
+
 RuboCop::RakeTask.new(:rubocop)
 
 desc "Format Ruby source with safe autocorrections"
@@ -73,7 +79,7 @@ namespace :lint do
 
   desc "Check local documentation links"
   task :links do
-    sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md"]
+    sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md", ".github/*.md"]
   end
 
   desc "Check the manual with groff"
@@ -94,6 +100,11 @@ namespace :audit do
   task :local do
     sh "bundle", "exec", "bundler-audit", "check"
   end
+end
+
+namespace :docs do
+  desc "Check documentation links, spelling, generated manual and runnable examples"
+  task check: %w[lint:links lint:spelling generate:check test:docs]
 end
 
 desc "Run local CI checks (all three shells and security database required)"
