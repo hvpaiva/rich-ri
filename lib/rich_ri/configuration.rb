@@ -2,9 +2,7 @@
 
 module RichRI
   # Only the user's selected file is read; documentation directories never
-  # supply configuration. File and environment values become the options the
-  # command line would have used, each checked first so that a refused one is
-  # reported under the file or variable it was written in.
+  # supply configuration, and YAML values are data rather than Ruby objects.
   class Configuration
     KEYS = %w[theme color color_depth width pager bat_theme shell_theme all expand_refs doc_dirs sources styles].freeze
     SOURCES = %w[system site home gems].freeze
@@ -13,16 +11,11 @@ module RichRI
       "RICH_RI_THEME" => "theme", "RICH_RI_COLOR" => "color", "RICH_RI_COLOR_DEPTH" => "color_depth",
       "RICH_RI_WIDTH" => "width", "RICH_RI_BAT_THEME" => "bat_theme", "RICH_RI_SHELL_THEME" => "shell_theme"
     }.freeze
-    # Rules and padding are built one column at a time, so an unbounded width
-    # is an unbounded allocation. No terminal comes near the upper limit.
+    # Rules and padding are built one column at a time, so the width bounds an allocation.
     WIDTH = 20..10_000
 
-    # The selected file, or nil when there is none to read.
     attr_reader :path
 
-    # The file is the path given to --config, :none after --no-config, or
-    # :default for the user's own file. Nothing is read until arguments is
-    # called, so that the path can be printed while the file is broken.
     def initialize(file = :default, env: ENV)
       @env = env
       @path, @named = case file
@@ -32,27 +25,22 @@ module RichRI
                       end
     end
 
-    # File and environment settings as command-line options, lowest
-    # precedence first. A file asked for by name must exist.
+    # Lowest precedence first.
     def arguments
       @arguments ||= (@path && (@named || File.exist?(@path)) ? file_arguments : []) + environment_arguments
     end
 
-    # The number written as plain decimal digits, or nil. Kernel#Integer would
-    # also take a sign, 0x20, 1_0 and surrounding spaces, and read 040 as octal.
+    # Kernel#Integer alone would take a sign, 0x20, 1_0 and spaces, and read 040 as octal.
     def self.integer(text)
       Integer(text, 10) if text.match?(/\A(?:0|[1-9][0-9]*)\z/)
     end
 
-    # Whether a setting can be shown and passed on as it is: a nonempty string
-    # holding no terminal control, line break or tab.
     def self.text?(value)
       value.is_a?(String) && !value.strip.empty? && RichRI.printable?(value) && !value.match?(/[\r\n\t]/)
     end
 
     private
 
-    # The user's own file and whether it was asked for by name.
     def default_path
       path, origin, named = environment_path
       return [nil, false] unless path
@@ -63,7 +51,6 @@ module RichRI
       [RichRI.expand_path(path), named]
     end
 
-    # The path, the variable it comes from and whether that variable names the file itself.
     def environment_path
       path = variable("RICH_RI_CONFIG").to_s
       return [path, "RICH_RI_CONFIG", true] unless path.empty?
@@ -76,7 +63,6 @@ module RichRI
       [home&.start_with?("/") ? File.join(home, ".config/rich-ri/config.yml") : nil, "HOME", false]
     end
 
-    # Whatever is wrong with the file is reported after its path.
     def file_arguments
       data = ConfigurationFile.new(@path).read
       mapping!(data, KEYS)
@@ -118,7 +104,6 @@ module RichRI
       end
     end
 
-    # A refused value is reported under the name of its variable.
     def environment_arguments
       args = ENVIRONMENT.flat_map do |name, key|
         value = variable(name).to_s

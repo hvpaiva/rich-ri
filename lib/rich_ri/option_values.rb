@@ -1,13 +1,10 @@
 # frozen_string_literal: true
 
 module RichRI
-  # Checks the values given to options. Each returns the value as the program
-  # uses it, or refuses it as a usage error that says what the option accepts.
   module OptionValues
     private
 
-    # OptionParser would complete a listed value from any unambiguous prefix
-    # and call an empty one ambiguous; these are matched whole, like options.
+    # Matched whole: OptionParser would take any unambiguous prefix and call an empty one ambiguous.
     def choice(option, value, allowed)
       return value if allowed.include?(value)
 

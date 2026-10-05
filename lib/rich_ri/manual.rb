@@ -47,7 +47,6 @@ module RichRI
       raise UsageError, "--install-man=DIR must not be empty" if target && target.strip.empty?
 
       directory = RichRI.expand_path(target || default_directory)
-      # Without DIR the destination comes from the environment, not from the command line.
       refused = target ? UsageError : ConfigurationError
       if directory.match?(/[[:cntrl:]]/) || !RichRI.printable?(directory)
         raise refused, "manual destination must not contain control characters"

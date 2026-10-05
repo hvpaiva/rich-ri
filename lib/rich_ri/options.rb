@@ -9,14 +9,12 @@ module RichRI
     PORTS = 1..65_535
     DEFAULT_PORT = 8214
     RECOVERY_ACTIONS = %i[help version config_path completion].freeze
-    # The actions the driver performs, by the driver option that asks for each.
     LOOKUPS = { interactive: :interactive, list: :list, list_doc_dirs: :list_doc_dirs, server: :server,
                 dump: :dump_path }.freeze
 
     attr_reader :parser, :driver_options, :color
 
-    # What the command does instead of a lookup, as a name and its arguments,
-    # or nil when the driver is to run.
+    # What runs instead of a lookup, as a name and its arguments, or nil.
     attr_reader :action
 
     def initialize
@@ -72,16 +70,13 @@ module RichRI
       self
     end
 
-    # Reads the command line with no default under it and returns self. Which
-    # file it selects and what it asks for decide what else is read, and only
-    # the parser that will read it again can tell an option from a value.
+    # Read alone first: the file and the action it selects decide what else is read.
     def command_line(argv)
       finish(arguments(argv))
       self
     end
 
-    # Whether the command line asks for something that has to work while the
-    # file or the environment is broken, because it is how that is found out.
+    # These have to work while the file or the environment is broken: they are how it is found out.
     def recovery?
       RECOVERY_ACTIONS.include?(@action&.first)
     end
@@ -112,15 +107,12 @@ module RichRI
       raise UsageError, e.message
     end
 
-    # Reads one layer of options and returns the words that are not options.
     def read(words)
       names = @parser.permute!(words)
       @actions.settle
       names
     end
 
-    # Hands the action that stands to whichever of the command and the driver
-    # performs it, once every layer and the names are known.
     def finish(names)
       name, value = @actions.current
       if name == :interactive && !names.empty?

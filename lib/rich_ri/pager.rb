@@ -1,27 +1,16 @@
 # frozen_string_literal: true
 
 module RichRI
-  # The program a page is read in. A pager the user named, with
-  # --pager-command, the pager key, RI_PAGER or PAGER, has to start and to end
-  # well: passing over it for another, or losing the page with it, would look
-  # like success. When none is named the usual programs are tried in turn, and
-  # without any of them the page goes straight to the terminal.
-  #
-  # The command is split into words as a shell would split it and then run
-  # directly. No shell reads it, so a pipe, a variable or a redirection in it
-  # is one more word for the pager.
+  # A pager the user named must start and end well: falling back or losing the page would pass for
+  # success. No shell reads the command, so a pipe or a redirection in it is one more word.
   class Pager
     USUAL = %w[pager less more].freeze
-    # What less is given when the user has no preferences of their own: leave
-    # at once if the page fits the screen, and ignore case in searches.
+    # Without LESS: quit if the page fits the screen, ignore case in searches.
     LESS = "-Fi"
     HINT = "Use --no-pager to write to the terminal instead."
 
-    # The pipe a page is written to.
     attr_reader :io
 
-    # Starts the command, or else PAGER, or else the first usual pager there
-    # is. Returns nil when no pager is named and none is found.
     def self.start(command = nil, env: ENV)
       command = RichRI.utf8(env["PAGER"]) if command.nil?
       return named(command, env) unless command.strip.empty?
@@ -55,9 +44,7 @@ module RichRI
       @pid = @io.pid
     end
 
-    # To be called once the page is written and the pipe closed. A pager that
-    # did not end well took the page with it, which is a failure unless
-    # Ctrl-C is what made it leave.
+    # Call once the pipe is closed: the pager's status is Process.last_status.
     def finish(interrupted)
       status = Process.last_status
       return if status.nil? || status.pid != @pid || status.success?

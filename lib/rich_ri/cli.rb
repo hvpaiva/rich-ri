@@ -65,11 +65,8 @@ module RichRI
       0
     end
 
-    # The settings as YAML that shows no terminal control. Psych escapes most
-    # of them, but writes as they are the ones Unicode calls printable, such
-    # as those that reverse the direction of text. A value holding one is
-    # double-quoted, the only style in which \uXXXX is an escape and not text,
-    # so the output still loads as the same settings.
+    # Psych leaves controls Unicode calls printable, such as bidi overrides, as they are. Double
+    # quotes are the only YAML style where \uXXXX is an escape, so the output loads unchanged.
     def settings_yaml(settings)
       yaml = Psych.safe_dump(settings)
       return yaml if RichRI.printable?(yaml)
@@ -92,9 +89,7 @@ module RichRI
       0
     end
 
-    # The usage line is the title, and a line that is nothing but a label and
-    # its colon is the heading of what follows. The notes after the options
-    # hold colons too, in the middle of a sentence, and stay plain.
+    # Only a line ending in a colon is a heading: the notes hold colons mid-sentence.
     def help(options)
       enabled = color?(options.color)
       options.parser.to_s.each_line do |line|

@@ -1,16 +1,11 @@
 # frozen_string_literal: true
 
 module RichRI
-  # RDoc reads a store with Marshal and lets whatever that raises through. A
-  # store written by another Ruby or RDoc, or cut short on disk, then fails as
-  # a TypeError, ArgumentError, EOFError or NoMethodError that names no file.
-  # This store reports all of them as a StoreError carrying its own path.
+  # RDoc lets Marshal failures through, so a store from another Ruby or RDoc, or cut short,
+  # fails as a TypeError, ArgumentError, EOFError or NoMethodError naming no file.
   class Store < RDoc::RI::Store
-    # The gem a store of type :gem documents. The store's source is the name of
-    # the gem's directory, which runs name, version and platform together.
     attr_accessor :gem_name
 
-    # What a page of this store is asked for by, as in "source:page".
     def page_source
       gem_name || source
     end
@@ -37,8 +32,7 @@ module RichRI
 
     private
 
-    # A missing file is an answer RDoc handles, and a failed system call
-    # already says what is wrong with which file.
+    # RDoc handles a missing file, and a failed system call already names its file.
     def reading
       yield
     rescue Error, RDoc::Error, SystemCallError

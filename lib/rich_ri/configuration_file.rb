@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module RichRI
-  # Reads the selected YAML file as plain data: a single document of bounded
-  # size and depth, with no alias, object tag or duplicate key. What is wrong
-  # is described without the path, which Configuration puts in front.
+  # Messages leave out the path, which Configuration puts in front.
   class ConfigurationFile
     MAX_BYTES = 65_536
     MAX_DEPTH = 20
@@ -15,7 +13,7 @@ module RichRI
     def read
       raise ConfigurationError, "not a readable regular file" unless File.file?(@path)
 
-      # A bounded read answers nil, not an empty string, at the end of a file.
+      # File.read with a length answers nil, not "", for an empty file.
       content = File.read(@path, MAX_BYTES + 1) || ""
       raise ConfigurationError, "larger than #{MAX_BYTES} bytes" if content.bytesize > MAX_BYTES
 
@@ -24,7 +22,6 @@ module RichRI
 
       check_structure(stream)
       data = Psych.safe_load(content, permitted_classes: [], permitted_symbols: [], aliases: false, filename: @path)
-      # A file with no document, or only comments, sets nothing.
       data.nil? ? {} : data
     rescue Psych::Exception => e
       raise ConfigurationError, problem(e)
