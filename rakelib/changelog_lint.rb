@@ -34,8 +34,9 @@ module Changelog
     end
 
     # Where the branch forked: entries the base released since then are not the branch's own.
+    # git diff has already read base as a revision, so merge-base never sees it as an option.
     def self.fork_point_text(root, base)
-      fork_point = git(root, "cannot compare HEAD with #{base}", "merge-base", "--end-of-options", base, "HEAD").strip
+      fork_point = git(root, "cannot compare HEAD with #{base}", "merge-base", base, "HEAD").strip
       git(root, "cannot read #{Changelog::PATH} at #{fork_point}", "show", "#{fork_point}:#{Changelog::PATH}")
     end
 
