@@ -114,18 +114,5 @@ module RichRI
     rescue OptionParser::ParseError, UsageError => e
       raise ConfigurationError, "#{origin}: #{e.message}"
     end
-
-    def style(role, value)
-      Theme.new(styles: { role => value })
-      value
-    rescue ThemeError => e
-      raise UsageError, e.message
-    end
-
-    def text(option, value)
-      return value if Configuration.text?(value)
-
-      raise UsageError, "#{option} must be a nonempty string without control characters"
-    end
   end
 end
