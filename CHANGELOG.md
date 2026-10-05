@@ -8,6 +8,8 @@ User-visible changes are recorded here. This project follows
 
 ### Added
 
+- Shell integration tests can run in Docker or Podman when local shells are
+  unavailable, with the same required checks used in CI.
 - Compatibility checks for minimum runtime dependencies and older RI stores,
   upstream Ruby documentation samples and repeatable CLI performance measurements.
 - Release artifact checksums, build attestations and a protected hotfix workflow.
@@ -29,6 +31,10 @@ User-visible changes are recorded here. This project follows
 
 ### Fixed
 
+- Long options require their full names so configuration selection and completion
+  cannot silently interpret abbreviations differently.
+- Missing optional gems for `--server` and `--profile` explain how to install them;
+  help and the manual describe these dependencies.
 - Required shell tests fail when Fish or Zsh is unavailable; test environment
   cleanup preserves the suite's shell requirement flag.
 - Optional bat highlighting has time and size limits, handles invalid encoding
@@ -39,7 +45,6 @@ User-visible changes are recorded here. This project follows
 - Ruby highlighting recognizes predicate, bang, setter and operator methods,
   including definitions and calls without parentheses. Symbols retain their
   style, and modulo operators are distinct from percent literals.
-
 - Shell completion uses documentation sources configured in `RI`.
 - Interactive Tab completion includes its required Readline adapter.
 - Raw Markdown content cannot send terminal controls through rich rendering.

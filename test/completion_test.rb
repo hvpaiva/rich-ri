@@ -37,6 +37,26 @@ class CompletionTest < Minitest::Test
     assert_empty values("--dump", "")
   end
 
+  def test_long_option_prefixes_complete_but_finished_abbreviations_do_not_select_sources
+    assert_equal ["--config", "--config-path"], values("--confi")
+    defaults = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].shelljoin
+    cases = [
+      [["--no-conf"], defaults],
+      [["--doc-d", TestSupport::STORE], defaults],
+      [["--doc-d=#{TestSupport::STORE}"], defaults],
+      [[], "#{defaults} --wid=44"]
+    ]
+    cases.each do |arguments, ri|
+      out, err, status = cli("--complete", *arguments, "RichRIExample#ma", docs: false, env: { "RI" => ri })
+
+      assert_predicate status, :success?, err
+      assert_empty out
+      assert_empty err
+    end
+    assert_includes values("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                           "--pager-command", "--confi=just-a-value", "RichRIExample#ma"), "RichRIExample#map"
+  end
+
   def test_dynamic_classes_and_methods_use_the_selected_store
     args = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
 

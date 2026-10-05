@@ -50,6 +50,12 @@ module RichRI
       super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
     end
 
+    def start_server
+      # Surface missing dependencies through CLI errors instead of RDoc's abort.
+      require "webrick"
+      super
+    end
+
     def complete(name)
       # RI completes classes/methods but does not offer ruby: or gem pages.
       # Use the loaded stores so discovery follows this Ruby and --doc-dir.

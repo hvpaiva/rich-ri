@@ -12,6 +12,9 @@ module RichRI
       @color = "auto"
       @action = nil
       @parser = OptionParser.new
+      # Configuration selection and completion inspect flags before parsing.
+      # Require the same full option names throughout those paths.
+      @parser.require_exact = true
       @parser.banner = "Usage: rich-ri [options] [Class | Class#method | Class.method | gem:page ...]"
       configuration_options
       presentation_options
@@ -20,6 +23,7 @@ module RichRI
       utility_options
       @parser.separator ""
       @parser.separator "Run without a name for interactive lookup and Tab completion."
+      @parser.separator "Write long options in full; abbreviations are not accepted."
       @parser.separator "Examples: rich-ri Array#map; rich-ri ruby:syntax/pattern_matching"
       @parser.separator "Pager keys: / search, n next match, Space next page, q quit."
       @parser.separator "Defaults: RI options < config file < environment < explicit arguments."
@@ -104,7 +108,7 @@ module RichRI
       @parser.on("--[no-]expand-refs", "Expand RDoc references at the end of a page.") do |value|
         @driver_options[:expand_refs] = value
       end
-      @parser.on("--server[=PORT]", Integer, "Serve RDoc in a browser (default port: 8214).") do |port|
+      @parser.on("--server[=PORT]", Integer, "Serve RDoc in a browser (port: 8214; requires webrick).") do |port|
         @driver_options[:server] = port || 8214
       end
     end
@@ -146,7 +150,7 @@ module RichRI
         @action = [:install_man, directory]
       end
       @parser.on("--dump=CACHE", "Inspect a trusted RI cache file.") { |path| @driver_options[:dump_path] = path }
-      @parser.on("--[no-]profile", "Run with Ruby's optional profile library.") do |value|
+      @parser.on("--[no-]profile", "Run Ruby's profiler (requires the profile gem).") do |value|
         @driver_options[:profile] = value
       end
       @parser.on("-h", "--help", "Show this help.") { @action = [:help] }

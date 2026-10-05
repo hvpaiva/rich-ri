@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "terminal_helper"
+require "shell_support"
 
 class ShellTest < Minitest::Test
   include TerminalTestSupport
@@ -15,7 +16,8 @@ class ShellTest < Minitest::Test
       exit RichRI::CLI.run(ARGV)
     RUBY
     FileUtils.chmod(0o755, File.join(@bin, "rich-ri"))
-    @env = TestSupport::ENVIRONMENT.merge("PATH" => "#{@bin}:#{ENV.fetch('PATH')}")
+    @env = TestSupport::ENVIRONMENT.merge(ShellSupport::ENVIRONMENT)
+                                   .merge("PATH" => "#{@bin}:#{ENV.fetch('PATH', '')}")
   end
 
   def teardown
@@ -23,7 +25,8 @@ class ShellTest < Minitest::Test
   end
 
   def shell(name, script, *)
-    out, err, status = Open3.capture3(@env, name, "-c", script, "harness", *)
+    flags = { "bash" => %w[--noprofile --norc], "zsh" => ["-f"], "fish" => ["--no-config"] }.fetch(name)
+    out, err, status = Open3.capture3(@env, name, *flags, "-c", script, "harness", *)
 
     assert_predicate status, :success?, err
     assert_empty err
@@ -203,12 +206,10 @@ class ShellTest < Minitest::Test
   end
 
   def bash_completion
-    # Homebrew's profile.d wrapper returns early in noninteractive shells.
-    paths = %w[/usr/share/bash-completion/bash_completion /opt/homebrew/share/bash-completion/bash_completion
-               /usr/local/share/bash-completion/bash_completion]
-    completion = paths.find { |path| File.file?(path) }
+    completion = ShellSupport.bash_completion
+    return completion if completion
 
-    refute_nil completion, "Install bash-completion 2.x"
-    completion
+    flunk "bash-completion 2.x with a compatible bash is required" if ENV["RICH_RI_REQUIRE_SHELLS"]
+    skip "bash-completion 2.x with a compatible bash is unavailable; CI runs all shell tests"
   end
 end

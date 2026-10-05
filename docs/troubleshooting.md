@@ -54,6 +54,16 @@ Try `rich-ri --no-pager NAME` to isolate the reader from the pager.
 `--pager-command` can also select it. Check the effective settings with
 `rich-ri --show-config`. For less, rich-ri adds `-R` so ANSI colors are displayed.
 
+## An optional RDoc mode cannot start
+
+`--server` needs the `webrick` gem; `--profile` needs the `profile` gem. Install
+the named gem with the active Ruby, then repeat the command. For example,
+`gem install webrick` enables the web server. With `bundle exec`, include the
+gem in the current Gemfile as well.
+
+These gems are not required for terminal lookup or completion. See
+[optional RDoc modes](usage.md#optional-rdoc-modes) for their behavior.
+
 ## Configuration prevents startup
 
 `rich-ri --config-path` prints the selected file. `--no-config` skips that file;

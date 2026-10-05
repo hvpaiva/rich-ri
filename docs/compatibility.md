@@ -14,7 +14,9 @@
 CI runs Ruby 3.4 and 4.0 on Linux and Ruby 4.0 on macOS. A separate Ruby 3.4 job
 tests the minimum runtime dependency set in [minimum.gemfile](../gemfiles/minimum.gemfile).
 Another job resolves current dependencies. The locked bundle is used for normal
-development and releases.
+development and releases. Shell integrations run natively on both platforms;
+CI also checks the [container test environment](development.md#shell-tests)
+available to contributors.
 
 ## Changes between versions
 

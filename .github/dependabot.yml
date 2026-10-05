@@ -25,3 +25,12 @@ updates:
     labels: [skip-changelog]
     commit-message:
       prefix: ci
+  - package-ecosystem: docker
+    directory: /test/containers
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    labels: [skip-changelog]
+    commit-message:
+      prefix: chore(deps)

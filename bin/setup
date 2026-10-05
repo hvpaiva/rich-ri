@@ -6,16 +6,13 @@ if command -v mise >/dev/null 2>&1; then
   mise install shellcheck typos zizmor lychee
 fi
 missing=0
-for tool in shellcheck typos zizmor lychee groff man bash zsh fish; do
+for tool in shellcheck typos zizmor lychee groff man; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf 'Missing: %s (required for the full check)\n' "$tool"
     missing=1
   fi
 done
-if [[ ! -r /usr/share/bash-completion/bash_completion ]] &&
-  [[ ! -r /opt/homebrew/share/bash-completion/bash_completion ]] &&
-  [[ ! -r /usr/local/share/bash-completion/bash_completion ]]; then
-  printf 'Install bash-completion 2.x for the Bash integration tests.\n'
+if ! ruby -r ./rakelib/shell_tests -e 'begin; ShellTests.verify_environment!; rescue ShellTests::Error => e; abort e.message; end'; then
   missing=1
 fi
 printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'

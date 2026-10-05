@@ -27,7 +27,17 @@ Ruby highlighting works without external programs.
 The optional bat program highlights shell transcripts and tagged languages;
 without it, their original text is preserved. less is an optional pager.
 man(1) is needed only for --man; --man-path and --install-man work without it.
+.PP
+--server requires the optional webrick gem (gem install webrick).
+It serves RDoc's web interface on port 8214 by default, listening on all
+interfaces; --server=PORT chooses another port. Stop it with Ctrl-C.
+Terminal themes do not apply to web pages.
+--profile requires the optional profile gem (gem install profile) and
+prints profiling information when the command exits.
+Install these gems for the active Ruby; with bundle exec, include them in
+that bundle. Missing optional gems produce an installation hint and status 1.
 .SH OPTIONS
+Write long options in full; abbreviations are not accepted.
 .SS Configuration and themes
 .TP
 .B \-\-config=FILE
@@ -93,7 +103,7 @@ List known classes and modules.
 Expand RDoc references at the end of a page.
 .TP
 .B \-\-server[=PORT]
-Serve RDoc in a browser (default port: 8214).
+Serve RDoc in a browser (port: 8214; requires webrick).
 .SS Documentation sources
 .TP
 .B \-d, \-\-doc\-dir=DIRS
@@ -134,7 +144,7 @@ Install or update the manual in a user man1 directory.
 Inspect a trusted RI cache file.
 .TP
 .B \-\-[no\-]profile
-Run with Ruby's optional profile library.
+Run Ruby's profiler (requires the profile gem).
 .TP
 .B \-h, \-\-help
 Show this help.
