@@ -25,6 +25,7 @@ module RichRI
     end
 
     STANDARD_SOURCES = %i[use_system use_site use_home use_gems].freeze
+    PROMPT_FAILURES = 3
 
     def self.default_options
       columns = $stdout.tty? ? $stdout.winsize.last : 80
@@ -102,6 +103,20 @@ module RichRI
       end
     end
 
+    # RDoc's own loop leaves on the first exception other than an unknown name.
+    # Here a failed lookup is reported and the prompt returns.
+    def interactive
+      puts "\nEnter the method name you want to look up."
+      Reline.completion_proc = method(:complete)
+      puts "You can use tab to autocomplete."
+      puts "Enter a blank line to exit.\n\n"
+      while (name = read_name)
+        answer(name)
+      end
+    rescue Interrupt
+      exit
+    end
+
     def start_server
       optional_gem("webrick", "--server")
       super
@@ -172,6 +187,30 @@ module RichRI
     end
 
     private
+
+    # The name typed at the prompt, or nil at a blank line or the end of input.
+    def read_name
+      failures = 0
+      begin
+        name = Reline.readline(">> ", true)
+      rescue IOError, SystemCallError
+        raise
+      rescue StandardError => e
+        # Completion runs inside the line editor. Show its failure and ask
+        # again, but not forever: a prompt that cannot start would spin.
+        raise if (failures += 1) == PROMPT_FAILURES
+
+        Error.report(e)
+        retry
+      end
+      RichRI.utf8(name).strip unless name.nil? || name.empty?
+    end
+
+    def answer(name)
+      display_name(expand_name(name))
+    rescue StandardError, ScriptError => e
+      Error.report(e)
+    end
 
     # webrick and profile are not dependencies of the gem. RDoc answers their
     # absence with abort or a bare LoadError; say which gem the option needs.
