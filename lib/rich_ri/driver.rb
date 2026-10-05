@@ -24,7 +24,7 @@ module RichRI
       end
     end
 
-    STANDARD_SOURCES = %i[use_system use_site use_home use_gems].freeze
+    STANDARD_SOURCES = Configuration::SOURCES.map { |source| :"use_#{source}" }.freeze
     PROMPT_FAILURES = 3
 
     def self.default_options

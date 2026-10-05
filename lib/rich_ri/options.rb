@@ -110,7 +110,7 @@ module RichRI
       @parser.separator ""
       @parser.separator "Presentation:"
       @parser.on("--color[=MODE]", "Color: auto (TTY, respects NO_COLOR), always or never.") do |mode|
-        @color = mode ? choice("--color", mode, %w[auto always never]) : "always"
+        @color = mode ? choice("--color", mode, Configuration::COLOR_MODES) : "always"
       end
       @parser.on("--no-color", "Plain text with the same page layout.") { @color = "never" }
       @parser.on("--[no-]pager", "Display through a pager (automatically disabled in pipes).") do |value|
@@ -154,9 +154,9 @@ module RichRI
         @driver_options[:extra_doc_dirs].concat(directories(value))
       end
       @parser.on("--no-standard-docs", "Use only directories provided with --doc-dir.") do
-        %i[system site home gems].each { |key| @driver_options[:"use_#{key}"] = false }
+        Driver::STANDARD_SOURCES.each { |key| @driver_options[key] = false }
       end
-      %w[system site home gems].each do |source|
+      Configuration::SOURCES.each do |source|
         @parser.on("--[no-]#{source}", "Include #{source} documentation (default: enabled).") do |value|
           @driver_options[:"use_#{source}"] = value
         end
@@ -170,7 +170,7 @@ module RichRI
       @parser.separator ""
       @parser.separator "Tools:"
       @parser.on("--completion=SHELL", "Print a completion script for bash, zsh or fish.") do |shell|
-        @action = [:completion, choice("--completion", shell, %w[bash zsh fish])]
+        @action = [:completion, choice("--completion", shell, Completion::SHELLS)]
       end
       @parser.on("--man", "Open the bundled manual with man.") { @action = [:man] }
       @parser.on("--man-path", "Print the path to the bundled manual.") { @action = [:man_path] }

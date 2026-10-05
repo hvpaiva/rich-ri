@@ -4,7 +4,8 @@ module RichRI
   # The protocol is tab-separated value/description pairs. Only source options
   # reach the driver: pressing Tab can never start a pager, server or cache dump.
   class Completion
-    SOURCES = /\A--(?:no-)?(?:system|site|home|gems|standard-docs)\z/
+    SHELLS = %w[bash zsh fish].freeze
+    SOURCES = /\A--(?:no-)?(?:#{Regexp.union(Configuration::SOURCES)}|standard-docs)\z/
     VALUES = %w[-w --width --server --dump --bat-theme --shell-theme --pager-command].freeze
 
     def write(words, io)
@@ -40,9 +41,9 @@ module RichRI
 
     def option_values(previous, current)
       case previous
-      when "--color" then %w[auto always never].map { |v| [v, "Color mode"] }
+      when "--color" then Configuration::COLOR_MODES.map { |v| [v, "Color mode"] }
       when "--format", "-f" then Options.formats.map { |v| [v, "RDoc formatter"] }
-      when "--completion" then %w[bash zsh fish].map { |v| [v, "Shell completion script"] }
+      when "--completion" then SHELLS.map { |v| [v, "Shell completion script"] }
       when "--theme" then Theme::NAMES.map { |v| [v, "Page theme"] }
       when "--color-depth" then Theme::DEPTHS.map { |v| [v, "Terminal color depth"] }
       when "--style" then styles(current)

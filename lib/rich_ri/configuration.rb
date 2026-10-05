@@ -8,6 +8,7 @@ module RichRI
   class Configuration
     KEYS = %w[theme color color_depth width pager bat_theme shell_theme all expand_refs doc_dirs sources styles].freeze
     SOURCES = %w[system site home gems].freeze
+    COLOR_MODES = %w[auto always never].freeze
     ENVIRONMENT = {
       "RICH_RI_THEME" => "theme", "RICH_RI_COLOR" => "color", "RICH_RI_COLOR_DEPTH" => "color_depth",
       "RICH_RI_WIDTH" => "width", "RICH_RI_BAT_THEME" => "bat_theme", "RICH_RI_SHELL_THEME" => "shell_theme"
@@ -174,7 +175,7 @@ module RichRI
       else
         text!(value, name)
       end
-      values = { "theme" => Theme::NAMES, "color" => %w[auto always never], "color_depth" => Theme::DEPTHS }[key]
+      values = { "theme" => Theme::NAMES, "color" => COLOR_MODES, "color_depth" => Theme::DEPTHS }[key]
       raise ConfigurationError, "#{name} must be one of #{values.join(', ')}" if values && !values.include?(value)
 
       flag = key == "pager" ? "pager-command" : key.tr("_", "-")
