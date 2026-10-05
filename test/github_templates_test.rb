@@ -2,7 +2,6 @@
 
 require "test_helper"
 require "yaml"
-require_relative "../rakelib/github_configuration"
 
 class GitHubTemplatesTest < Minitest::Test
   def test_every_issue_starts_from_a_form_and_security_reports_stay_private
@@ -11,14 +10,6 @@ class GitHubTemplatesTest < Minitest::Test
     assert_same false, config.fetch("blank_issues_enabled")
     assert_equal(["https://github.com/hvpaiva/rich-ri/blob/main/SECURITY.md"],
                  config.fetch("contact_links").map { |link| link.fetch("url") })
-  end
-
-  def test_forms_apply_labels_that_repository_setup_creates
-    labels = GitHub::Configuration::LABELS.map { |label| label.fetch("name") }
-    applied = forms.transform_values { |form| form.fetch("labels") }
-
-    assert_equal({ "bug.yml" => ["bug"], "feature.yml" => ["enhancement"] }, applied)
-    assert_empty applied.values.flatten - labels
   end
 
   def test_a_bug_report_requires_what_reproducing_it_takes

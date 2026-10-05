@@ -14,19 +14,11 @@ module GitHub
     }.freeze
     ENVIRONMENT_POLICY = { "protected_branches" => false, "custom_branch_policies" => true }.freeze
     TAG_POLICY = { "name" => "v*", "type" => "tag" }.freeze
-    REPOSITORY_SETTINGS = { "homepage" => "https://rubygems.org/gems/rich-ri", "has_issues" => true,
-                            "has_wiki" => false, "has_projects" => false }.freeze
-    TOPICS = %w[cli documentation rdoc ri ruby shell-completion syntax-highlighting terminal].freeze
-    # CI reads skip-changelog and bin/release applies release; the issue forms apply the others.
-    RELEASE_LABELS = %w[skip-changelog release].freeze
+    # CI reads skip-changelog and bin/release applies release.
     LABELS = [
       { "name" => "skip-changelog", "color" => "ededed",
         "description" => "No CHANGELOG.md entry: no user-visible change" },
-      { "name" => "release", "color" => "0e8a16", "description" => "Prepares a release" },
-      { "name" => "bug", "color" => "d73a4a", "description" => "Something isn't working" },
-      { "name" => "enhancement", "color" => "a2eeef", "description" => "New feature or request" },
-      { "name" => "documentation", "color" => "0075ca",
-        "description" => "Improvements or additions to documentation" }
+      { "name" => "release", "color" => "0e8a16", "description" => "Prepares a release" }
     ].freeze
 
     def self.main_ruleset
@@ -64,9 +56,8 @@ module GitHub
       @out = out
     end
 
-    # A missing topic or homepage must not hold up a release.
-    def verify!(release: false)
-      pending = release ? changes.select(&:release) : changes
+    def verify!
+      pending = changes
       unless pending.empty?
         descriptions = pending.map { |change| "- #{change.description}" }.join("\n")
         raise Error, "repository configuration needs attention:\n#{descriptions}\n" \
@@ -108,8 +99,8 @@ module GitHub
       end
     end
 
-    def plan(description, method, path, body = nil, release: true)
-      @changes << Change.new(description, method, path, body, release)
+    def plan(description, method, path, body = nil)
+      @changes << Change.new(description, method, path, body)
     end
 
     def get(path, **)
@@ -121,20 +112,10 @@ module GitHub
       raise Error, "repository administrator access is required" unless current.dig("permissions", "admin")
 
       plan("merge settings", "PATCH", "", MERGE_SETTINGS) unless matches?(current, MERGE_SETTINGS)
-      presentation(current)
       scanning = %w[secret_scanning secret_scanning_push_protection].to_h { |key| [key, { "status" => "enabled" }] }
       return if matches?(current["security_and_analysis"], scanning)
 
       plan("secret scanning and push protection", "PATCH", "", { "security_and_analysis" => scanning })
-    end
-
-    def presentation(current)
-      unless matches?(current, REPOSITORY_SETTINGS)
-        plan("homepage, issues, wiki and projects", "PATCH", "", REPOSITORY_SETTINGS, release: false)
-      end
-      return if current["topics"]&.sort == TOPICS
-
-      plan("topics", "PUT", "/topics", { "names" => TOPICS }, release: false)
     end
 
     def rulesets
@@ -179,7 +160,7 @@ module GitHub
         name = label.fetch("name")
         next unless get("/labels/#{name}", missing: true).status == 404
 
-        plan("#{name} label", "POST", "/labels", label, release: RELEASE_LABELS.include?(name))
+        plan("#{name} label", "POST", "/labels", label)
       end
     end
   end

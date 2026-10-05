@@ -13,9 +13,8 @@ class GitHubTest < Minitest::Test
       scanning = %w[secret_scanning secret_scanning_push_protection].to_h { |key| [key, { "status" => "enabled" }] }
       policies = { "branch_policies" => [GitHub::Configuration::TAG_POLICY.merge("id" => 1)] }
       @state = {
-        "" => GitHub::Configuration::MERGE_SETTINGS.merge(GitHub::Configuration::REPOSITORY_SETTINGS).merge(
-          "permissions" => { "admin" => true }, "security_and_analysis" => scanning,
-          "topics" => GitHub::Configuration::TOPICS.reverse
+        "" => GitHub::Configuration::MERGE_SETTINGS.merge(
+          "permissions" => { "admin" => true }, "security_and_analysis" => scanning
         ),
         "/rulesets" => [{ "id" => 1, "name" => "main" }, { "id" => 2, "name" => "tags" }],
         "/rulesets/1" => GitHub::Configuration.main_ruleset,
@@ -56,7 +55,6 @@ class GitHubTest < Minitest::Test
       when %r{/deployment-branch-policies/\d+\z}
         state[path.sub(%r{/\d+\z}, "")]["branch_policies"].reject! { |entry| entry["id"].to_s == path.split("/").last }
       when "/labels" then state["/labels/#{body.fetch('name')}"] = body
-      when "/topics" then state[""]["topics"] = body.fetch("names")
       else state[path] = method == "DELETE" ? nil : body || { "enabled" => true }
       end
     end
@@ -121,35 +119,14 @@ class GitHubTest < Minitest::Test
     assert_empty config.changes
   end
 
-  def test_presentation_settings_are_reconciled_without_holding_up_a_release
-    client = MemoryClient.new
-    client.state[""].merge!("homepage" => nil, "has_wiki" => true, "has_projects" => true, "topics" => ["ruby"])
-    client.state.delete("/labels/bug")
-    config = GitHub::Configuration.new(client: client, out: StringIO.new)
-    config.verify!(release: true)
-    error = assert_raises(GitHub::Error) { config.verify! }
-
-    assert_equal "- homepage, issues, wiki and projects\n- topics\n- bug label\n", error.message.lines[1..3].join
-    config.setup
-
-    assert_equal GitHub::Configuration::TOPICS, client.state[""].fetch("topics")
-    assert_equal [false, false], client.state[""].values_at("has_wiki", "has_projects")
-    assert_equal "bug", client.state.dig("/labels/bug", "name")
-  end
-
-  def test_a_release_still_needs_its_protections_and_the_labels_it_applies
-    defects = { "release label" => ->(state) { state.delete("/labels/release") },
-                "skip-changelog label" => ->(state) { state.delete("/labels/skip-changelog") },
-                "merge settings" => ->(state) { state[""]["allow_squash_merge"] = true },
-                "immutable releases" => ->(state) { state["/immutable-releases"] = { "enabled" => false } } }
-    defects.each do |name, change|
+  def test_a_missing_label_that_ci_or_releases_use_needs_attention
+    GitHub::Configuration::LABELS.each do |label|
       client = MemoryClient.new
-      change.call(client.state)
-      error = assert_raises(GitHub::Error) do
-        GitHub::Configuration.new(client: client, out: StringIO.new).verify!(release: true)
-      end
+      client.state.delete("/labels/#{label.fetch('name')}")
+      error = assert_raises(GitHub::Error) { GitHub::Configuration.new(client: client, out: StringIO.new).verify! }
 
-      assert_includes error.message, "- #{name}\n"
+      assert_equal "repository configuration needs attention:\n- #{label.fetch('name')} label\n" \
+                   "Run bundle exec rake github:setup, then github:verify.", error.message
     end
   end
 

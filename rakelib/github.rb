@@ -11,8 +11,7 @@ module GitHub
   class Error < StandardError; end
 
   Response = Data.define(:status, :body)
-  # +release+ marks what publication depends on; the rest is how the repository presents itself.
-  Change = Data.define(:description, :verb, :path, :body, :release)
+  Change = Data.define(:description, :verb, :path, :body)
 
   # Keep HTTP errors distinct from disabled features. In particular, a forbidden
   # request must never be interpreted as a missing setting that needs creating.

@@ -60,7 +60,7 @@ module Release
         raise Error, "the origin repository must be #{GitHub::REPOSITORY}"
       end
 
-      @configuration.verify!(release: true)
+      @configuration.verify!
       command(%w[git fetch origin --tags])
       @current_branch = command(%w[git branch --show-current]).strip
       raise Error, "run from #{@base} or #{branch}" unless [@base, branch].include?(@current_branch)
