@@ -226,7 +226,7 @@ class BleCompletionTest < Minitest::Test
   def test_ble_sh_inserts_a_name_as_it_is_and_not_as_a_directory
     FileUtils.mkdir_p(File.join(@bin, "RichRIExample"))
 
-    assert_equal ["Inkwell#filled?"], ble_arguments(["RICH_READY> ", "rich-ri Inkwell#fille\t"], ["d\\? ", "\r"]),
+    assert_equal ["Inkwell#filled?"], ble_arguments(["RICH_READY> ", "rich-ri Inkwell#filled\t"], ["\\? ", "\r"]),
                  @terminal_output
     assert_equal ["RichRIExample"], ble_arguments(["RICH_READY> ", "rich-ri RichRIExam\t"], ["ple ", "\r"]),
                  @terminal_output

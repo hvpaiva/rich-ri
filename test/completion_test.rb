@@ -177,7 +177,7 @@ class CompletionProtocolTest < Minitest::Test
     { ["--style", "met"] => "nospace", ["--style=hea"] => "nospace", ["--color="] => nil, ["--color-d"] => nil,
       [*sources, "RichRIExample#rea"] => nil, [*sources, "RichRIExample::N"] => nil, [*sources, "RichRIExample"] => nil,
       [*sources, "RichRIExample.bu"] => nil, [*sources, TestSupport::STORE[0..-3]] => "nospace",
-      [*sources, "RichRIEx"] => nil, ["--completion=ba"] => nil }.each do |words, action|
+      [*sources, "RichRIEx"] => nil, ["--completion=b"] => nil }.each do |words, action|
       answer = RichRI::Completion.new.answer(words)
 
       refute_empty answer.candidates, words.inspect
