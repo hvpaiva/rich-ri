@@ -66,6 +66,15 @@ class ProjectTest < Minitest::Test
     assert_equal "release:verify: Release tag must be v#{RichRI::VERSION}\n", err
   end
 
+  def test_every_rake_task_describes_itself
+    out, err, status = Open3.capture3("bundle", "exec", "rake", "--all", "--tasks", chdir: TestSupport::ROOT)
+    undescribed = out.lines.grep_v(/ # \S/).map { |line| line.split.fetch(1) }
+
+    assert_predicate status, :success?, err
+    # RuboCop defines this deprecated alias of rubocop:autocorrect without a description.
+    assert_equal ["rubocop:auto_correct"], undescribed
+  end
+
   def test_local_release_is_refused_before_any_publish_action
     _out, err, status = Open3.capture3({ "GITHUB_ACTIONS" => nil }, "bundle", "exec", "rake", "release",
                                        chdir: TestSupport::ROOT)

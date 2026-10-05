@@ -16,12 +16,14 @@ def require_tool(name)
 end
 
 Rake::TestTask.new(:test) do |task|
+  task.description = "Run all tests; shell integrations missing locally are skipped"
   task.libs << "test" << "lib"
   task.pattern = "test/**/*_test.rb"
   task.warning = true
 end
 
 Rake::TestTask.new("test:docs") do |task|
+  task.description = "Run the tests that compare the guides with the program"
   task.libs << "test" << "lib"
   task.pattern = "test/{configuration_docs,documentation}_test.rb"
   task.warning = true
@@ -141,4 +143,5 @@ desc "Run local CI checks (native shells or Docker/Podman, and security database
 task check: %w[rubocop lint:commits lint:changelog lint:shell lint:spelling lint:workflows lint:links lint:man
                generate:check test:cov test:shells package:check audit]
 
+desc "Run RuboCop and all tests"
 task default: %w[rubocop test]

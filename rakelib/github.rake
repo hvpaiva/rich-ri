@@ -3,7 +3,7 @@
 require_relative "github_configuration"
 
 namespace :github do
-  desc "Configure repository protections, security and release policies (requires admin access)"
+  desc "Apply repository protections, security, release and presentation settings (requires admin access)"
   task :setup do
     GitHub.verify_origin!
     GitHub::Configuration.new.setup
