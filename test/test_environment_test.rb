@@ -109,13 +109,19 @@ class TestEnvironmentTest < Minitest::Test
 
   private
 
-  # Every test file that runs Git or loads the Git fixtures, except this one, which would run itself again.
+  # Every test file that requires the Git fixtures or a support file built on them, except this one,
+  # which would run itself again.
   def git_tests
+    fixtures = Dir.glob("test/*_support.rb", base: TestSupport::ROOT).select do |path|
+      path == "test/git_support.rb" || source(path).include?("include GitSupport")
+    end
+    required = /^require(?:_relative)? "(?:#{fixtures.map { |path| File.basename(path, '.rb') }.join('|')})"$/
     Dir.glob("test/*_test.rb", base: TestSupport::ROOT).select do |path|
-      source = File.read(File.join(TestSupport::ROOT, path), encoding: Encoding::UTF_8)
-      path != "test/#{File.basename(__FILE__)}" && source.match?(/\bgit\b|\b(?:git|release)_support\b/)
+      path != "test/#{File.basename(__FILE__)}" && source(path).match?(required)
     end
   end
+
+  def source(path) = File.read(File.join(TestSupport::ROOT, path), encoding: Encoding::UTF_8)
 
   def repository_state(root)
     [git(root, "for-each-ref"), git(root, "config", "--local", "--list"), git(root, "status", "--porcelain")]
