@@ -89,24 +89,32 @@ namespace :lint do
   task :shell do
     Tools.require!("shellcheck")
     sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 
   desc "Check spelling in source and documentation"
   task :spelling do
     Tools.require!("typos")
     sh "typos"
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 
   desc "Check GitHub Actions security (offline)"
   task :workflows do
     Tools.require!("zizmor")
     sh "zizmor", "--offline", "--no-progress", ".github/workflows"
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 
   desc "Check local documentation links"
   task :links do
     Tools.require!("lychee")
     sh "lychee", "--offline", "--include-fragments", "--no-progress", *Dir["*.md", "docs/**/*.md", ".github/*.md"]
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 
   desc "Check the manual with groff"
@@ -115,6 +123,8 @@ namespace :lint do
     require "open3"
     _out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-man", "man/man1/rich-ri.1")
     abort err unless status.success? && err.empty?
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 end
 

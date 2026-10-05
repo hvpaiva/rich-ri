@@ -15,7 +15,7 @@ if command -v mise >/dev/null 2>&1; then
 fi
 
 status=0
-ruby -r ./rakelib/tools -e 'exit Tools.report.empty?' || status=1
+ruby -r ./rakelib/tools -e 'exit Tools.problems.each { |problem| warn "setup: #{problem}" }.empty?' || status=1
 ruby -r ./rakelib/shell_tests -e '
   begin
     ShellTests.verify_environment!

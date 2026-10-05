@@ -6,15 +6,15 @@ module Tools
   TABLE = /\A\[(?<name>[^\]]+)\]\s*\z/
   ENTRY = /\A(?<tool>[a-z][a-z0-9-]*)\s*=\s*"(?<version>[^"]+)"/
 
+  class Error < StandardError; end
+
   def self.mise_tools = pinned - ["ruby"]
 
   def self.require!(tool)
-    abort "rake: #{missing(tool)}" unless available?(tool)
+    raise Error, missing(tool) unless available?(tool)
   end
 
-  def self.report
-    (mise_tools + SYSTEM).reject { |tool| available?(tool) }.each { |tool| warn "setup: #{missing(tool)}" }
-  end
+  def self.problems = (mise_tools + SYSTEM).reject { |tool| available?(tool) }.map { |tool| missing(tool) }
 
   # The standard library has no TOML parser; [tools] holds only quoted versions.
   def self.pinned

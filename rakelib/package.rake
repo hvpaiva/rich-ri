@@ -80,5 +80,7 @@ namespace :package do
         puts "Installed gem: version, help, lookup, configuration, themes, completion and manual passed."
       end
     end
+  rescue Tools::Error => e
+    abort "rake: #{e.message}"
   end
 end
