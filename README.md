@@ -16,6 +16,11 @@ Requires Ruby 3.4 or later on Linux or macOS.
 
 ```sh
 gem install rich-ri
+```
+
+Read a method:
+
+```sh
 rich-ri Array#map
 rich-ri String#scan
 ```
