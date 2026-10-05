@@ -164,11 +164,11 @@ class ManualDisplayTest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       File.unlink(File.join(env.fetch("PATH"), "man"))
-      _out, err, status = cli("--man", docs: false, env: env)
+      out, err, status = cli("--man", docs: false, env: env)
 
       assert_equal 1, status.exitstatus
-      assert_includes err, "man(1) not found"
-      assert_includes err, "rich-ri --help"
+      assert_empty out
+      assert_equal "rich-ri: man(1) not found; install it to read the manual\n", err
     end
   end
 

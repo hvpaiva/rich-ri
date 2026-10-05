@@ -15,7 +15,7 @@ module RichRI
     def show(color:, theme: Theme.new)
       result = nil
       interrupted = Signals.defer_interrupt { result = system(pager_environment(color:, theme:), "man", path) }
-      raise Error, "man(1) not found; install it or run rich-ri --help" if result.nil?
+      raise Error, "man(1) not found; install it to read the manual" if result.nil?
       raise Interrupt if interrupted && Signals.killed?
 
       result ? 0 : 1
