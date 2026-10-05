@@ -72,16 +72,16 @@ module RichRI
       seen = {}
       styles.each do |role, value|
         unless (role.is_a?(String) || role.is_a?(Symbol)) && ROLES.include?(role.to_sym)
-          raise ArgumentError, "unknown style role #{role.inspect}; choose #{ROLES.join(', ')}"
+          raise ThemeError, "unknown style role #{role.inspect}; choose #{ROLES.join(', ')}"
         end
 
         key = role.to_sym
-        raise ArgumentError, "duplicate style role #{role.inspect}" if seen[key]
+        raise ThemeError, "duplicate style role #{role.inspect}" if seen[key]
 
         seen[key] = true
         @styles[key] = Style.new(value).sgr(@depth)
-      rescue ArgumentError => e
-        raise ArgumentError, "style #{role.inspect}: #{e.message}"
+      rescue ThemeError => e
+        raise ThemeError, "style #{role.inspect}: #{e.message}"
       end
     end
   end

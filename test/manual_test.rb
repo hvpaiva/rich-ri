@@ -57,13 +57,13 @@ class ManualInstallTest < Minitest::Test
       ["", directory, file, File.join(directory, "\nbad/man1")].each do |target|
         _out, err, status = cli("--install-man=#{target}", docs: false)
 
-        assert_equal 1, status.exitstatus
-        refute_empty err
+        assert_equal 2, status.exitstatus
+        assert_includes err, "Run rich-ri --help for usage."
         refute_match(/from .*\.rb:\d+/, err)
       end
       _out, err, status = cli("--install-man", "somewhere", docs: false)
 
-      assert_equal 1, status.exitstatus
+      assert_equal 2, status.exitstatus
       assert_includes err, "use --install-man=DIR"
       assert_equal "keep", File.read(file)
     end

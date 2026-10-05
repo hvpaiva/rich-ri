@@ -69,10 +69,12 @@ class ConfigurationTest < Minitest::Test
       assert_equal path, RichRI::Configuration.new(["--no-config", "--config=#{path}"]).path
       assert_equal path, RichRI::Configuration.new(["--", "--config=/missing"]).path
       assert_equal path, RichRI::Configuration.new(["--pager-command", "--config=/missing"]).path
-      assert_raises(ArgumentError) { RichRI::Configuration.new(["--config="]) }
-      assert_raises(ArgumentError) { RichRI::Configuration.new(["--config=/tmp/\e]52;c;AAAA\a", "--config-path"]) }
-      assert_raises(ArgumentError) { RichRI::Configuration.new(["--config"]) }
-      assert_raises(ArgumentError) { RichRI::Configuration.new(["--config=/missing/rich-ri.yml"]) }
+      assert_raises(RichRI::UsageError) { RichRI::Configuration.new(["--config="]) }
+      assert_raises(RichRI::UsageError) do
+        RichRI::Configuration.new(["--config=/tmp/\e]52;c;AAAA\a", "--config-path"])
+      end
+      assert_raises(RichRI::UsageError) { RichRI::Configuration.new(["--config"]) }
+      assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new(["--config=/missing/rich-ri.yml"]) }
     end
   end
 
@@ -86,7 +88,7 @@ class ConfigurationTest < Minitest::Test
                "styles: #{'[' * 40}#{']' * 40}"]
     invalid.each do |data|
       in_config(data) do
-        assert_raises(ArgumentError, Psych::Exception, "Invalid document accepted: #{data[0, 80]}") do
+        assert_raises(RichRI::ConfigurationError, "Invalid document accepted: #{data[0, 80]}") do
           RichRI::Configuration.new([])
         end
       end
@@ -98,7 +100,9 @@ class ConfigurationTest < Minitest::Test
       assert_equal "light", options.settings.fetch("theme")
       { "RICH_RI_THEME" => "unknown", "RICH_RI_WIDTH" => "3", "RICH_RI_COLOR" => "yes",
         "RICH_RI_STYLE_UNKNOWN" => "red", "RICH_RI_COLOR_DEPTH" => "17" }.each do |key, value|
-        with_environment(key => value) { assert_raises(ArgumentError) { RichRI::Configuration.new([]) } }
+        with_environment(key => value) do
+          assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new([]) }
+        end
       end
     end
   end
@@ -126,7 +130,7 @@ class ConfigurationTest < Minitest::Test
         assert_equal 51, config.settings.fetch("width")
         assert_equal value, config.pager_command
         File.write(path, "theme: [invalid")
-        assert_raises(ArgumentError) { options("--pager-command", value, "--show-config") }
+        assert_raises(RichRI::ConfigurationError) { options("--pager-command", value, "--show-config") }
       end
     end
   end

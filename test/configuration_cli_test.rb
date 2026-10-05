@@ -29,7 +29,7 @@ class ConfigurationCLITest < Minitest::Test
       [["--confi", path], ["--confi=#{path}"], ["--no-conf"]].each do |selector|
         out, err, status = cli(*selector, "--show-config", docs: false, env: { "RICH_RI_CONFIG" => path })
 
-        assert_equal 1, status.exitstatus
+        assert_equal 2, status.exitstatus
         assert_empty out
         assert_includes err, "invalid option: #{selector.first.split('=', 2).first}"
       end
@@ -53,6 +53,7 @@ class ConfigurationCLITest < Minitest::Test
     assert_equal 1, status.exitstatus
     assert_empty out
     assert_includes err, "invalid option: --wid"
+    refute_includes err, "--help"
     %w[--help --version --config-path --completion=bash].each do |action|
       out, err, status = cli(action, docs: false, env: environment)
 
@@ -83,6 +84,7 @@ class ConfigurationCLITest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       assert_includes err, "Invalid configuration"
+      refute_includes err, "--help"
       refute_match(/from .*\.rb:\d+/, err)
       _out, err, status = cli("--config", path, "--no-config", "--show-config", docs: false)
 
@@ -132,7 +134,8 @@ class ConfigurationCLITest < Minitest::Test
      "--bat-theme=", "--shell-theme=", "--pager-command="].each do |option|
       _out, err, status = cli("--no-config", option, "--show-config", docs: false)
 
-      assert_equal 1, status.exitstatus
+      assert_equal 2, status.exitstatus
+      assert_includes err, "Run rich-ri --help for usage."
       refute_match(/from .*\.rb:\d+/, err)
     end
   end
@@ -140,7 +143,7 @@ class ConfigurationCLITest < Minitest::Test
   def test_config_path_never_emits_terminal_controls
     output, err, status = cli("--config=/tmp/\e]52;c;AAAA\a", "--config-path", docs: false)
 
-    assert_equal 1, status.exitstatus
+    assert_equal 2, status.exitstatus
     assert_empty output
     refute_includes err, "\e"
     assert_includes err, "Configuration path"

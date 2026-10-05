@@ -15,8 +15,23 @@ module RichRI
       end
 
       options = Options.new.parse(argv)
-      return action(*options.action, options: options) if options.action
+      options.action ? action(*options.action, options: options) : lookup(options)
+    rescue Errno::EPIPE
+      0
+    rescue Error => e
+      warn "rich-ri: #{RichRI.sanitize(e.message)}"
+      warn e.hint if e.hint
+      e.exit_status
+    rescue ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
+      warn "rich-ri: #{unclassified(e)}"
+      1
+    rescue Interrupt
+      130
+    end
 
+    private
+
+    def lookup(options)
       driver_options = options.driver_options
       driver_options[:rich_ri_color] = color?(options.color)
       driver_options[:rich_ri_theme] = options.theme
@@ -30,25 +45,20 @@ module RichRI
         end
       end
       0
-    rescue Errno::EPIPE
-      0
-    rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError => e
-      if (dependency = optional_dependency(e))
-        warn "rich-ri: --#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
-             "Install it for your active Ruby: gem install #{dependency}"
-      elsif incompatible_cache?(e)
-        warn "rich-ri: incompatible RI cache format for this Ruby and RDoc.\n" \
-             "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
-             "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
-      else
-        warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
-      end
-      1
-    rescue Interrupt
-      130
     end
 
-    private
+    def unclassified(error)
+      if (dependency = optional_dependency(error))
+        "--#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
+          "Install it for your active Ruby: gem install #{dependency}"
+      elsif incompatible_cache?(error)
+        "incompatible RI cache format for this Ruby and RDoc.\n" \
+          "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
+          "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
+      else
+        RichRI.sanitize(error.message)
+      end
+    end
 
     def optional_dependency(error)
       error.path if error.is_a?(LoadError) && %w[profile webrick].include?(error.path)
@@ -74,7 +84,7 @@ module RichRI
       when :man then return Manual.new.show(color: color?(options.color), theme: options.theme)
       when :install_man
         unless options.driver_options[:names].empty?
-          raise ArgumentError, "--install-man does not accept lookup names; use --install-man=DIR"
+          raise UsageError, "--install-man does not accept lookup names; use --install-man=DIR"
         end
 
         return Manual.new.install(value)
@@ -83,9 +93,7 @@ module RichRI
     end
 
     def dump(path)
-      unless File.file?(path) && File.readable?(path)
-        raise ArgumentError, "RI cache must be a readable regular file: #{path}"
-      end
+      raise Error, "RI cache must be a readable regular file: #{path}" unless File.file?(path) && File.readable?(path)
 
       Driver.dump(path)
     end

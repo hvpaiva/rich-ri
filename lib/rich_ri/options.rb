@@ -44,9 +44,7 @@ module RichRI
 
     def parse(argv, defaults: ENV.fetch("RI", ""), configuration: true)
       names = configured_defaults(argv, defaults, configuration)
-      args = argv.dup
-      @parser.parse!(args)
-      @driver_options[:names] = names + args
+      @driver_options[:names] = names + arguments(argv)
       @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
       @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
@@ -69,6 +67,12 @@ module RichRI
     end
 
     private
+
+    def arguments(argv)
+      @parser.parse!(argv.dup)
+    rescue OptionParser::ParseError => e
+      raise UsageError, e.message
+    end
 
     def presentation_options
       @parser.separator ""

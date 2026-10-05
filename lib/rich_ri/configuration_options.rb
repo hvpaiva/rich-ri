@@ -16,8 +16,7 @@ module RichRI
       @parser.separator ""
       @parser.separator "Configuration and themes:"
       @parser.on("--config=FILE", "Read a YAML configuration file instead of the user default.") do |path|
-        Configuration.text!(path, "Configuration path")
-        @configuration_path = File.expand_path(path)
+        @configuration_path = File.expand_path(text(path, "Configuration path"))
       end
       @parser.on("--no-config", "Skip the configuration file; environment options still apply.") do
         @configuration_path = nil
@@ -40,20 +39,16 @@ module RichRI
       @parser.on("--style=ROLE=STYLE",
                  "Override a style role; repeat for several roles. Example: method=green:bold.") do |value|
         role, style = value.split("=", 2)
-        Theme.new(styles: { role => style })
-        @styles[role] = style
+        @styles[role] = style(role, style)
       end
       @parser.on("--bat-theme=NAME", "bat theme for tagged non-Ruby, non-shell code (default: base16).") do |name|
-        Configuration.text!(name, "bat_theme")
-        @bat_theme = name
+        @bat_theme = text(name, "bat_theme")
       end
       @parser.on("--shell-theme=NAME", "bat theme for shell input (default: ansi).") do |name|
-        Configuration.text!(name, "shell_theme")
-        @shell_theme = name
+        @shell_theme = text(name, "shell_theme")
       end
       @parser.on("--pager-command=COMMAND", "Choose a trusted pager command, overriding RI_PAGER/PAGER.") do |command|
-        Configuration.text!(command, "pager command")
-        @pager_command = command
+        @pager_command = text(command, "pager command")
       end
     end
 
@@ -74,16 +69,43 @@ module RichRI
       @configuration_path = selection.path
       return [] if Configuration.switches(argv).any? { |word, _| word == "--config-path" }
 
-      words = Shellwords.split(defaults)
-      @parser.parse!(words)
-      @parser.parse!(Configuration.new(argv).arguments) if enabled
+      words = default_words(defaults)
+      parse_defaults(words)
+      parse_defaults(Configuration.new(argv).arguments) if enabled
       words
-    rescue ArgumentError, OptionParser::ParseError, SystemCallError
+    rescue Error, SystemCallError
       raise unless recovery_request?(argv)
 
       initialize
       @configuration_path = selection&.path
       []
+    end
+
+    def default_words(defaults)
+      Shellwords.split(defaults)
+    rescue ArgumentError => e
+      raise ConfigurationError, e.message
+    end
+
+    # RI and the configuration go through the command-line parser, but a value
+    # refused there is not a mistake in the command line.
+    def parse_defaults(words)
+      @parser.parse!(words)
+    rescue OptionParser::ParseError, UsageError => e
+      raise ConfigurationError, e.message
+    end
+
+    def style(role, value)
+      Theme.new(styles: { role => value })
+      value
+    rescue ThemeError => e
+      raise UsageError, e.message
+    end
+
+    def text(value, name)
+      return value if Configuration.text?(value)
+
+      raise UsageError, "#{name} must be a nonempty string without control characters"
     end
 
     def recovery_request?(argv)

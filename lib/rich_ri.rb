@@ -10,6 +10,7 @@ require "timeout"
 require "psych"
 
 require_relative "rich_ri/version"
+require_relative "rich_ri/errors"
 require_relative "rich_ri/ansi"
 require_relative "rich_ri/theme"
 require_relative "rich_ri/configuration"

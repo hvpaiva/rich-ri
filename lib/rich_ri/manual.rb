@@ -14,7 +14,7 @@ module RichRI
 
     def show(color:, theme: Theme.new)
       result = system(pager_environment(color:, theme:), "man", path)
-      raise ArgumentError, "man(1) not found; install it or run rich-ri --help" if result.nil?
+      raise Error, "man(1) not found; install it or run rich-ri --help" if result.nil?
 
       result ? 0 : 1
     end
@@ -22,9 +22,9 @@ module RichRI
     def install(target = nil)
       directory = install_directory(target)
       destination = File.join(directory, "rich-ri.1")
-      raise ArgumentError, "refusing to replace a symbolic link: #{destination}" if File.symlink?(destination)
+      raise Error, "refusing to replace a symbolic link: #{destination}" if File.symlink?(destination)
       if File.exist?(destination) && !File.file?(destination)
-        raise ArgumentError, "manual destination is not a regular file: #{destination}"
+        raise Error, "manual destination is not a regular file: #{destination}"
       end
 
       FileUtils.mkdir_p(directory)
@@ -42,19 +42,21 @@ module RichRI
     private
 
     def install_directory(target)
-      raise ArgumentError, "--install-man=DIR must not be empty" if target && target.strip.empty?
+      raise UsageError, "--install-man=DIR must not be empty" if target && target.strip.empty?
 
       data = ENV.fetch("XDG_DATA_HOME", nil)
       data = File.join(Dir.home, ".local/share") unless data&.start_with?("/")
       directory = File.expand_path(target || File.join(data, "man/man1"))
+      # Without DIR the destination comes from the environment, not from the command line.
+      refused = target ? UsageError : ConfigurationError
       if directory.match?(/[[:cntrl:]]/) || RichRI.sanitize(directory) != directory
-        raise ArgumentError, "manual destination must not contain control characters"
+        raise refused, "manual destination must not contain control characters"
       end
       unless File.basename(directory) == "man1"
-        raise ArgumentError, "manual destination must be a man1 directory, such as ~/.local/share/man/man1"
+        raise refused, "manual destination must be a man1 directory, such as ~/.local/share/man/man1"
       end
       if File.exist?(directory) && !File.directory?(directory)
-        raise ArgumentError, "manual destination is not a directory: #{directory}"
+        raise refused, "manual destination is not a directory: #{directory}"
       end
 
       directory

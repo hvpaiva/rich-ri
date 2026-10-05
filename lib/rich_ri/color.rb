@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "errors"
+
 module RichRI
   # Explicit colors degrade to the closest xterm palette entry. Named ANSI
   # colors stay symbolic so terminal themes retain control over their palette.
@@ -23,7 +25,7 @@ module RichRI
       @rgb = value.delete_prefix("#").scan(/../).map { |part| part.to_i(16) } if value.match?(/\A#[0-9a-fA-F]{6}\z/)
       return if @index || @number || @rgb || value == "default"
 
-      raise ArgumentError, "invalid color #{value.inspect}; use an ANSI name, 0..255, #RRGGBB or default"
+      raise ThemeError, "invalid color #{value.inspect}; use an ANSI name, 0..255, #RRGGBB or default"
     end
 
     def sgr(depth, background: false)

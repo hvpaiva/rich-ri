@@ -10,7 +10,7 @@ module RichRI
 
     def initialize(value)
       unless value.is_a?(String) && !value.empty? && RichRI.sanitize(value) == value
-        raise ArgumentError, "style must be a nonempty string without control characters"
+        raise ThemeError, "style must be a nonempty string without control characters"
       end
 
       @parts = []
@@ -19,7 +19,7 @@ module RichRI
       seen = {}
       value.split(":", -1).each do |token|
         key, part = parse_token(token)
-        raise ArgumentError, "duplicate #{key} in style #{value.inspect}" if seen[key]
+        raise ThemeError, "duplicate #{key} in style #{value.inspect}" if seen[key]
 
         seen[key] = true
         @parts << [key, part]
@@ -39,7 +39,7 @@ module RichRI
 
       key, value = token.include?("=") ? token.split("=", 2) : ["fg", token]
       unless %w[fg bg].include?(key)
-        raise ArgumentError, "unknown style property #{key.inspect}; use fg, bg or a text attribute"
+        raise ThemeError, "unknown style property #{key.inspect}; use fg, bg or a text attribute"
       end
 
       [key, Color.new(value)]

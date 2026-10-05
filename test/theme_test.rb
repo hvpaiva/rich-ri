@@ -69,10 +69,16 @@ class ThemeTest < Minitest::Test
     assert_raises(FrozenError) { custom.sgr(:method).replace("35") }
   end
 
-  def test_unknown_names_depths_roles_and_duplicate_roles_are_rejected
-    [{ name: "missing" }, { depth: "16million" }, { styles: [] },
-     { styles: { unknown: "red" } }, { styles: { 1 => "red" } },
-     { styles: { "code" => "red", code: "blue" } }].each do |options|
+  def test_unknown_and_duplicate_roles_are_rejected_as_user_mistakes
+    [{ unknown: "red" }, { 1 => "red" }, { "code" => "red", code: "blue" }].each do |styles|
+      error = assert_raises(RichRI::ThemeError) { RichRI::Theme.new(styles:) }
+
+      assert_includes error.message, "style role"
+    end
+  end
+
+  def test_unknown_names_depths_and_role_lookups_are_caller_mistakes
+    [{ name: "missing" }, { depth: "16million" }, { styles: [] }].each do |options|
       error = assert_raises(ArgumentError) { RichRI::Theme.new(**options) }
 
       refute_empty error.message
@@ -115,7 +121,7 @@ class StyleTest < Minitest::Test
     ["", "wat", "256", "-1", "01", "#fff", "#GGFFFF", "fg=", "background=red",
      "red:blue", "red:fg=blue", "bold:bold", "none:bold", "red:", ":red",
      "bg=red:bg=blue", "red\e[0m", "red\u202e", "red\n", 31, nil].each do |style|
-      error = assert_raises(ArgumentError) { RichRI::Theme.new(styles: { code: style }) }
+      error = assert_raises(RichRI::ThemeError) { RichRI::Theme.new(styles: { code: style }) }
 
       assert_includes error.message, "style :code:"
     end
