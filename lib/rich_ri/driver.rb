@@ -64,6 +64,7 @@ module RichRI
                     bat_theme: @rich_ri_bat_theme, shell_theme: @rich_ri_shell_theme)
     end
 
+    # Returns the exit status: 1 when a name was not found, otherwise 0.
     def run
       if @list_doc_dirs
         puts(@formatter_klass ? @doc_dirs : @doc_dirs.map { |path| RichRI.sanitize(path) })
@@ -74,11 +75,30 @@ module RichRI
       elsif @interactive || @names.empty?
         interactive
       else
-        display_names(@names)
+        return display_names(@names).empty? ? 0 : 1
       end
+      0
     rescue NotFoundError => e
       # RDoc ends the process here with Kernel#abort and the name as typed.
       raise Error, e.message
+    end
+
+    # Looks every name up, as RDoc does, and returns those that were not found.
+    def display_names(names)
+      names.reject { |name| display_name(expand_name(name)) }
+    end
+
+    # Whether the name was found. RDoc answers false after showing similar
+    # names, but true after listing the pages of a source in place of a page
+    # it does not have, as it does when that list is what was asked for.
+    def display_name(name)
+      @page_list = false
+      super && (name.end_with?(":") || !@page_list)
+    end
+
+    def display_page_list(*)
+      @page_list = true
+      super
     end
 
     def page

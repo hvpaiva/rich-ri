@@ -20,9 +20,11 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_session_continues_after_names_that_cannot_be_looked_up
-    out, err, status = cli("--interactive", stdin: "RichRIExample[\nNoSuchExample123\nRichRIExample#map\n\n")
+    names = "RichRIExample[\nNoSuchExample123\nRichRIExample#ma\nRichRIExample#map\n\n"
+    out, err, status = cli("--interactive", stdin: names)
 
     assert_predicate status, :success?, err
+    assert_includes out, "RichRIExample#ma not found, maybe you meant:"
     assert_includes err, "rich-ri: Nothing known about RichRIExample[\n"
     assert_includes err, "rich-ri: Nothing known about NoSuchExample123\n"
     refute_match(/from .*\.rb:\d+/, err)

@@ -83,6 +83,49 @@ class DriverTest < Minitest::Test
     assert_equal "rich-ri: Nothing known about NoSuchExample123\n", err
   end
 
+  def test_a_name_answered_with_suggestions_was_not_found
+    out, err, status = cli("RichRIExample#ma")
+
+    assert_equal 1, status.exitstatus
+    assert_empty err
+    assert_equal "RichRIExample#ma not found, maybe you meant:\n\nRichRIExample#map\n", out
+    out, err, status = cli("RichRIExample#ma", "RichRIExample.build")
+
+    assert_equal 1, status.exitstatus
+    assert_empty err
+    assert_includes out, "maybe you meant:"
+    assert_includes out, "Create an example."
+  end
+
+  def test_a_page_answered_with_the_pages_of_its_source_was_not_found
+    source = TestSupport::STORE
+    { "#{source}:" => 0, "#{source}:GUIDE.rdoc" => 0, "#{source}:GUIDE" => 0, "#{source}:missing" => 1,
+      "#{source}:GUID" => 1 }.each do |name, code|
+      out, err, status = cli(name)
+
+      assert_equal code, status.exitstatus, name
+      assert_empty err
+      assert_includes out, code.zero? && !name.end_with?(":") ? "= Example guide" : "GUIDE.rdoc"
+    end
+  end
+
+  def test_a_page_name_that_matches_several_pages_was_not_found
+    Dir.mktmpdir("rich-ri-pages-") do |dir|
+      path = File.join(dir, "ri")
+      FileUtils.cp_r(TestSupport::STORE, path)
+      store = RDoc::RI::Store.new(RDoc::Options.new, path: path, type: :extra)
+      store.load_cache
+      store.cache[:pages] << "GUIDE.md"
+      store.save_cache
+      out, err, status = cli("--no-standard-docs", "--doc-dir", path, "#{path}:GUIDE", docs: false)
+
+      assert_equal 1, status.exitstatus
+      assert_empty err
+      assert_includes out, "= GUIDE pages in"
+      assert_includes out, "GUIDE.md"
+    end
+  end
+
   def test_suggestions_escape_controls_in_stored_names
     with_cached_names(modules: ["Unsafe\a"], methods: ["ma\e[31mx"]) do |sources|
       out, err, status = cli(*sources, "Unsafee", docs: false)
@@ -90,9 +133,9 @@ class DriverTest < Minitest::Test
       assert_equal 1, status.exitstatus
       assert_empty out
       assert_equal "rich-ri: Nothing known about Unsafee\nDid you mean?  Unsafe\\u0007\n", err
-      out, err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
+      out, _err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
 
-      assert_predicate status, :success?, err
+      assert_equal 1, status.exitstatus
       refute_match(/[\e\a]/, out)
       assert_includes out, "RichRIExample#ma\\u001b not found, maybe you meant:"
       assert_includes out, "RichRIExample#ma\\u001b[31mx\n"

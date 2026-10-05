@@ -37,12 +37,9 @@ module RichRI
       driver_options[:rich_ri_bat_theme] = options.bat_theme
       driver_options[:rich_ri_shell_theme] = options.shell_theme
       driver_options[:rich_ri_pager] = options.pager_command
-      if driver_options[:dump_path]
-        dump(driver_options[:dump_path])
-      else
-        Driver.new(driver_options).run
-      end
-      0
+      return dump(driver_options[:dump_path]) if driver_options[:dump_path]
+
+      Driver.new(driver_options).run
     end
 
     def color?(mode)
@@ -72,6 +69,7 @@ module RichRI
       raise Error, "RI cache must be a readable regular file: #{path}" unless File.file?(path) && File.readable?(path)
 
       Driver.dump(path)
+      0
     end
 
     def help(options)
