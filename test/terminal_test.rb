@@ -2,9 +2,11 @@
 
 require "test_helper"
 require "terminal_helper"
+require "command_helper"
 
 class TerminalTest < Minitest::Test
   include TerminalTestSupport
+  include CommandSupport
 
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
 
@@ -158,8 +160,7 @@ class TerminalTest < Minitest::Test
   end
 
   def test_interactive_tab_completes_lookup_and_blank_line_exits_without_external_programs
-    Dir.mktmpdir("rich-ri-interactive-") do |dir|
-      environment = { "PATH" => "", "PAGER" => nil, "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+    with_session("PATH" => "", "PAGER" => nil) do |environment|
       output, status = terminal_cli(*SOURCES, env: environment, prompt: ">> ", input: "RichRIExample#ma\t\n\n")
 
       assert_equal 0, status, output

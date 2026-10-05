@@ -96,14 +96,8 @@ class DriverTest < Minitest::Test
   end
 
   def test_a_page_name_that_matches_several_pages_was_not_found
-    Dir.mktmpdir("rich-ri-pages-") do |dir|
-      path = File.join(dir, "ri")
-      FileUtils.cp_r(TestSupport::STORE, path)
-      store = RDoc::RI::Store.new(RDoc::Options.new, path: path, type: :extra)
-      store.load_cache
-      store.cache[:pages] << "GUIDE.md"
-      store.save_cache
-      out, err, status = cli("--no-standard-docs", "--doc-dir", path, "#{path}:GUIDE", docs: false)
+    with_cached_names(pages: ["GUIDE.md"]) do |sources|
+      out, err, status = cli(*sources, "#{sources.last}:GUIDE", docs: false)
 
       assert_equal 1, status.exitstatus
       assert_empty err
