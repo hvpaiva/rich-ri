@@ -33,6 +33,10 @@ module Manual
       Submit an empty line to leave the prompt.
       Use Class#method for instance methods, Class::method for class methods,
       and Class.method to search both. Quote shell punctuation such as 'Array.[]'.
+      Use SOURCE:PAGE for a documentation page, where SOURCE is ruby, site, home,
+      a gem's name or the full name of its directory, such as rake or
+      rake-13.2.1, or a directory given with --doc-dir. A gem is named in
+      full: a prefix such as http does not find http-2.
       .PP
       In less, use / to search, n for the next match, Space for the next page,
       and q to return. Use --no-pager to write directly to stdout.
@@ -47,8 +51,9 @@ module Manual
       man(1) is needed only for --man; --man-path and --install-man work without it.
       .PP
       --server requires the optional webrick gem (gem install webrick).
-      It serves RDoc's web interface on port 8214 by default, listening on all
-      interfaces; --server=PORT chooses another port. Stop it with Ctrl-C.
+      It serves RDoc's web interface on port #{RichRI::Options::DEFAULT_PORT} by default, listening on all
+      interfaces; --server=PORT chooses another port from #{RichRI::Options::PORTS.min} to #{RichRI::Options::PORTS.max}.
+      Stop it with Ctrl-C.
       Terminal themes do not apply to web pages.
       --profile requires the optional profile gem (gem install profile) and
       prints profiling information when the command exits.
@@ -402,6 +407,9 @@ module Manual
       arguments. It suggests theme names and semantic style roles as well as RI names.
       It makes no network requests. Invalid configuration or broken stores prevent
       documentation-name suggestions; options and theme values remain available.
+      Names are not suggested either where the lookup would refuse the command
+      line: an invalid option or value, two actions, --interactive with a name,
+      or invalid RI options.
       Use --show-config and --list-doc-dirs to diagnose missing names.
       .SS Bash
       Load bash-completion 2.x, then run these commands:

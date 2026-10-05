@@ -260,6 +260,8 @@ class ManualDisplayTest < Minitest::Test
     variables.each { |name| assert_includes source, name }
     assert_includes help, "(20 to 10000)"
     assert_equal 2, source.scan("from 20 to 10000").length
+    assert_includes help, "(port 1 to 65535,"
+    assert_includes source, "\\-\\-server=PORT chooses another port from 1 to 65535."
   end
 
   def test_page_lists_the_actions_and_pagers_the_code_knows
