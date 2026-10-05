@@ -171,7 +171,7 @@ module RichRI
 
     def start_server
       optional_gem("webrick", "--server")
-      super
+      Server.new(port: @server, doc_dirs: @stores.select { |store| store.type == :extra }.map(&:path)).start
     end
 
     # RDoc completes classes and methods. The sources of pages and the pages

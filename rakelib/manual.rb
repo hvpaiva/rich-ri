@@ -51,8 +51,9 @@ module Manual
       man(1) is needed only for --man; --man-path and --install-man work without it.
       .PP
       --server requires the optional webrick gem (gem install webrick).
-      It serves RDoc's web interface on port #{RichRI::Options::DEFAULT_PORT} by default, listening on all
-      interfaces; --server=PORT chooses another port from #{RichRI::Options::PORTS.min} to #{RichRI::Options::PORTS.max}.
+      It serves RDoc's web interface on port #{RichRI::Options::DEFAULT_PORT} by default, listening on
+      #{RichRI::Server::ADDRESS} only, so other machines cannot connect;
+      --server=PORT chooses another port from #{RichRI::Options::PORTS.min} to #{RichRI::Options::PORTS.max}.
       Stop it with Ctrl-C.
       Terminal themes do not apply to web pages.
       --profile requires the optional profile gem (gem install profile) and

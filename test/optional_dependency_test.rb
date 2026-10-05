@@ -4,6 +4,23 @@ require "test_helper"
 require "socket"
 
 class OptionalDependencyTest < Minitest::Test
+  # Prints each socket the server listens on as "ADDRESS PORT", on one line, and takes any free port.
+  SERVER = <<~RUBY
+    require "webrick"
+    require "rich_ri"
+    module ObservedServer
+      def initialize(config, &block)
+        super(config.merge(Port: 0, AccessLog: [], Logger: WEBrick::Log.new($stderr, WEBrick::Log::FATAL),
+          StartCallback: lambda do
+            puts listeners.map { |socket| socket.addr.values_at(3, 1).join(" ") }.join(", ")
+            $stdout.flush
+          end), &block)
+      end
+    end
+    WEBrick::HTTPServer.prepend(ObservedServer)
+    exit RichRI::CLI.run(ARGV)
+  RUBY
+
   def test_missing_optional_gems_have_actionable_errors
     { "server" => "webrick", "profile" => "profile" }.each do |option, dependency|
       out, err, status = without_optional_gems("--#{option}", "RichRIExample#map")
@@ -40,22 +57,13 @@ class OptionalDependencyTest < Minitest::Test
     assert_match(/RichRI::(?:Driver|Formatter)#/, err)
   end
 
-  def test_server_serves_real_documentation_on_loopback
-    require_optional_gem("webrick")
-    source = <<~RUBY
-      require "webrick"
-      require "rich_ri"
-      module LoopbackServer
-        def initialize(config, &block)
-          super(config.merge(BindAddress: "127.0.0.1", Port: 0, AccessLog: [],
-            Logger: WEBrick::Log.new($stderr, WEBrick::Log::FATAL),
-            StartCallback: -> { puts listeners.first.addr[1]; $stdout.flush }), &block)
-        end
-      end
-      WEBrick::HTTPServer.prepend(LoopbackServer)
-      exit RichRI::CLI.run(ARGV)
-    RUBY
-    with_server(source) do |port|
+  def test_server_listens_on_the_loopback_interface_only
+    with_server { |listening| assert_match(/\A127\.0\.0\.1 \d+\z/, listening) }
+  end
+
+  def test_server_serves_real_documentation
+    with_server do |listening|
+      port = Integer(listening.split.last)
       response = http_get(port, "/")
 
       assert_match(%r{\AHTTP/1.1 200 }, response)
@@ -101,17 +109,18 @@ class OptionalDependencyTest < Minitest::Test
     end
   end
 
-  def with_server(source)
-    command = [RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
+  def with_server
+    require_optional_gem("webrick")
+    command = [RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", SERVER, "--",
                "--no-standard-docs", "--doc-dir", TestSupport::STORE, "--server"]
     Open3.popen3(TestSupport::ENVIRONMENT, *command) do |input, output, errors, process|
       input.close
       begin
         Timeout.timeout(15) do
-          line = output.gets
+          listening = output.gets
 
-          assert_match(/\A\d+\n\z/, line.to_s, line || errors.read)
-          yield Integer(line)
+          flunk "The server did not start: #{errors.read}" unless listening
+          yield listening.chomp
           Process.kill("TERM", process.pid)
 
           assert_predicate process.value, :success?, errors.read

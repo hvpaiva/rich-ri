@@ -264,6 +264,10 @@ class ManualDisplayTest < Minitest::Test
     assert_includes source, "\\-\\-server=PORT chooses another port from 1 to 65535."
   end
 
+  def test_page_gives_the_only_address_the_server_listens_on
+    assert_includes ::Manual.render, "listening on\n127.0.0.1 only, so other machines cannot connect;"
+  end
+
   def test_page_lists_the_actions_and_pagers_the_code_knows
     source = ::Manual.render
     actions = source[/^No two of (.*) can be combined\.$/, 1]
