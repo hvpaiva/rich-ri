@@ -86,6 +86,9 @@ module RichRI
         super { |io| yield(@formatter_klass ? io : Output.new(io)) }
       end
       @pager&.finish(interrupted)
+      # RDoc takes this answer for whether a class page was shown, and looks
+      # the name up again as a method when it is not true.
+      true
     ensure
       @pager = nil
     end

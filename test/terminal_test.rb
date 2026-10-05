@@ -54,6 +54,18 @@ class TerminalTest < Minitest::Test
     end
   end
 
+  def test_a_class_inside_a_namespace_is_paged_once
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      pager, log = logging_pager(dir)
+      output, status = terminal_cli(*SOURCES, "RichRIExample::Nested", env: { "RI_PAGER" => pager })
+
+      assert_equal 0, status, output
+      assert_equal "[]\n", File.read(log)
+      assert_includes RichRI.plain(output), "A nested example for namespace discovery."
+      refute_includes output, "not found"
+    end
+  end
+
   def test_without_any_pager_the_page_goes_to_the_terminal
     output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: { "PATH" => "", "PAGER" => nil })
 

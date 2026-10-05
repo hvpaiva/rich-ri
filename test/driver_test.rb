@@ -36,6 +36,7 @@ class DriverTest < Minitest::Test
 
       assert_predicate status, :success?, "#{name}: #{err}"
       assert_includes out, text
+      refute_includes out, "not found"
     end
   end
 
