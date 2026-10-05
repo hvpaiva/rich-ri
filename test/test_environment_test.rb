@@ -3,8 +3,28 @@
 require "test_helper"
 require "json"
 require "shell_support"
+require_relative "release_support"
 
 class TestEnvironmentTest < Minitest::Test
+  include ReleaseFixtures
+
+  def test_fixture_repositories_ignore_the_repository_a_hook_exports
+    Dir.mktmpdir do |dir|
+      other = File.join(dir, "other")
+      _out, err, status = Open3.capture3(TestSupport::GIT_ENVIRONMENT, "git", "init", "-q", other)
+
+      assert_predicate status, :success?, err
+      hook = { "GIT_DIR" => File.join(other, ".git"), "GIT_WORK_TREE" => other,
+               "GIT_INDEX_FILE" => File.join(other, ".git", "index") }
+      with_environment(hook) do
+        repository { |root| assert_path_exists File.join(root, ".git") }
+      end
+      _out, status = Open3.capture2e(TestSupport::GIT_ENVIRONMENT, "git", "-C", other, "rev-parse", "--verify", "HEAD")
+
+      refute_predicate status, :success?
+    end
+  end
+
   def test_application_settings_are_cleared_without_erasing_suite_controls
     values = { "RICH_RI_REQUIRE_SHELLS" => "1", "RICH_RI_CONFIG" => "/missing/config.yml",
                "RICH_RI_THEME" => "invalid", "RICH_RI_STYLE_COMMENT" => "invalid" }

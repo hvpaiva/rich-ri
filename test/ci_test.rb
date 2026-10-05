@@ -88,7 +88,8 @@ class CITest < Minitest::Test
   end
 
   def git(root, *)
-    out, err, status = Open3.capture3("git", "-c", "user.name=Test", "-c", "user.email=test@example.org",
+    out, err, status = Open3.capture3(TestSupport::GIT_ENVIRONMENT, "git", "-c", "user.name=Test",
+                                      "-c", "user.email=test@example.org",
                                       "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
                                       "-c", "maintenance.auto=false", *, chdir: root)
 
