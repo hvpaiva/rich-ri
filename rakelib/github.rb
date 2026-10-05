@@ -42,6 +42,8 @@ module GitHub
     def execute(argv, stdin_data: nil)
       output, error, status = Open3.capture3(*argv, stdin_data: stdin_data, chdir: @root)
       [output.empty? ? error : output, status]
+    rescue Errno::ENOENT
+      raise Error, "#{argv.first} is not installed or not on PATH"
     end
   end
 
