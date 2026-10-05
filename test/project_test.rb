@@ -6,7 +6,6 @@ require_relative "../rakelib/release"
 class ProjectTest < Minitest::Test
   USER_GUIDES = %w[docs/compatibility.md docs/configuration.md docs/shell-completion.md docs/troubleshooting.md
                    docs/usage.md].freeze
-  # Notes for people working on the project: read in the repository, not shipped.
   REPOSITORY_GUIDES = %w[docs/development.md docs/images/README.md docs/maintenance.md].freeze
   SHIPPED = (USER_GUIDES + %w[docs/config.example.yml exe/rich-ri completions/rich-ri.bash completions/rich-ri.fish
                               completions/rich-ri.zsh man/man1/rich-ri.1 README.md CHANGELOG.md LICENSE.txt

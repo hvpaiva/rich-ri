@@ -31,8 +31,7 @@ class ToolsTest < Minitest::Test
     assert_empty Tools.required - required
   end
 
-  # mise installs the latest release of a tool that mise.toml does not pin, so CI
-  # would drift from the local check without failing.
+  # mise installs the latest release of an unpinned tool, so CI would drift without failing.
   def test_ci_installs_through_mise_only_the_versions_mise_toml_pins
     jobs = YAML.load_file(File.join(TestSupport::ROOT, ".github/workflows/ci.yml")).fetch("jobs")
     installs = jobs.transform_values do |job|

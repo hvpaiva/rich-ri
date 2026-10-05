@@ -3,10 +3,8 @@
 require "fileutils"
 require "open3"
 
-# Disposable Git repositories for the maintenance tests.
 module GitSupport
-  # Git exports these to hooks. Left in place, they point fixture commands and
-  # the code under test at the repository that started the suite.
+  # Git exports these to hooks; left set, they point the tests at the repository running the suite.
   REPOSITORY_VARIABLES = Open3.capture2("git", "rev-parse", "--local-env-vars").first.split.freeze
   REPOSITORY_VARIABLES.each { |name| ENV.delete(name) }
   ENVIRONMENT = { "GIT_CONFIG_GLOBAL" => File::NULL, "GIT_CONFIG_NOSYSTEM" => "1" }.freeze
