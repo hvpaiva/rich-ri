@@ -24,7 +24,7 @@ module RichRI
     utf8(text).gsub(CONTROL) { |char| format("\\u%04x", char.ord) }
   end
 
-  # Whether sanitize would leave the text as it is.
+  # Whether the text holds no terminal control; invalid bytes are not controls.
   def self.printable?(text)
     !utf8(text).match?(CONTROL)
   end

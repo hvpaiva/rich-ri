@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module RichRI
-  # RDoc names a gem's store after its directory and takes what precedes "-" and a digit for the
-  # gem, so "http" finds http-2 and a native gem has no name. Here a gem answers to its own name.
+  # RDoc takes any start of a gem's directory that is followed by "-" and a digit for the gem's
+  # name, so "http" also finds http-2. Here a gem answers to its own name.
   class PageSources
     NAME = /\A(?<source>[^:]+):(?!:)(?<page>.*)\z/
 
