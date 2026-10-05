@@ -6,6 +6,8 @@ User-visible changes are recorded here. This project follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-05
+
 ### Added
 
 - Shell integration tests can run in Docker or Podman when local shells are
@@ -51,4 +53,5 @@ User-visible changes are recorded here. This project follows
 - Invalid dump paths and a missing manual viewer produce actionable errors.
 - Contributor checks handle shallow pull request merge histories.
 
-[Unreleased]: https://github.com/hvpaiva/rich-ri/commits/main
+[Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/hvpaiva/rich-ri/releases/tag/v0.1.0
