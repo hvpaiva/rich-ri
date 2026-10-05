@@ -11,25 +11,23 @@ class ReleaseTest < Minitest::Test
 
   def test_preparation_updates_version_and_preserves_unreleased_for_next_changes
     repository do |root|
-      assert_equal "0.2.0", Release.prepare("0.2.0", root: root)
-      assert_equal "0.2.0", Release.version(root: root)
-      changelog = File.read(File.join(root, "CHANGELOG.md"))
+      changes = Release.changes("0.2.0", root: root)
+      changelog = changes.fetch("CHANGELOG.md")
 
+      assert_equal "VERSION = \"0.2.0\"\n", changes.fetch(Release::VERSION_FILE)
       assert_includes changelog, "## [Unreleased]\n\n## [0.2.0] - #{Time.now.utc.to_date.iso8601}"
       assert_includes changelog, "- Readable documentation."
       assert_includes changelog, "compare/v0.2.0...HEAD"
     end
   end
 
-  def test_preparation_refuses_dirty_tree_and_invalid_versions_without_writing
+  def test_preparation_refuses_a_dirty_tree_and_invalid_versions
     repository do |root|
-      original = File.read(File.join(root, "CHANGELOG.md"))
-      assert_release_error(/Version cannot go backwards/) { Release.prepare("0.0.1", root: root) }
-      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.prepare("01.2.3", root: root) }
-      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.prepare("invalid", root: root) }
+      assert_release_error(/Version cannot go backwards/) { Release.changes("0.0.1", root: root) }
+      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.changes("01.2.3", root: root) }
+      assert_release_error(/Use a stable X\.Y\.Z version/) { Release.changes("invalid", root: root) }
       File.write(File.join(root, "unfinished"), "work")
-      assert_release_error(/Commit or stash changes/) { Release.prepare("0.2.0", root: root) }
-      assert_equal original, File.read(File.join(root, "CHANGELOG.md"))
+      assert_release_error(/Commit or stash changes/) { Release.changes("0.2.0", root: root) }
     end
   end
 

@@ -54,7 +54,7 @@ class ReleaseArtifactTest < Minitest::Test
 
       assert_includes File.read(File.join(root, "pkg/release-notes.md")), "Readable documentation."
       FileUtils.remove_entry(File.join(root, "pkg"))
-      Release.prepare("0.2.0", root: root)
+      Release.changes("0.2.0", root: root).each { |path, content| File.write(File.join(root, path), content) }
       digest = artifact(root, version: "0.2.0")
 
       assert_match(/\A[0-9a-f]{64}\z/, digest)

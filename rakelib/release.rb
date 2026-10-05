@@ -66,11 +66,6 @@ module Release
     changelog.split(/^## \[#{Regexp.escape(target)}\][^\n]*\n/, 2).last.to_s.split(/^## |^\[[^\]]+\]:/, 2).first.to_s
   end
 
-  def self.prepare(target, root: ROOT)
-    changes(target, root: root).each { |path, content| File.write(File.join(root, path), content) }
-    target
-  end
-
   def self.changes(target, root: ROOT, source: nil, date: Time.now.utc.to_date)
     validate_version(target)
     source ||= clean_source(root)
