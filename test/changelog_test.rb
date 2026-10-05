@@ -82,6 +82,27 @@ class ChangelogTest < Minitest::Test
     assert_empty Changelog.problems("#{RELEASED}[an issue]: #{URL}/issues/1\n", today: TODAY)
   end
 
+  def test_a_later_hotfix_is_listed_first_while_unreleased_compares_with_the_highest_version
+    text = <<~TEXT
+      ## [Unreleased]
+
+      ## [0.1.1] - 2026-10-04
+
+      - A fix for the previous series.
+
+      ## [0.2.0] - 2026-10-02
+
+      - The next series.
+
+      [Unreleased]: #{URL}/compare/v0.2.0...HEAD
+      [0.1.1]: #{URL}/releases/tag/v0.1.1
+      [0.2.0]: #{URL}/releases/tag/v0.2.0
+    TEXT
+
+    assert_empty Changelog.problems(text, today: TODAY)
+    assert_equal 1, Changelog.problems(text.sub("compare/v0.2.0", "compare/v0.1.1"), today: TODAY).length
+  end
+
   def test_cutting_a_release_dates_the_entries_and_lists_its_link_first
     cut = Changelog.cut(RELEASED, "0.3.0", TODAY)
 

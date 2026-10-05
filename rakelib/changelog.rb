@@ -47,9 +47,11 @@ module Changelog
 
   def self.entries?(text, name) = notes(text, name).match?(/^[-*] \S/)
 
+  # Unreleased compares with the highest version, which a later hotfix for an older series is not.
   def self.references(text)
     versions = releases(text).map(&:version)
-    unreleased = versions.empty? ? "#{URL}/commits/main" : "#{URL}/compare/v#{versions.first}...HEAD"
+    highest = versions.max_by { |version| Gem::Version.new(version) }
+    unreleased = highest ? "#{URL}/compare/v#{highest}...HEAD" : "#{URL}/commits/main"
     ["[Unreleased]: #{unreleased}"] + versions.map { |version| "[#{version}]: #{URL}/releases/tag/v#{version}" }
   end
 
