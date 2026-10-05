@@ -81,6 +81,16 @@ class CITest < Minitest::Test
     end
   end
 
+  def test_a_range_that_looks_like_an_option_is_read_as_a_revision
+    repository do |root|
+      injected = File.join(root, "injected")
+      error = assert_raises(CI::Error) { CI.changed_paths("--output=#{injected}", root) }
+
+      assert_equal "fatal: bad revision '--output=#{injected}'", error.message
+      refute_path_exists injected
+    end
+  end
+
   def test_releases_and_other_events_cannot_select_the_documentation_shortcut
     repository do |root|
       base = git(root, "rev-parse", "HEAD")
