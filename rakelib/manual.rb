@@ -34,7 +34,17 @@ module Manual
       The optional bat program highlights shell transcripts and tagged languages;
       without it, their original text is preserved. less is an optional pager.
       man(1) is needed only for --man; --man-path and --install-man work without it.
+      .PP
+      --server requires the optional webrick gem (gem install webrick).
+      It serves RDoc's web interface on port 8214 by default, listening on all
+      interfaces; --server=PORT chooses another port. Stop it with Ctrl-C.
+      Terminal themes do not apply to web pages.
+      --profile requires the optional profile gem (gem install profile) and
+      prints profiling information when the command exits.
+      Install these gems for the active Ruby; with bundle exec, include them in
+      that bundle. Missing optional gems produce an installation hint and status 1.
       .SH OPTIONS
+      Write long options in full; abbreviations are not accepted.
       #{options}
       .SH EXAMPLES
       .nf

@@ -24,6 +24,47 @@ class ConfigurationCLITest < Minitest::Test
     end
   end
 
+  def test_config_selectors_require_the_full_option_name
+    with_config({ "width" => 44 }) do |path|
+      [["--confi", path], ["--confi=#{path}"], ["--no-conf"]].each do |selector|
+        out, err, status = cli(*selector, "--show-config", docs: false, env: { "RICH_RI_CONFIG" => path })
+
+        assert_equal 1, status.exitstatus
+        assert_empty out
+        assert_includes err, "invalid option: #{selector.first.split('=', 2).first}"
+      end
+      [["--config", path], ["--config=#{path}"]].each do |selector|
+        out, err, status = cli(*selector, "--show-config", docs: false)
+
+        assert_predicate status, :success?, err
+        assert_equal 44, Psych.safe_load(out).fetch("width")
+      end
+      out, err, status = cli("--no-config", "--show-config", docs: false, env: { "RICH_RI_CONFIG" => path })
+
+      assert_predicate status, :success?, err
+      refute_equal 44, Psych.safe_load(out).fetch("width")
+    end
+  end
+
+  def test_invalid_ri_abbreviations_fail_lookup_but_allow_recovery_actions
+    environment = { "RI" => "--wid=44" }
+    out, err, status = cli("--show-config", docs: false, env: environment)
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_includes err, "invalid option: --wid"
+    %w[--help --version --config-path --completion=bash].each do |action|
+      out, err, status = cli(action, docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      refute_empty out
+    end
+    _out, err, status = cli("--vers", docs: false, env: environment)
+
+    assert_equal 1, status.exitstatus
+    assert_includes err, "invalid option: --wid"
+  end
+
   def test_help_respects_valid_styles_and_recovers_from_invalid_configuration
     with_config({ "color" => "always", "styles" => { "title" => "red:bold" } }) do |path|
       out, err, status = cli("--config", path, "--help", docs: false)

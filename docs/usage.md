@@ -3,6 +3,7 @@
 Names follow RI conventions. Use `Class#method` for instance methods,
 `Class::method` for class methods, and `Class.method` to search both.
 Quote names containing shell punctuation, such as `rich-ri 'Array.[]'`.
+Write long options in full; abbreviations are not accepted.
 
 Run `rich-ri` without arguments for RI's interactive lookup. Its Tab completion
 is extended with documentation pages and method prefixes such as `String#`,
@@ -114,6 +115,31 @@ your operating system's package manager.
 Without bat, those code blocks stay plain. If no pager is available, documentation
 is written to the terminal; `--no-pager` selects this behavior explicitly.
 `--help` and `--install-man` work without the `man` program.
+
+## Optional RDoc modes
+
+`rich-ri --server` starts RDoc's documentation web server on port 8214;
+`--server=PORT` selects another port. This mode requires the `webrick` gem:
+
+```sh
+gem install webrick
+```
+
+The server uses RDoc's web interface and network defaults, including listening
+on all interfaces. Stop it with Ctrl-C. rich-ri's terminal themes do not apply
+to the web pages.
+
+`--profile` runs Ruby's profiler while reading documentation and prints timing
+information when the command exits. It requires the `profile` gem:
+
+```sh
+gem install profile
+```
+
+Install either gem for the same Ruby that runs rich-ri. Neither is needed for
+normal terminal lookup, highlighting or completion. Missing optional gems produce
+an installation hint and exit status 1. When running through Bundler, add the
+needed gem to that bundle too.
 
 ## Exit status
 

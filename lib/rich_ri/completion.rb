@@ -110,10 +110,13 @@ module RichRI
 
     def source_arguments(words)
       args = []
+      flags = Options.new.entries.map { |flag, _description| flag.delete_suffix("=") }
       index = 0
       while index < words.length
         word = words[index]
         break if word == "--"
+
+        raise OptionParser::InvalidOption, word if word.start_with?("--") && !flags.include?(word.split("=", 2).first)
 
         if word.match?(SOURCES) || word.start_with?("--doc-dir=") || (word.start_with?("-d") && word.length > 2)
           args << word
