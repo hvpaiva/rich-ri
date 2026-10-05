@@ -18,8 +18,9 @@ module Manual
       It does not invoke the ri executable, which need not be on PATH.
       Headings, references, signatures and Ruby examples use the selected theme.
       The default theme follows the terminal palette.
-      With no name, start interactive lookup with Tab completion.
-      Submit an empty line to leave interactive lookup.
+      With no name, or with --interactive, look names up at a prompt with
+      Tab completion. Each answer opens in the pager, as a single lookup does.
+      Submit an empty line to leave the prompt.
       Use Class#method for instance methods, Class::method for class methods,
       and Class.method to search both. Quote shell punctuation such as 'Array.[]'.
       .PP

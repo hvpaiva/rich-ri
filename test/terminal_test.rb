@@ -52,6 +52,29 @@ class TerminalTest < Minitest::Test
     refute_includes output, "No such file"
   end
 
+  def test_interactive_lookups_are_paged_with_and_without_the_option
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      pager = File.join(dir, "pager.rb")
+      log = File.join(dir, "log")
+      File.write(pager, "File.write(ARGV.fetch(0), \"paged\\n\", mode: \"a\")\nSTDOUT.write(STDIN.read)\n")
+      # On a dumb terminal the line editor asks for no cursor reports, which
+      # this test terminal would leave it waiting for.
+      environment = { "RI_PAGER" => [RbConfig.ruby, pager, log].shelljoin, "HOME" => dir, "TERM" => "dumb" }
+      sources = ["--no-standard-docs", "--doc-dir", TestSupport::STORE]
+      { [] => "paged\npaged\n", ["--interactive"] => "paged\npaged\n", ["--no-pager"] => "",
+        ["--interactive", "--no-pager"] => "", ["-i", "-T"] => "" }.each do |mode, paged|
+        File.write(log, "")
+        output, status = terminal_cli(*sources, *mode, env: environment, prompt: ">> ",
+                                                       input: "RichRIExample#map\nRichRIExample.build\n\n")
+
+        assert_equal 0, status, output
+        assert_equal paged, File.read(log), mode.inspect
+        assert_includes RichRI.plain(output), "Return transformed values."
+        assert_includes RichRI.plain(output), "Create an example."
+      end
+    end
+  end
+
   def test_interactive_tab_completes_lookup_and_blank_line_exits_without_external_programs
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
       environment = { "PATH" => "", "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }

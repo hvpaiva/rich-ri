@@ -62,7 +62,9 @@ module RichRI
     def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)
       names = configured_defaults(self.class.new.command_line(argv), defaults, configuration)
       finish(names + arguments(argv))
-      @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
+      # RDoc's own ri stops paging under --interactive but not at the prompt
+      # it opens when given no name; here the two are one session.
+      @driver_options[:use_stdout] ||= !$stdout.tty?
       @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
     end
