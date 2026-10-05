@@ -98,6 +98,21 @@ class StoreTest < Minitest::Test
     end
   end
 
+  def test_all_keeps_the_class_page_when_one_method_cannot_be_read
+    with_store do |store|
+      File.binwrite(File.join(store, "RichRIExample/map-i.ri"), retired_class_data)
+      out, err, status = lookup(store, "--all", "RichRIExample")
+
+      assert_predicate status, :success?, err
+      assert_empty err
+      assert_includes out, "Create an example."
+      assert_includes out, "Report whether this example is ready."
+      refute_includes out, "Return transformed values."
+      assert_includes out, "= RichRIExample#map"
+      assert_match(/\(not shown: incompatible or damaged RI data in\s/, out)
+    end
+  end
+
   def test_dump_of_unreadable_data_names_the_file
     Dir.mktmpdir("rich-ri-store-") do |dir|
       { "retired.ri" => retired_class_data, "empty.ri" => "", "text.ri" => "not marshal data" }.each do |name, content|

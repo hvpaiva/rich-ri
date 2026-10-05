@@ -110,6 +110,18 @@ module RichRI
       out.parts[start..].grep(RDoc::Markup::Verbatim).each { |part| part.format = :rbs }
     end
 
+    def add_method_documentation(out, klass)
+      klass.method_list.each do |method|
+        add_method(out, method.full_name)
+      rescue NotFoundError
+        next
+      rescue StoreError => e
+        # One unreadable method must not cost the rest of the class page.
+        out << RDoc::Markup::Heading.new(1, method.full_name) << RDoc::Markup::BlankLine.new
+        out << RDoc::Markup::Paragraph.new("(not shown: #{e.message})") << RDoc::Markup::BlankLine.new
+      end
+    end
+
     def add_method_list(out, methods, name)
       return super if @formatter_klass
       return if methods.empty?
