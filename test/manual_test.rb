@@ -181,6 +181,10 @@ class ManualDisplayTest < Minitest::Test
     end
   end
 
+  def test_no_section_of_the_manual_is_empty
+    refute_match(/^\.S[SH] .*\n\.S[SH] /, ::Manual.render)
+  end
+
   def test_code_blocks_preserve_copyable_commands_with_typographic_formatter_glyphs
     source = ::Manual.render
 
