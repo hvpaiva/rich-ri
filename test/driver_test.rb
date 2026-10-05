@@ -142,6 +142,63 @@ class DriverTest < Minitest::Test
     end
   end
 
+  # The command over the gems of the suite alone.
+  def gems(*words, complete: false)
+    sources = ["--no-system", "--no-site", "--no-home"]
+    cli(*(complete ? ["--complete", *sources] : sources), *words, docs: false, env: TestSupport.gem_environment)
+  end
+
+  def test_a_gem_is_asked_for_by_its_name_whatever_its_version_and_platform
+    { "inkwell-native:BUILDING" => "Compile the extension.", "inkwell-native:" => "BUILDING.rdoc",
+      "inkwell-2:UPGRADING" => "Move from the first inkwell.", "inkwell:GUIDE" => "Keep the well full." }
+      .each do |name, text|
+      out, err, status = gems(name)
+
+      assert_predicate status, :success?, "#{name}: #{err}"
+      assert_includes out, text
+    end
+    out, err, status = gems("inkwell:")
+
+    assert_predicate status, :success?, err
+    assert_includes out, "GUIDE.rdoc"
+    refute_includes out, "UPGRADING.rdoc"
+  end
+
+  def test_a_source_is_also_known_by_the_whole_name_of_its_directory
+    { "inkwell-1.4.0:GUIDE" => "Keep the well full.", "inkwell-1.4.0:" => "GLOSSARY.rdoc",
+      "inkwell-native-2.0.1-arm64-darwin-23:" => "BUILDING.rdoc",
+      "inkwell-native-2.0.1-arm64-darwin-23:BUILDING.rdoc" => "Compile the extension." }.each do |name, text|
+      out, err, status = gems(name)
+
+      assert_predicate status, :success?, "#{name}: #{err}"
+      assert_includes out, text
+    end
+  end
+
+  def test_part_of_a_gem_name_or_of_its_directory_names_no_gem
+    ["inkwell-native-2.0.1-arm64-darwin", "inkwell-native-2.0.1", "inkwell-nat"].each do |source|
+      out, err, status = gems("#{source}:BUILDING")
+
+      assert_equal 1, status.exitstatus, source
+      assert_empty out
+      assert_equal "rich-ri: Nothing known about #{source}\n", err
+      out, = gems("#{source}:", complete: true)
+
+      assert_empty out, source
+    end
+  end
+
+  def test_completion_offers_each_gem_by_name_and_only_its_own_pages
+    out, err, status = gems("inkwell", complete: true)
+
+    assert_predicate status, :success?, err
+    assert_equal %w[inkwell-2: inkwell-native: inkwell:], out.split
+    assert_equal %w[inkwell:GLOSSARY.rdoc inkwell:GUIDE.rdoc], gems("inkwell:", complete: true).first.split
+    assert_equal %w[inkwell-2:UPGRADING.rdoc], gems("inkwell-2:", complete: true).first.split
+    assert_equal %w[inkwell-native:BUILDING.rdoc], gems("inkwell-native:B", complete: true).first.split
+    assert_equal %w[inkwell-1.4.0:GUIDE.rdoc], gems("inkwell-1.4.0:GU", complete: true).first.split
+  end
+
   def test_source_directory_display_escapes_controls_without_changing_lookup_paths
     Dir.mktmpdir("rich-ri-path-") do |dir|
       path = File.join(dir, "docs\e]52;c;AAAA\a")

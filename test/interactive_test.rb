@@ -73,11 +73,11 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_tab_completes_a_gem_and_then_its_page
-    output, status = gem_session("inkwell-2\tU\t\n\n")
+    output, status = gem_session("inkwell-n\tB\t\n\n")
 
     assert_equal 0, status, output
-    assert_includes output, "inkwell-2:UPGRADING.rdoc"
-    assert_includes output, "Move from the first inkwell."
+    assert_includes output, "inkwell-native:BUILDING.rdoc"
+    assert_includes output, "Compile the extension."
     refute_includes output, "rich-ri:"
   end
 

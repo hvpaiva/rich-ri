@@ -6,6 +6,19 @@ module RichRI
   # a TypeError, ArgumentError, EOFError or NoMethodError that names no file.
   # This store reports all of them as a StoreError carrying its own path.
   class Store < RDoc::RI::Store
+    # The gem a store of type :gem documents. The store's source is the name of
+    # the gem's directory, which runs name, version and platform together.
+    attr_accessor :gem_name
+
+    # What a page of this store is asked for by, as in "source:page".
+    def page_source
+      gem_name || source
+    end
+
+    def page_names
+      cache[:pages] || []
+    end
+
     def load_cache
       reading { super }
     end

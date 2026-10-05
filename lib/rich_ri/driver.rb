@@ -125,6 +125,17 @@ module RichRI
       @pager&.io
     end
 
+    # RDoc looks for the colon of a page only after splitting the name at every
+    # "." and "#", and so loses a source that holds one, such as "json-2.9.1".
+    def expand_name(name)
+      page = PageSources::NAME.match(name)
+      page ? "#{find_store(page[:source])}:#{page[:page]}" : super
+    end
+
+    def find_store(name)
+      page_sources.resolve(name) or raise NotFoundError, name
+    end
+
     # RDoc interpolates the name into a pattern unescaped. A class name holds
     # only word characters and "::", so anything else abbreviates no class.
     def expand_class(klass)
@@ -164,30 +175,12 @@ module RichRI
       super
     end
 
+    # RDoc completes classes and methods. The sources of pages and the pages
+    # themselves come from the loaded stores, so that discovery follows this
+    # Ruby and --doc-dir.
     def complete(name)
-      # RI completes classes/methods but does not offer ruby: or gem pages.
-      # Use the loaded stores so discovery follows this Ruby and --doc-dir.
-      if (match = /\A([^:]+):([^:]*)\z/.match(name))
-        source, prefix = match.captures
-        matching = stores.select do |store|
-          store.source == source || (store.type == :gem && store.source.match?(/\A#{Regexp.escape(source)}-\d/))
-        end
-        return matching.flat_map { |store| store.cache[:pages] || [] }
-                       .select { |page| page.start_with?(prefix) }
-                       .map { |page| "#{source}:#{page}" }.uniq.sort
-      end
-
-      candidates = super
-      candidates.push("#{name}#", "#{name}.", "#{name}::") if classes.key?(name)
-      unless name.match?(/[.#:]/)
-        stores.each do |store|
-          next if (store.cache[:pages] || []).empty?
-
-          source = store.type == :gem ? store.source.sub(/-\d[^-]*\z/, "") : store.source
-          candidates << "#{source}:" if source.start_with?(name)
-        end
-      end
-      candidates.uniq.sort
+      candidates = PageSources::NAME.match?(name) ? [] : super + selectors(name)
+      (candidates + page_sources.complete(name)).uniq.sort
     end
 
     def render_method_arguments(out, arglists)
@@ -257,9 +250,25 @@ module RichRI
         next if @list_doc_dirs
 
         store = Store.new(RDoc::Options.new, path: path, type: type)
+        store.gem_name = gem_names[path] if type == :gem
         store.load_cache
         @stores << store
       end
+    end
+
+    # The name of each installed gem by the directory of its RI data. RDoc
+    # finds those directories through the specifications and keeps only the paths.
+    def gem_names
+      @gem_names ||= Gem::Specification.to_h { |spec| [RichRI.utf8(File.join(spec.doc_dir, "ri")), spec.name] }
+    end
+
+    # What can follow the name of a class.
+    def selectors(name)
+      classes.key?(name) ? ["#{name}#", "#{name}.", "#{name}::"] : []
+    end
+
+    def page_sources
+      @page_sources ||= PageSources.new(stores)
     end
   end
 end
