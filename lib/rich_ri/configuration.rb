@@ -2,7 +2,9 @@
 
 module RichRI
   # Only the user's selected file is read; documentation directories never
-  # supply configuration, and YAML values are data rather than Ruby objects.
+  # supply configuration. File and environment values become the options the
+  # command line would have used, each checked first so that a refused one is
+  # reported under the file or variable it was written in.
   class Configuration
     KEYS = %w[theme color color_depth width pager bat_theme shell_theme all expand_refs doc_dirs sources styles].freeze
     SOURCES = %w[system site home gems].freeze
@@ -12,7 +14,6 @@ module RichRI
     }.freeze
     VALUE_OPTIONS = %w[-w --width -f --format -d --doc-dir --dump --completion --theme --color-depth
                        --style --bat-theme --shell-theme --pager-command].freeze
-    MAX_BYTES = 65_536
     # Rules and padding are built one column at a time, so an unbounded width
     # is an unbounded allocation. No terminal comes near the upper limit.
     WIDTH = 20..10_000
@@ -25,10 +26,8 @@ module RichRI
       @arguments = []
       return unless load
 
-      data = @path && (explicit || File.exist?(@path)) ? read_file : {}
-      @arguments = file_arguments(data) + environment_arguments
-    rescue Psych::Exception => e
-      raise ConfigurationError, "Invalid configuration #{@path}: #{e.message}"
+      selected = @path && (explicit || File.exist?(@path))
+      @arguments = (selected ? file_arguments : []) + environment_arguments
     end
 
     def self.switches(argv)
@@ -59,11 +58,7 @@ module RichRI
     private
 
     def select_path(argv)
-      base = variable("XDG_CONFIG_HOME")
-      base = File.join(variable("HOME") || RichRI.utf8(Dir.home), ".config") unless base&.start_with?("/")
-      explicit = !variable("RICH_RI_CONFIG").to_s.empty?
-      path = explicit ? variable("RICH_RI_CONFIG") : File.join(base, "rich-ri/config.yml")
-      refused = ConfigurationError
+      path, origin, explicit = default_path
       self.class.switches(argv).each do |word, argument|
         if word == "--no-config"
           path = nil
@@ -71,81 +66,83 @@ module RichRI
           path = word == "--config" ? argument : word.split("=", 2).last
           raise UsageError, "--config requires a nonempty file path" if path.nil? || path.empty?
 
+          origin = "--config"
           explicit = true
-          refused = UsageError
         end
       end
       unless path.nil? || self.class.text?(path)
-        raise refused, "Configuration path must be a nonempty string without control characters"
+        refused = origin == "--config" ? UsageError : ConfigurationError
+        raise refused, "#{origin} must be a nonempty string without control characters"
       end
 
       [path && RichRI.expand_path(path), explicit]
     end
 
-    def read_file
-      raise ConfigurationError, "Configuration is not a readable regular file: #{@path}" unless File.file?(@path)
+    # The path, where it comes from and whether the file was asked for by name.
+    def default_path
+      path = variable("RICH_RI_CONFIG").to_s
+      return [path, "RICH_RI_CONFIG", true] unless path.empty?
 
-      content = File.read(@path, MAX_BYTES + 1)
-      raise ConfigurationError, "Configuration exceeds #{MAX_BYTES} bytes: #{@path}" if content.bytesize > MAX_BYTES
+      base = variable("XDG_CONFIG_HOME")
+      return [File.join(base, "rich-ri/config.yml"), "XDG_CONFIG_HOME", false] if base&.start_with?("/")
 
-      stream = Psych.parse_stream(content, filename: @path)
-      raise ConfigurationError, "Configuration must contain one YAML document: #{@path}" if stream.children.length > 1
-
-      check_duplicate_keys(stream)
-      data = Psych.safe_load(content, permitted_classes: [], permitted_symbols: [], aliases: false, filename: @path)
-      data = {} if data.nil?
-      mapping!(data, KEYS, "configuration")
-      data
+      [File.join(variable("HOME") || RichRI.utf8(Dir.home), ".config/rich-ri/config.yml"), "HOME", false]
     end
 
-    def check_duplicate_keys(root)
-      pending = [[root, 0]]
-      until pending.empty?
-        node, depth = pending.pop
-        raise ConfigurationError, "Configuration nesting exceeds 20 levels: #{@path}" if depth > 20
-
-        if node.is_a?(Psych::Nodes::Mapping)
-          keys = node.children.each_slice(2).map { |key, _value| key.value if key.is_a?(Psych::Nodes::Scalar) }
-          raise ConfigurationError, "Duplicate configuration key in #{@path}" unless keys.uniq.length == keys.length
-        end
-        pending.concat(Array(node.children).map { |child| [child, depth + 1] })
-      end
+    # Whatever is wrong with the file is reported after its path.
+    def file_arguments
+      data = ConfigurationFile.new(@path).read
+      mapping!(data, KEYS)
+      args = data.except("sources", "styles", "doc_dirs").flat_map { |key, value| setting(key, value) }
+      args + sources(data.fetch("sources", {})) + styles(data.fetch("styles", {})) +
+        directories(data.fetch("doc_dirs", []))
+    rescue ConfigurationError => e
+      raise ConfigurationError, "#{@path}: #{e.message}"
     end
 
-    def mapping!(value, keys, context)
-      raise ConfigurationError, "#{context} must be a mapping" unless value.is_a?(Hash)
+    def mapping!(value, keys, section = nil)
+      raise ConfigurationError, "#{section || 'configuration'} must be a mapping" unless value.is_a?(Hash)
 
       unknown = value.keys - keys
-      raise ConfigurationError, "Unknown #{context} key: #{unknown.first.inspect}" unless unknown.empty?
+      return if unknown.empty?
+
+      raise ConfigurationError, "unknown key #{(section ? "#{section}.#{unknown.first}" : unknown.first).inspect}"
     end
 
-    def file_arguments(data)
-      args = data.except("sources", "styles", "doc_dirs").flat_map { |key, value| setting(key, value) }
-      sources = data.fetch("sources", {})
-      mapping!(sources, SOURCES, "sources")
-      args.concat(sources.flat_map { |key, value| boolean(key, value) })
-      styles = data.fetch("styles", {})
-      mapping!(styles, COLORS.keys.map(&:to_s), "styles")
-      args.concat(styles.flat_map { |key, value| style(key, value) })
-      directories = data.fetch("doc_dirs", [])
-      raise ConfigurationError, "doc_dirs must be a list of directory paths" unless directories.is_a?(Array)
+    def sources(data)
+      mapping!(data, SOURCES, "sources")
+      data.flat_map { |source, value| boolean(source, value, "sources.#{source}") }
+    end
 
-      directories.each do |directory|
+    def styles(data)
+      mapping!(data, COLORS.keys.map(&:to_s), "styles")
+      data.flat_map { |role, value| style(role, value) }
+    end
+
+    def directories(data)
+      raise ConfigurationError, "doc_dirs must be a list of directory paths" unless data.is_a?(Array)
+
+      data.flat_map do |directory|
         text!(directory, "doc_dirs")
-        args.push("--doc-dir", RichRI.expand_path(directory, File.dirname(@path)))
+        directory = RichRI.expand_path(directory, File.dirname(@path))
+        next ["--doc-dir", directory] if File.directory?(directory)
+
+        raise ConfigurationError, "doc_dirs must list directories, not #{directory.inspect}"
       end
-      args
     end
 
+    # A refused value is reported under the name of its variable.
     def environment_arguments
       args = ENVIRONMENT.flat_map do |name, key|
-        value = variable(name)
-        next [] if value.nil? || value.empty?
+        value = variable(name).to_s
+        next [] if value.empty?
 
-        setting(key, key == "width" ? self.class.integer(value) || value : value)
+        setting(key, key == "width" ? self.class.integer(value) || value : value, name)
       end
       bat_theme = variable("BAT_THEME").to_s
-      args.concat(setting("bat_theme", bat_theme)) unless bat_theme.empty? || !variable("RICH_RI_BAT_THEME").to_s.empty?
+      unless bat_theme.empty? || !variable("RICH_RI_BAT_THEME").to_s.empty?
+        args.concat(setting("bat_theme", bat_theme, "BAT_THEME"))
+      end
       pager = variable("RI_PAGER").to_s
       unless pager.empty?
         text!(pager, "RI_PAGER")
@@ -154,7 +151,7 @@ module RichRI
       @env.each do |name, value|
         next unless name.start_with?("RICH_RI_STYLE_") && !value.to_s.empty?
 
-        args.concat(style(name.delete_prefix("RICH_RI_STYLE_").downcase, RichRI.utf8(value)))
+        args.concat(style(name.delete_prefix("RICH_RI_STYLE_").downcase, RichRI.utf8(value), name))
       end
       args
     end
@@ -164,36 +161,36 @@ module RichRI
       value && RichRI.utf8(value)
     end
 
-    def setting(key, value)
-      return boolean(key.tr("_", "-"), value) if %w[all expand_refs].include?(key)
-      return boolean("pager", value) if key == "pager" && [true, false].include?(value)
+    def setting(key, value, name = key)
+      return boolean(key.tr("_", "-"), value, name) if %w[all expand_refs].include?(key)
+      return boolean("pager", value, name) if key == "pager" && [true, false].include?(value)
 
       if key == "width"
         unless value.is_a?(Integer) && WIDTH.cover?(value)
-          raise ConfigurationError, "width must be an integer from #{WIDTH.min} to #{WIDTH.max}"
+          raise ConfigurationError, "#{name} must be an integer from #{WIDTH.min} to #{WIDTH.max}"
         end
       else
-        text!(value, key)
+        text!(value, name)
       end
       values = { "theme" => Theme::NAMES, "color" => %w[auto always never], "color_depth" => Theme::DEPTHS }[key]
-      raise ConfigurationError, "#{key} must be one of: #{values.join(', ')}" if values && !values.include?(value)
+      raise ConfigurationError, "#{name} must be one of #{values.join(', ')}" if values && !values.include?(value)
 
       flag = key == "pager" ? "pager-command" : key.tr("_", "-")
       key == "pager" ? ["--pager", "--#{flag}=#{value}"] : ["--#{flag}=#{value}"]
     end
 
-    def boolean(key, value)
-      raise ConfigurationError, "#{key} must be true or false" unless [true, false].include?(value)
+    def boolean(flag, value, name = flag)
+      raise ConfigurationError, "#{name} must be true or false" unless [true, false].include?(value)
 
-      ["--#{'no-' unless value}#{key}"]
+      ["--#{'no-' unless value}#{flag}"]
     end
 
-    def style(role, value)
-      text!(value, "style #{role}")
+    def style(role, value, variable = nil)
+      text!(value, variable || "styles.#{role}")
       Theme.new(styles: { role => value })
       ["--style=#{role}=#{value}"]
     rescue ThemeError => e
-      raise ConfigurationError, e.message
+      raise ConfigurationError, [variable, e.message].compact.join(": ")
     end
 
     def text!(value, name)

@@ -84,7 +84,7 @@ class ConfigurationTest < Minitest::Test
                "styles: {method: 208}", "styles: {unknown: cyan}", "styles: {method: bogus}",
                "theme: dark\ntheme: light", "styles: {method: red, method: blue}",
                "--- !ruby/object:Object {}", "styles: &s {method: red}\nsources: *s", "theme: [", "--- {}\n--- {}",
-               "bat_theme: \"bad\\u001bname\"", "#" * (RichRI::Configuration::MAX_BYTES + 1),
+               "bat_theme: \"bad\\u001bname\"", "#" * (RichRI::ConfigurationFile::MAX_BYTES + 1),
                "styles: #{'[' * 40}#{']' * 40}"]
     invalid.each do |data|
       in_config(data) do
@@ -116,7 +116,7 @@ class ConfigurationTest < Minitest::Test
         with_environment("RICH_RI_WIDTH" => value) do
           error = assert_raises(RichRI::ConfigurationError, value) { options }
 
-          assert_includes error.message, "width must be an integer from 20 to 10000"
+          assert_equal "RICH_RI_WIDTH must be an integer from 20 to 10000", error.message
         end
       end
     end

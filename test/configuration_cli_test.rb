@@ -83,7 +83,7 @@ class ConfigurationCLITest < Minitest::Test
       _out, err, status = cli("--config", path, "--show-config", docs: false)
 
       assert_equal 1, status.exitstatus
-      assert_includes err, "Invalid configuration"
+      assert_includes err, "#{path}: invalid YAML"
       refute_includes err, "--help"
       refute_match(/from .*\.rb:\d+/, err)
       _out, err, status = cli("--config", path, "--no-config", "--show-config", docs: false)
@@ -146,7 +146,7 @@ class ConfigurationCLITest < Minitest::Test
     assert_equal 2, status.exitstatus
     assert_empty output
     refute_includes err, "\e"
-    assert_includes err, "Configuration path"
+    assert_includes err, "--config must be a nonempty string without control characters"
   end
 
   def test_rich_pager_environment_is_restored_after_lookup

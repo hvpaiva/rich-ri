@@ -77,6 +77,14 @@ module RichRI
       raise UsageError, e.message
     end
 
+    # OptionParser would complete a listed value from any unambiguous prefix
+    # and call an empty one ambiguous; these are matched whole, like options.
+    def choice(option, value, allowed)
+      return value if allowed.include?(value)
+
+      raise UsageError, "#{option} must be one of #{allowed.join(', ')}, not #{value.inspect}"
+    end
+
     def integer(option, text, range)
       number = Configuration.integer(text)
       return number if number && range.cover?(number)
@@ -87,9 +95,8 @@ module RichRI
     def presentation_options
       @parser.separator ""
       @parser.separator "Presentation:"
-      @parser.on("--color[=MODE]", %w[auto always never],
-                 "Color: auto (TTY, respects NO_COLOR), always or never.") do |mode|
-        @color = mode || "always"
+      @parser.on("--color[=MODE]", "Color: auto (TTY, respects NO_COLOR), always or never.") do |mode|
+        @color = mode ? choice("--color", mode, %w[auto always never]) : "always"
       end
       @parser.on("--no-color", "Plain text with the same page layout.") { @color = "never" }
       @parser.on("--[no-]pager", "Display through a pager (automatically disabled in pipes).") do |value|
@@ -103,8 +110,9 @@ module RichRI
       @parser.on("-w", "--width=WIDTH", "Text width in terminal columns (20 to 10000).") do |width|
         @driver_options[:width] = integer("--width", width, Configuration::WIDTH)
       end
-      @parser.on("-f", "--format=NAME", self.class.formats,
+      @parser.on("-f", "--format=NAME",
                  "Select an original RDoc formatter: #{self.class.formats.join(', ')}.") do |name|
+        name = choice("--format", name, self.class.formats)
         @driver_options[:formatter] = RDoc::Markup.const_get("To#{name.capitalize}")
       end
     end
@@ -132,7 +140,7 @@ module RichRI
         # Prefer an existing literal path, including commas, over RI's list form.
         directories = File.directory?(value) ? [value] : value.split(",")
         directories.each do |dir|
-          raise OptionParser::InvalidArgument, "#{dir} is not a directory" unless File.directory?(dir)
+          raise UsageError, "--doc-dir must be a directory, not #{dir.inspect}" unless File.directory?(dir)
 
           @driver_options[:extra_doc_dirs] << RichRI.expand_path(dir)
         end
@@ -153,8 +161,8 @@ module RichRI
     def utility_options
       @parser.separator ""
       @parser.separator "Tools:"
-      @parser.on("--completion=SHELL", %w[bash zsh fish], "Print a completion script for bash, zsh or fish.") do |shell|
-        @action = [:completion, shell]
+      @parser.on("--completion=SHELL", "Print a completion script for bash, zsh or fish.") do |shell|
+        @action = [:completion, choice("--completion", shell, %w[bash zsh fish])]
       end
       @parser.on("--man", "Open the bundled manual with man.") { @action = [:man] }
       @parser.on("--man-path", "Print the path to the bundled manual.") { @action = [:man_path] }
