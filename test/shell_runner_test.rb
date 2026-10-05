@@ -54,19 +54,18 @@ class ShellRunnerTest < Minitest::Test
     engines("docker", "podman")
     _out, err, status = run_runner(env: { "RICH_RI_CONTAINER_RUNTIME" => "podman", "SHELL_RUNNER_PODMAN_INFO" => "1" })
 
-    refute_predicate status, :success?
-    assert_includes err, "running podman engine"
-    assert_includes err, "Start the engine"
+    assert_equal [1, "shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, or a running " \
+                     "podman engine; start the engine and rerun bundle exec rake test:shells\n"],
+                 [status.exitstatus, err]
     assert_equal [%w[podman info]], steps
   end
 
   def test_missing_engines_explain_how_to_run_the_required_checks
     _out, err, status = run_runner
 
-    refute_predicate status, :success?
-    assert_includes err, "Bash, Zsh, Fish and bash-completion 2.x"
-    assert_includes err, "Docker or Podman"
-    assert_includes err, "bundle exec rake test:shells"
+    assert_equal [1, "shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, or a running " \
+                     "Docker or Podman engine; start the engine and rerun bundle exec rake test:shells\n"],
+                 [status.exitstatus, err]
   end
 
   def test_explicit_container_mode_ignores_available_native_shells

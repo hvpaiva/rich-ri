@@ -21,8 +21,8 @@ module ShellTests
     return engine if engine
 
     raise Error, "shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, " \
-                 "or a running #{selected || 'Docker or Podman'} engine. " \
-                 "Start the engine and rerun bundle exec rake test:shells."
+                 "or a running #{selected || 'Docker or Podman'} engine; " \
+                 "start the engine and rerun bundle exec rake test:shells"
   end
 
   def self.verify_environment!

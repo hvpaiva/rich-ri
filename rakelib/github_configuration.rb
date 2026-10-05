@@ -60,8 +60,8 @@ module GitHub
       pending = changes
       unless pending.empty?
         descriptions = pending.map { |change| "- #{change.description}" }.join("\n")
-        raise Error, "repository configuration needs attention:\n#{descriptions}\n" \
-                     "Run bundle exec rake github:setup, then github:verify."
+        raise Error, "repository configuration needs attention; run bundle exec rake github:setup to apply:\n" \
+                     "#{descriptions}"
       end
 
       @out.puts "GitHub repository protections, release environment and security settings verified."

@@ -10,7 +10,7 @@ class SetupTest < Minitest::Test
   NEXT_STEPS = "Run bundle exec rake for tests and Ruby lint, bundle exec rake check for the CI quality checks\n" \
                "and bundle exec rake test:compatibility for the oldest supported dependencies.\n"
   NO_SHELLS = "setup: shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, or a running " \
-              "Docker or Podman engine. Start the engine and rerun bundle exec rake test:shells.\n"
+              "Docker or Podman engine; start the engine and rerun bundle exec rake test:shells\n"
 
   def setup
     @bin = Dir.mktmpdir("rich-ri-setup-")
@@ -30,7 +30,7 @@ class SetupTest < Minitest::Test
 
     assert_equal 1, status.exitstatus
     assert_equal "mise ERROR network unreachable\n" \
-                 "setup: mise install failed; the lines below name what is still missing.\n" \
+                 "setup: mise install failed; the lines below name what is still missing\n" \
                  "#{missing_programs}#{NO_SHELLS}", err
     assert_equal NEXT_STEPS, out
   end

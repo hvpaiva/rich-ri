@@ -111,8 +111,8 @@ module Release
         @sleeper.sleep(5)
       end
       unless run
-        raise Error, "#{tag} is already on GitHub. No Release run appeared; inspect Actions before dispatching it. " \
-                     "The tag was not changed."
+        raise Error, "no Release run appeared for #{tag}, which is already on GitHub and was not changed; " \
+                     "inspect Actions before dispatching one"
       end
 
       id = run.fetch("databaseId").to_s

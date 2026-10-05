@@ -130,8 +130,8 @@ class GitHubTest < Minitest::Test
       client.state.delete("/labels/#{label.fetch('name')}")
       error = assert_raises(GitHub::Error) { GitHub::Configuration.new(client: client, out: StringIO.new).verify! }
 
-      assert_equal "repository configuration needs attention:\n- #{label.fetch('name')} label\n" \
-                   "Run bundle exec rake github:setup, then github:verify.", error.message
+      assert_equal "repository configuration needs attention; run bundle exec rake github:setup to apply:\n" \
+                   "- #{label.fetch('name')} label", error.message
     end
   end
 

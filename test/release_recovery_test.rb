@@ -161,6 +161,23 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
+  def test_a_pushed_tag_without_a_release_run_says_to_inspect_actions
+    repository do |root|
+      sleeper = Object.new
+      def sleeper.sleep(_seconds) = nil
+      state = { pr: release_pr, local_tag: true, runs: [] }
+      error = assert_raises(Release::Error) do
+        workflow("0.2.0", root: root, push: true, sleeper: sleeper, runner: workflow_runner([], state: state),
+                          out: StringIO.new).run
+      end
+
+      assert_equal "no Release run appeared for v0.2.0, which is already on GitHub and was not changed; " \
+                   "inspect Actions before dispatching one\n" \
+                   "After resolving the problem, rerun bin/release 0.2.0 --push. " \
+                   "Existing pull requests and tags are inspected before any new action.", error.message
+    end
+  end
+
   def test_verification_rejects_a_malformed_changelog_and_a_version_it_does_not_release
     rejected = {
       /\ACHANGELOG\.md: \[0\.2\.0\] is dated 2026-99-99, which is not a calendar date/ =>
