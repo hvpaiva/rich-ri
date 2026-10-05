@@ -11,7 +11,7 @@ class LegacyStoreTest < Minitest::Test
 
     if RUBY_VERSION.start_with?("4.")
       refute_predicate status, :success?
-      assert_includes err, "incompatible RI cache format"
+      assert_includes err, "incompatible or damaged RI data in #{store}"
       assert_includes err, "gem rdoc GEM_NAME --ri"
     else
       assert_predicate status, :success?, err

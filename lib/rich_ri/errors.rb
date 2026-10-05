@@ -30,6 +30,21 @@ module RichRI
   # refuses. Correcting the command line would not help, so there is no hint.
   class ConfigurationError < Error; end
 
+  # RI data that cannot be read: damaged, or written by a Ruby or RDoc whose
+  # format this one does not understand. The message names the store, or the
+  # file given to --dump, because regenerating it is the only remedy.
+  class StoreError < Error
+    HINT = "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
+           "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
+
+    attr_reader :path
+
+    def initialize(path)
+      @path = path
+      super("incompatible or damaged RI data in #{path}", hint: HINT)
+    end
+  end
+
   # A style role, style string or color is invalid. Theme, Style and Color raise
   # it without knowing where the value was written; the option parser and the
   # configuration loader report it as their own kind of failure.

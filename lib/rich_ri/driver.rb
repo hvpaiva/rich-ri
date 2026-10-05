@@ -17,6 +17,8 @@ module RichRI
       end
     end
 
+    STANDARD_SOURCES = %i[use_system use_site use_home use_gems].freeze
+
     def self.default_options
       columns = $stdout.tty? ? $stdout.winsize.last : 80
       columns = 80 unless columns.positive?
@@ -25,12 +27,22 @@ module RichRI
       super
     end
 
+    def self.dump(path)
+      super
+    rescue TypeError, ArgumentError
+      raise StoreError, path
+    end
+
     def initialize(options)
       @rich_ri_color = options.delete(:rich_ri_color)
       @rich_ri_theme = options.delete(:rich_ri_theme) || Theme.new
       @rich_ri_bat_theme = options.delete(:rich_ri_bat_theme) || ENV.fetch("BAT_THEME", "base16")
       @rich_ri_shell_theme = options.delete(:rich_ri_shell_theme) || "ansi"
-      super
+      options = self.class.default_options.merge(options)
+      # RDoc would load every store itself, as plain RDoc stores that cannot
+      # say which of them failed. Start it without any and load them here.
+      super(options.merge(STANDARD_SOURCES.to_h { |source| [source, false] }, extra_doc_dirs: []))
+      load_stores(*options.values_at(*STANDARD_SOURCES), *options[:extra_doc_dirs])
     end
 
     def formatter(io)
@@ -106,6 +118,20 @@ module RichRI
       out << RDoc::Markup::BlankLine.new
       out << MethodList.new(2, methods.join(", "))
       out << RDoc::Markup::BlankLine.new
+    end
+
+    private
+
+    def load_stores(*selection)
+      RDoc::RI::Paths.each(*selection) do |path, type|
+        @doc_dirs << path
+        # Listing the searched directories is how a broken store is found.
+        next if @list_doc_dirs
+
+        store = Store.new(RDoc::Options.new, path: path, type: type)
+        store.load_cache
+        @stores << store
+      end
     end
   end
 end

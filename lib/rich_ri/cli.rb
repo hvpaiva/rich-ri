@@ -51,10 +51,6 @@ module RichRI
       if (dependency = optional_dependency(error))
         "--#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
           "Install it for your active Ruby: gem install #{dependency}"
-      elsif incompatible_cache?(error)
-        "incompatible RI cache format for this Ruby and RDoc.\n" \
-          "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
-          "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
       else
         RichRI.sanitize(error.message)
       end
@@ -62,11 +58,6 @@ module RichRI
 
     def optional_dependency(error)
       error.path if error.is_a?(LoadError) && %w[profile webrick].include?(error.path)
-    end
-
-    def incompatible_cache?(error)
-      (error.is_a?(TypeError) && error.message.match?(/class RDoc::Markup::\w+ not a struct/)) ||
-        (error.is_a?(ArgumentError) && error.message == "dump format error")
     end
 
     def color?(mode)
