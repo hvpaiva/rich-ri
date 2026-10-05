@@ -19,29 +19,25 @@ module RichRI
     # is an unbounded allocation. No terminal comes near the upper limit.
     WIDTH = 20..10_000
 
-    attr_reader :path, :arguments
+    # The selected file, or nil when there is none to read.
+    attr_reader :path
 
-    def initialize(argv, env: ENV, load: true)
+    # The file is the path given to --config, :none after --no-config, or
+    # :default for the user's own file. Nothing is read until arguments is
+    # called, so that the path can be printed while the file is broken.
+    def initialize(file = :default, env: ENV)
       @env = env
-      @path, explicit = select_path(argv)
-      @arguments = []
-      return unless load
-
-      selected = @path && (explicit || File.exist?(@path))
-      @arguments = (selected ? file_arguments : []) + environment_arguments
+      @path, @named = case file
+                      when :default then default_path
+                      when :none then [nil, false]
+                      else [file, true]
+                      end
     end
 
-    def self.switches(argv)
-      options = []
-      index = 0
-      while index < argv.length
-        word = argv[index]
-        break if word == "--"
-
-        options << [word, argv[index + 1]]
-        index += VALUE_OPTIONS.include?(word) || word == "--config" ? 2 : 1
-      end
-      options
+    # File and environment settings as command-line options, lowest
+    # precedence first. A file asked for by name must exist.
+    def arguments
+      @arguments ||= (@path && (@named || File.exist?(@path)) ? file_arguments : []) + environment_arguments
     end
 
     # The number written as plain decimal digits, or nil. Kernel#Integer would
@@ -58,29 +54,19 @@ module RichRI
 
     private
 
-    def select_path(argv)
-      path, origin, explicit = default_path
-      self.class.switches(argv).each do |word, argument|
-        if word == "--no-config"
-          path = nil
-        elsif word == "--config" || word.start_with?("--config=")
-          path = word == "--config" ? argument : word.split("=", 2).last
-          raise UsageError, "--config requires a nonempty file path" if path.nil? || path.empty?
-
-          origin = "--config"
-          explicit = true
-        end
-      end
-      unless path.nil? || self.class.text?(path)
-        refused = origin == "--config" ? UsageError : ConfigurationError
-        raise refused, "#{origin} must be a nonempty string without control characters"
+    # The user's own file and whether it was asked for by name.
+    def default_path
+      path, origin, named = environment_path
+      return [nil, false] unless path
+      unless self.class.text?(path)
+        raise ConfigurationError, "#{origin} must be a nonempty string without control characters"
       end
 
-      [path && RichRI.expand_path(path), explicit]
+      [RichRI.expand_path(path), named]
     end
 
-    # The path, where it comes from and whether the file was asked for by name.
-    def default_path
+    # The path, the variable it comes from and whether that variable names the file itself.
+    def environment_path
       path = variable("RICH_RI_CONFIG").to_s
       return [path, "RICH_RI_CONFIG", true] unless path.empty?
 

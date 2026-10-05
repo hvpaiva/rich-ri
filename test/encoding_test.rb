@@ -71,12 +71,12 @@ class EncodingTest < Minitest::Test
     { { "HOME" => "/home/josé".b } => "/home/josé/.config/rich-ri/config.yml",
       { "HOME" => "/root", "XDG_CONFIG_HOME" => "/xdg/josé".b } => "/xdg/josé/rich-ri/config.yml",
       { "HOME" => "/root", "RICH_RI_CONFIG" => "/etc/josé.yml".b } => "/etc/josé.yml" }.each do |env, expected|
-      path = RichRI::Configuration.new([], env: env, load: false).path
+      path = RichRI::Configuration.new(env: env).path
 
       assert_equal Encoding::UTF_8, path.encoding
       assert_equal expected, path
     end
-    path = RichRI::Configuration.new(["--config=/tmp/josé.yml".b], env: { "HOME" => "/root" }, load: false).path
+    path = RichRI::Options.new.command_line(["--config=/tmp/josé.yml".b]).configuration_file
 
     assert_equal "/tmp/josé.yml", path
     assert_equal Encoding::UTF_8, path.encoding

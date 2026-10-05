@@ -17,10 +17,29 @@ class ConfigurationRecoveryTest < Minitest::Test
       assert_predicate status, :success?, err
       refute_empty out
     end
+    # The command line is read first, so its own mistake is the one reported.
     _out, err, status = cli("--vers", docs: false, env: environment)
 
-    assert_equal 1, status.exitstatus
-    assert_includes err, "invalid option: --wid"
+    assert_equal 2, status.exitstatus
+    assert_includes err, "invalid option: --vers"
+  end
+
+  def test_recovery_actions_are_recognized_as_the_parser_reads_them
+    with_config("theme: [broken") do |path|
+      environment = { "RICH_RI_CONFIG" => path }
+      [%w[-ah], %w[-Tv], %w[--width 44 --help], %w[RichRIExample -h]].each do |args|
+        out, err, status = cli(*args, docs: false, env: environment)
+
+        assert_predicate status, :success?, "#{args.inspect}: #{err}"
+        refute_empty out
+      end
+      # Here --help is the pager command, not a request for help.
+      out, err, status = cli("--pager-command", "--help", "--show-config", docs: false, env: environment)
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
+      assert_includes err, "#{path}: invalid YAML"
+    end
   end
 
   def test_help_respects_valid_styles_and_recovers_from_invalid_configuration

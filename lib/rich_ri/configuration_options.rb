@@ -6,7 +6,12 @@ module RichRI
   module ConfigurationOptions
     attr_reader :theme, :bat_theme, :shell_theme, :pager_command, :configuration_path
 
+    # What the command line says about the file: the path given to --config,
+    # :none after --no-config or :default when it names no file.
+    attr_reader :configuration_file
+
     def configuration_options
+      @configuration_file = :default
       @theme_name = "terminal"
       @color_depth = "auto"
       @styles = {}
@@ -16,10 +21,10 @@ module RichRI
       @parser.separator ""
       @parser.separator "Configuration and themes:"
       @parser.on("--config=FILE", "Read a YAML configuration file instead of the user default.") do |path|
-        @configuration_path = RichRI.expand_path(text("--config", path))
+        @configuration_file = RichRI.expand_path(text("--config", path))
       end
       @parser.on("--no-config", "Skip the configuration file; environment options still apply.") do
-        @configuration_path = nil
+        @configuration_file = :none
       end
       @parser.on("--config-path", "Print the selected configuration path; blank when disabled.") do
         @action = [:config_path]
@@ -65,23 +70,35 @@ module RichRI
 
     private
 
-    def configured_defaults(argv, defaults, enabled)
-      selection = Configuration.new(argv, load: false)
+    # Puts RI, then the file and the environment, under the command line that
+    # was read on its own as command. Returns the names RI holds.
+    def configured_defaults(command, defaults, enabled)
+      selection = Configuration.new(command.configuration_file)
       @configuration_path = selection.path
-      return [] if Configuration.switches(argv).any? { |word, _| word == "--config-path" }
+      # The path is printed without opening the file.
+      return [] if command.action == [:config_path]
 
-      words = default_words(defaults)
-      parse_defaults(words, "RI")
-      parse_defaults(Configuration.new(argv).arguments, "configuration") if enabled
+      words = ri_defaults(defaults)
+      parse_defaults(selection.arguments, "configuration") if enabled
       words
     rescue StandardError
-      # Help, the version and the file's path are how a broken setup is found;
-      # nothing that goes wrong while reading defaults may take them away.
-      raise unless recovery_request?(argv)
+      # Not only the failures rich-ri raises itself: nothing that goes wrong
+      # under the command line may take a recovery action away.
+      raise unless command.recovery?
 
       initialize
       @configuration_path = selection&.path
       []
+    end
+
+    def ri_defaults(defaults)
+      words = default_words(defaults)
+      parse_defaults(words, "RI")
+      return words if @configuration_file == :default
+
+      # The file is chosen before RI is read: RI could only seem to choose it.
+      raise ConfigurationError, "RI: #{@configuration_file == :none ? '--no-config' : '--config'} cannot be set " \
+                                "in RI; choose the configuration file with RICH_RI_CONFIG or on the command line"
     end
 
     def default_words(defaults)
@@ -93,7 +110,7 @@ module RichRI
     # RI and the configuration go through the command-line parser, but a value
     # refused there is not a mistake in the command line: say where it is.
     def parse_defaults(words, origin)
-      @parser.parse!(words)
+      @parser.permute!(words)
     rescue OptionParser::ParseError, UsageError => e
       raise ConfigurationError, "#{origin}: #{e.message}"
     end
@@ -109,12 +126,6 @@ module RichRI
       return value if Configuration.text?(value)
 
       raise UsageError, "#{option} must be a nonempty string without control characters"
-    end
-
-    def recovery_request?(argv)
-      Configuration.switches(argv).any? do |word, _|
-        %w[--help -h --version -v --config-path --completion].include?(word) || word.start_with?("--completion=")
-      end
     end
   end
 end

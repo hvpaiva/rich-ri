@@ -52,29 +52,42 @@ class ConfigurationTest < Minitest::Test
   def test_default_path_uses_only_absolute_xdg_or_user_home
     in_config do |_path, dir|
       [nil, "", "relative"].each do |xdg|
-        config = RichRI::Configuration.new([], env: { "HOME" => dir, "XDG_CONFIG_HOME" => xdg }, load: false)
+        config = RichRI::Configuration.new(env: { "HOME" => dir, "XDG_CONFIG_HOME" => xdg })
 
         assert_equal File.join(dir, ".config/rich-ri/config.yml"), config.path
       end
-      config = RichRI::Configuration.new([], env: { "HOME" => dir, "XDG_CONFIG_HOME" => "/tmp/xdg" }, load: false)
+      config = RichRI::Configuration.new(env: { "HOME" => dir, "XDG_CONFIG_HOME" => "/tmp/xdg" })
 
       assert_equal "/tmp/xdg/rich-ri/config.yml", config.path
-      assert_empty RichRI::Configuration.new([], env: { "HOME" => dir }).arguments
+      assert_empty RichRI::Configuration.new(env: { "HOME" => dir }).arguments
     end
   end
 
   def test_file_selectors_use_last_value_and_respect_option_boundaries
-    in_config do |path, _dir|
-      assert_nil RichRI::Configuration.new(["--config", path, "--no-config"]).path
-      assert_equal path, RichRI::Configuration.new(["--no-config", "--config=#{path}"]).path
-      assert_equal path, RichRI::Configuration.new(["--", "--config=/missing"]).path
-      assert_equal path, RichRI::Configuration.new(["--pager-command", "--config=/missing"]).path
-      assert_raises(RichRI::UsageError) { RichRI::Configuration.new(["--config="]) }
-      assert_raises(RichRI::UsageError) do
-        RichRI::Configuration.new(["--config=/tmp/\e]52;c;AAAA\a", "--config-path"])
-      end
-      assert_raises(RichRI::UsageError) { RichRI::Configuration.new(["--config"]) }
-      assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new(["--config=/missing/rich-ri.yml"]) }
+    in_config do |path, dir|
+      other = File.join(dir, "other.yml")
+      File.write(other, "width: 44\n")
+
+      assert_nil options("--config", other, "--no-config").configuration_path
+      assert_equal other, options("--no-config", "--config=#{other}").configuration_path
+      assert_equal 44, options("--no-config", "--config=#{other}").settings.fetch("width")
+      assert_equal path, options("--", "--config=/missing").configuration_path
+      assert_equal path, options("--pager-command", "--config=/missing").configuration_path
+      assert_equal path, options("-w", "60", "-f", "markdown").configuration_path
+      assert_raises(RichRI::UsageError) { options("--config=") }
+      assert_raises(RichRI::UsageError) { options("--config=/tmp/\e]52;c;AAAA\a", "--config-path") }
+      assert_raises(RichRI::UsageError) { options("--config") }
+      assert_raises(RichRI::ConfigurationError) { options("--config=/missing/rich-ri.yml") }
+    end
+  end
+
+  def test_selected_file_is_named_without_being_read
+    in_config("theme: [broken") do |path, _dir|
+      assert_equal path, RichRI::Configuration.new.path
+      assert_equal "/tmp/other.yml", RichRI::Configuration.new("/tmp/other.yml").path
+      assert_nil RichRI::Configuration.new(:none).path
+      assert_empty RichRI::Configuration.new(:none).arguments
+      assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new.arguments }
     end
   end
 
@@ -90,7 +103,7 @@ class ConfigurationTest < Minitest::Test
     invalid.each do |data|
       in_config(data) do
         assert_raises(RichRI::ConfigurationError, "Invalid document accepted: #{data[0, 80]}") do
-          RichRI::Configuration.new([])
+          RichRI::Configuration.new.arguments
         end
       end
     end
@@ -102,7 +115,7 @@ class ConfigurationTest < Minitest::Test
       { "RICH_RI_THEME" => "unknown", "RICH_RI_WIDTH" => "3", "RICH_RI_COLOR" => "yes",
         "RICH_RI_STYLE_UNKNOWN" => "red", "RICH_RI_COLOR_DEPTH" => "17" }.each do |key, value|
         with_environment(key => value) do
-          assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new([]) }
+          assert_raises(RichRI::ConfigurationError) { RichRI::Configuration.new.arguments }
         end
       end
     end

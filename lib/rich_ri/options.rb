@@ -7,6 +7,7 @@ module RichRI
 
     PORTS = 1..65_535
     DEFAULT_PORT = 8214
+    RECOVERY_ACTIONS = %i[help version config_path completion].freeze
 
     attr_reader :parser, :driver_options, :color, :action
 
@@ -15,8 +16,7 @@ module RichRI
       @color = "auto"
       @action = nil
       @parser = OptionParser.new
-      # Configuration selection and completion inspect flags before parsing.
-      # Require the same full option names throughout those paths.
+      # Completion inspects flags before parsing and takes them by full name.
       @parser.require_exact = true
       # Every OptionParser also answers --*-completion-bash=WORD and
       # --*-completion-zsh, printing to stdout and exiting in mid-parse.
@@ -51,11 +51,25 @@ module RichRI
     end
 
     def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)
-      names = configured_defaults(argv, defaults, configuration)
+      names = configured_defaults(self.class.new.command_line(argv), defaults, configuration)
       @driver_options[:names] = names + arguments(argv)
       @driver_options[:use_stdout] ||= !$stdout.tty? || @driver_options[:interactive]
       @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
+    end
+
+    # Reads the command line with no default under it and returns self. Which
+    # file it selects and what it asks for decide what else is read, and only
+    # the parser that will read it again can tell an option from a value.
+    def command_line(argv)
+      @driver_options[:names] = arguments(argv)
+      self
+    end
+
+    # Whether the command line asks for something that has to work while the
+    # file or the environment is broken, because it is how that is found out.
+    def recovery?
+      RECOVERY_ACTIONS.include?(@action&.first)
     end
 
     def self.formats
@@ -76,8 +90,10 @@ module RichRI
 
     private
 
+    # Options are read wherever they stand, up to "--". OptionParser#parse!
+    # would stop at the first name instead whenever POSIXLY_CORRECT is set.
     def arguments(argv)
-      @parser.parse!(argv.dup)
+      @parser.permute!(argv.dup)
     rescue OptionParser::ParseError => e
       raise UsageError, e.message
     end

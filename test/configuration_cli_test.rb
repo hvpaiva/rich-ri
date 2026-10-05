@@ -56,6 +56,47 @@ class ConfigurationCLITest < Minitest::Test
     end
   end
 
+  def test_ri_cannot_select_the_configuration_file
+    with_config({ "width" => 44 }) do |path|
+      { "--no-config" => "--no-config", "--config=#{path}" => "--config", "--config #{path}" => "--config",
+        "--width=50 --no-config --list" => "--no-config" }.each do |defaults, option|
+        out, err, status = cli("--show-config", docs: false, env: { "RI" => defaults, "RICH_RI_CONFIG" => path })
+
+        assert_equal 1, status.exitstatus, defaults
+        assert_empty out
+        assert_equal "rich-ri: RI: #{option} cannot be set in RI; choose the configuration file with " \
+                     "RICH_RI_CONFIG or on the command line\n", err
+      end
+      out, err, status = cli("--help", docs: false, env: { "RI" => "--no-config" })
+
+      assert_predicate status, :success?, err
+      assert_includes out, "Usage: rich-ri"
+      # A selector that is the value of another option selects nothing.
+      environment = { "RI" => "--pager-command --no-config", "RICH_RI_CONFIG" => path }
+      out, err, status = cli("--show-config", docs: false, env: environment)
+
+      assert_predicate status, :success?, err
+      assert_equal 44, Psych.safe_load(out).fetch("width")
+      assert_equal "--no-config", Psych.safe_load(out).fetch("pager")
+    end
+  end
+
+  def test_options_are_read_after_names_whatever_the_environment_says
+    with_config("theme: [broken") do |path|
+      environment = { "POSIXLY_CORRECT" => "1", "RICH_RI_CONFIG" => path }
+      out, err, status = cli("RichRIExample#map", "--no-config", "--color=always", env: environment)
+
+      assert_predicate status, :success?, err
+      assert_includes out, "\e["
+      assert_includes RichRI.plain(out), "Return transformed values."
+      out, err, status = cli("RichRIExample#map", "--", "--no-config", env: environment.merge("RICH_RI_CONFIG" => nil))
+
+      assert_equal 1, status.exitstatus
+      assert_includes out, "Return transformed values."
+      assert_equal "rich-ri: Nothing known about --no-config\n", err
+    end
+  end
+
   def test_show_config_is_roundtrippable_and_has_no_lookup_or_pager_side_effects
     data = { "theme" => "light", "styles" => { "heading" => "blue:bold" }, "pager" => "command-that-must-not-run" }
     with_config(data) do |path|
