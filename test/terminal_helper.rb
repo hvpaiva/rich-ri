@@ -20,8 +20,7 @@ module TerminalTestSupport
         pid = child
         writer.winsize = [30, 120]
         (input.is_a?(Array) ? input : [[prompt, input]]).each do |awaited, keys|
-          typed = output.length
-          output << reader.readpartial(4096) until !awaited || output[typed..].include?(awaited)
+          await(reader, output, awaited, command) if awaited
           writer.write(keys) if keys
         end
         begin
@@ -52,5 +51,14 @@ module TerminalTestSupport
     coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
     terminal(RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", "#{TestSupport::ROOT}/exe/rich-ri", *,
              env: { "COVERAGE_CHILD" => "1", "NO_COLOR" => nil }.merge(env), prompt: prompt, input: input)
+  end
+
+  private
+
+  def await(reader, output, text, command)
+    start = output.length
+    output << reader.readpartial(4096) until output[start..].include?(text)
+  rescue EOFError, Errno::EIO
+    flunk "Terminal closed before #{text.inspect} appeared: #{command.inspect}\nCaptured output: #{output.inspect}"
   end
 end
