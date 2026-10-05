@@ -72,12 +72,12 @@ class DriverTest < Minitest::Test
     out, err, status = cli("RichRIExample#ma")
 
     assert_equal 1, status.exitstatus
-    assert_empty err
+    assert_equal "rich-ri: RichRIExample#ma not found\n", err
     assert_equal "RichRIExample#ma not found, maybe you meant:\n\nRichRIExample#map\n", out
     out, err, status = cli("RichRIExample#ma", "RichRIExample.build")
 
     assert_equal 1, status.exitstatus
-    assert_empty err
+    assert_equal "rich-ri: RichRIExample#ma not found\n", err
     assert_includes out, "maybe you meant:"
     assert_includes out, "Create an example."
   end
@@ -89,7 +89,7 @@ class DriverTest < Minitest::Test
       out, err, status = cli(name)
 
       assert_equal code, status.exitstatus, name
-      assert_empty err
+      assert_equal code.zero? ? "" : "rich-ri: #{name} not found\n", err
       assert_includes out, code.zero? && !name.end_with?(":") ? "= Example guide" : "GUIDE.rdoc"
     end
   end
@@ -99,7 +99,7 @@ class DriverTest < Minitest::Test
       out, err, status = cli(*sources, "#{sources.last}:GUIDE", docs: false)
 
       assert_equal 1, status.exitstatus
-      assert_empty err
+      assert_equal "rich-ri: #{sources.last}:GUIDE not found\n", err
       assert_includes out, "= GUIDE pages in"
       assert_includes out, "GUIDE.md"
     end
@@ -112,9 +112,10 @@ class DriverTest < Minitest::Test
       assert_equal 1, status.exitstatus
       assert_empty out
       assert_equal "rich-ri: Unsafee not found\nDid you mean?  Unsafe\\u0007\n", err
-      out, _err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
+      out, err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
 
       assert_equal 1, status.exitstatus
+      assert_equal "rich-ri: RichRIExample#ma\\u001b not found\n", err
       refute_match(/[\e\a]/, out)
       assert_includes out, "RichRIExample#ma\\u001b not found, maybe you meant:"
       assert_includes out, "RichRIExample#ma\\u001b[31mx\n"

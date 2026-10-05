@@ -65,10 +65,12 @@ module RichRI
     end
   end
 
-  # A name no store knows. RDoc words it "Nothing known about NAME", with any similar names below.
   class LookupError < Error
-    def initialize(error)
-      super(["#{error.name} not found", *error.message.lines(chomp: true).drop(1)].join("\n"))
+    # RDoc words it "Nothing known about NAME", with any similar names on the lines below.
+    def self.from(error) = new(error.name, error.message.lines(chomp: true).drop(1))
+
+    def initialize(name, similar = [])
+      super(["#{name} not found", *similar].join("\n"))
     end
   end
 

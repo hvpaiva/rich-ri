@@ -75,12 +75,15 @@ module RichRI
       elsif @interactive || @names.empty?
         interactive
       else
-        return display_names(@names).empty? ? 0 : 1
+        missing = display_names(@names)
+        # Similar names or the pages of a source shown in its place are output, not the failure.
+        missing.each { |name| Error.report(LookupError.new(name)) }
+        return missing.empty? ? 0 : 1
       end
       0
     rescue NotFoundError => e
       # RDoc ends the process here with Kernel#abort and the name as typed.
-      raise LookupError, e
+      raise LookupError.from(e)
     end
 
     # Looks every name up, as RDoc does, and returns those that were not found.
@@ -226,7 +229,7 @@ module RichRI
     def answer(name)
       display_name(expand_name(name))
     rescue StandardError, ScriptError => e
-      Error.report(e.is_a?(NotFoundError) ? LookupError.new(e) : e)
+      Error.report(e.is_a?(NotFoundError) ? LookupError.from(e) : e)
     end
 
     # webrick and profile are not dependencies of the gem. RDoc answers their

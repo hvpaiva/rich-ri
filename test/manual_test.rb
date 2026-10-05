@@ -287,6 +287,12 @@ class ManualDisplayTest < Minitest::Test
     assert_equal statuses, page.scan(/^\.B (\d+)$/).flatten.map(&:to_i)
   end
 
+  def test_page_says_how_a_name_that_was_not_found_is_reported
+    page = ::Manual.render[/^\.SH EXIT STATUS\n.*?^\.SH /m]
+
+    assert_includes page, "reported on standard error as\n\"rich\\-ri: NAME not found\" also when similar names"
+  end
+
   # How groff without a distribution's adjustments typesets these characters.
   TYPOGRAPHY = { "-" => "u2010", "'" => "u2019", "`" => "u2018", "^" => "u02C6", "~" => "u02DC" }.freeze
   LITERALS = ["rich-ri 'Array.[]'", "alias ri='rich-ri'", 'data=${XDG_DATA_HOME:-"$HOME/.local/share"}',
