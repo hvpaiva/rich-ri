@@ -69,6 +69,23 @@ class OptionsTest < Minitest::Test
     end
   end
 
+  def test_colored_help_paints_the_usage_line_and_the_section_headings_only
+    plain, err, status = cli("--help", docs: false)
+
+    assert_predicate status, :success?, err
+    colored, err, status = cli("--color=always", "--help", docs: false)
+
+    assert_predicate status, :success?, err
+    assert_equal plain, RichRI.plain(colored)
+    painted = colored.lines.select { |line| line.include?("\e[") }.map { |line| RichRI.plain(line).chomp }
+
+    assert_equal ["Usage: rich-ri [options] [Class | Class#method | Class.method | gem:page ...]",
+                  "Configuration and themes:", "Presentation:", "Lookup:", "Documentation sources:", "Tools:",
+                  "Style roles:"], painted
+    assert_includes colored, "\e[1;36mUsage:\e[0m"
+    assert_includes colored, "\e[1;34mPresentation:\e[0m\n"
+  end
+
   def test_only_the_options_listed_in_help_exist
     ["--*-completion-bash=--co", "--*-completion-zsh"].each do |option|
       out, err, status = cli(option, docs: false)

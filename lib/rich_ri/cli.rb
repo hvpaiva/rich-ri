@@ -92,11 +92,16 @@ module RichRI
       0
     end
 
+    # The usage line is the title, and a line that is nothing but a label and
+    # its colon is the heading of what follows. The notes after the options
+    # hold colons too, in the middle of a sentence, and stay plain.
     def help(options)
+      enabled = color?(options.color)
       options.parser.to_s.each_line do |line|
-        role = line.start_with?("Usage:") ? :title : :heading
-        styled = line.match?(/\A\S.*:/) ? options.theme.paint(line, role, enabled: color?(options.color)) : line
-        print styled
+        role = if line.start_with?("Usage:") then :title
+               elsif line.match?(/\A\S.*:$/) then :heading
+               end
+        print role ? options.theme.paint(line, role, enabled:) : line
       end
     end
   end
