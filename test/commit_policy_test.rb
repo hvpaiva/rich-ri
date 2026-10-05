@@ -44,7 +44,8 @@ class CommitPolicyTest < Minitest::Test
     repository do |root|
       _out, err, status = lint(root, "HEAD", "PR_TITLE" => "An unstructured title")
 
-      assert_equal [1, "lint-commits: PR title: #{UNSTRUCTURED}An unstructured title\n"], [status.exitstatus, err]
+      assert_equal [1, "lint-commits: pull request title: #{UNSTRUCTURED}An unstructured title\n"],
+                   [status.exitstatus, err]
     end
   end
 
@@ -82,7 +83,8 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root, "HEAD", "PR_BODY" => body)
 
       refute_predicate status, :success?
-      assert_equal "lint-commits: PR body: remove generated attribution: https://claude.ai/code/session_01EXAMPLE0000000000000000\n",
+      assert_equal "lint-commits: pull request body: remove generated attribution: " \
+                   "https://claude.ai/code/session_01EXAMPLE0000000000000000\n",
                    err
       git(root, "commit", "--allow-empty", "-qm", "fix: correct rendering\n\nGenerated-with: Codex")
       _out, err, status = lint(root)
@@ -178,7 +180,8 @@ class CommitPolicyTest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       assert_equal "lint-commits: #{sha}: #{UNSTRUCTURED}\\e]0;renamed\\a\\e[31mred\n" \
-                   "lint-commits: PR body: remove generated attribution: https://claude.ai/code/session_1 \\e[2J\n",
+                   "lint-commits: pull request body: remove generated attribution: " \
+                   "https://claude.ai/code/session_1 \\e[2J\n",
                    err
     end
   end

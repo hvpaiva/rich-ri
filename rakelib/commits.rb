@@ -67,8 +67,8 @@ module CommitPolicy
       headers, message = git("cat-file", "commit", sha).split("\n\n", 2)
       check(message, subject: headers.scan(/^parent /).length < 2).map { |error| "#{sha[0, 8]}: #{error}" }
     end
-    errors.concat(check(title, subject: true).map { |error| "PR title: #{error}" }) if title
-    errors.concat(check(body, subject: false).map { |error| "PR body: #{error}" }) if body
+    errors.concat(check(title, subject: true).map { |error| "pull request title: #{error}" }) if title
+    errors.concat(check(body, subject: false).map { |error| "pull request body: #{error}" }) if body
     errors
   end
 

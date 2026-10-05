@@ -7,6 +7,9 @@ require_relative "release_support"
 class ReleasePullRequestTest < Minitest::Test
   include ReleaseFixtures
 
+  RESUME = "After resolving the problem, rerun bin/release 0.2.0 --push. " \
+           "Existing pull requests and tags are inspected before any new action."
+
   def test_a_pull_request_from_a_fork_cannot_block_or_become_the_release
     %w[OPEN CLOSED].each do |state|
       repository do |root|
@@ -95,6 +98,68 @@ class ReleasePullRequestTest < Minitest::Test
       actions = [%w[gh pr merge], %w[gh pr create], %w[git tag -s]]
 
       refute(commands.any? { |args| actions.include?(args.first(3)) })
+    end
+  end
+
+  def test_a_new_pull_request_names_the_command_that_merges_it
+    repository do |root|
+      output = StringIO.new
+      workflow("0.2.0", root: root, runner: workflow_runner([]), out: output).run
+
+      assert_equal "Release pull request: https://github.com/hvpaiva/rich-ri/pull/1. " \
+                   "Run bin/release 0.2.0 --push to merge, sign and publish.\n", output.string.lines.last
+    end
+  end
+
+  def test_a_dry_run_names_the_open_pull_request
+    repository do |root|
+      output = StringIO.new
+      workflow("0.2.0", root: root, dry_run: true, runner: workflow_runner([], state: { pr: release_pr("OPEN") }),
+                        out: output).run
+
+      assert_equal "Existing release pull request: https://github.com/hvpaiva/rich-ri/pull/1 (dry run).\n",
+                   output.string.lines.last
+    end
+  end
+
+  def test_a_tag_without_a_merged_pull_request_stops_the_release
+    repository do |root|
+      error = assert_raises(Release::Error) do
+        release(root, [], remote_tag: "b" * 40)
+      end
+
+      assert_equal "v0.2.0 already exists without a matching merged release pull request; inspect it before " \
+                   "continuing\n#{RESUME}", error.message
+    end
+  end
+
+  def test_a_local_branch_ahead_of_the_open_pull_request_is_not_merged
+    repository do |root|
+      commands = []
+      error = assert_raises(Release::Error) do
+        release(root, commands, branch: "release/v0.2.0", pr: release_pr("OPEN").merge("headRefOid" => "c" * 40))
+      end
+
+      assert_equal "local release/v0.2.0 differs from the pull request head; push its reviewed changes before " \
+                   "retrying\n#{RESUME}", error.message
+      refute(commands.any? { |args| args.first(3) == %w[gh pr merge] })
+    end
+  end
+
+  def test_a_pull_request_whose_checks_never_start_is_kept_for_the_retry
+    repository do |root|
+      sleeper = Object.new
+      def sleeper.sleep(_seconds) = nil
+      runner = workflow_runner([], state: { pr: release_pr("OPEN") })
+      no_checks = lambda do |argv, **options|
+        argv.include?("statusCheckRollup") ? ["0\n", Struct.new(:success?).new(true)] : runner.call(argv, **options)
+      end
+      error = assert_raises(Release::Error) do
+        workflow("0.2.0", root: root, push: true, sleeper: sleeper, runner: no_checks, out: StringIO.new).run
+      end
+
+      assert_equal "timed out waiting for checks on https://github.com/hvpaiva/rich-ri/pull/1; the existing pull " \
+                   "request will be reused on retry\n#{RESUME}", error.message
     end
   end
 

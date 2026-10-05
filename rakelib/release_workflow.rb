@@ -31,7 +31,8 @@ module Release
         require_clean
         @publication.run(pull_request.dig("mergeCommit", "oid"), push: @push, dry_run: @dry_run)
       elsif @publication.remote_tag.any?
-        raise Error, "#{tag} already exists without a matching merged release PR; inspect it before continuing"
+        raise Error, "#{tag} already exists without a matching merged release pull request; " \
+                     "inspect it before continuing"
       elsif pull_request
         resume_pull_request(pull_request)
       else
@@ -94,9 +95,9 @@ module Release
       require_clean
       @commit = request.fetch("headRefOid")
       if @current_branch == branch && command(%w[git rev-parse HEAD]).strip != @commit
-        raise Error, "local #{branch} differs from the PR head; push its reviewed changes before retrying"
+        raise Error, "local #{branch} differs from the pull request head; push its reviewed changes before retrying"
       end
-      return @out.puts "Existing release PR: #{request.fetch('url')} (dry run)." if @dry_run
+      return @out.puts "Existing release pull request: #{request.fetch('url')} (dry run)." if @dry_run
 
       finish_pull_request(request.fetch("url"))
     end
@@ -200,7 +201,9 @@ module Release
     end
 
     def finish_pull_request(url)
-      return @out.puts "Release PR: #{url}. Run #{resume_command} --push to merge, sign and publish." unless @push
+      unless @push
+        return @out.puts "Release pull request: #{url}. Run #{resume_command} --push to merge, sign and publish."
+      end
 
       @publication.verify_metadata(@commit)
       command(["git", "verify-commit", @commit])
@@ -220,7 +223,7 @@ module Release
 
         @sleeper.sleep(5)
       end
-      raise Error, "timed out waiting for checks on #{url}; the existing PR will be reused on retry"
+      raise Error, "timed out waiting for checks on #{url}; the existing pull request will be reused on retry"
     end
   end
 end
