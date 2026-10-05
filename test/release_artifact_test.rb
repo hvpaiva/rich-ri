@@ -21,30 +21,54 @@ class ReleaseArtifactTest < Minitest::Test
     Release::Artifact.record(root: root)
   end
 
-  def test_artifact_verification_checks_the_built_bytes_and_version
+  def test_a_verified_artifact_is_returned_by_path
     repository do |root|
       digest = artifact(root)
-      path = Release::Artifact.path(root: root)
 
-      assert_equal path, Release::Artifact.verify(root: root, expected: digest)
-      assert_release_error(/checksum mismatch/) { Release::Artifact.verify(root: root, expected: "0" * 64) }
-      File.binwrite(path, "tampered")
-      assert_release_error(/checksum mismatch/) { Release::Artifact.verify(root: root, expected: digest) }
-      artifact(root, version: "9.0.0")
-      assert_release_error(%r{name/version does not match}) { Release::Artifact.verify(root: root) }
+      assert_equal Release::Artifact.path(root: root), Release::Artifact.verify(root: root, expected: digest)
     end
   end
 
-  def test_a_missing_or_unreadable_artifact_is_reported_without_a_backtrace
+  def test_an_artifact_whose_bytes_differ_from_the_recorded_checksum_is_refused
     repository do |root|
-      assert_release_error(%r{incomplete: pkg/rich-ri-0\.1\.0\.gem and pkg/SHA256SUMS not found}) do
+      digest = artifact(root)
+      assert_release_error(/\Arelease artifact checksum mismatch\z/) do
+        Release::Artifact.verify(root: root, expected: "0" * 64)
+      end
+      File.binwrite(Release::Artifact.path(root: root), "tampered")
+
+      assert_release_error(/\Arelease artifact checksum mismatch\z/) do
+        Release::Artifact.verify(root: root, expected: digest)
+      end
+    end
+  end
+
+  def test_an_artifact_for_another_version_is_refused
+    repository do |root|
+      artifact(root, version: "9.0.0")
+
+      assert_release_error(%r{\Arelease artifact name/version does not match the checkout\z}) do
         Release::Artifact.verify(root: root)
       end
+    end
+  end
+
+  def test_a_missing_artifact_names_the_missing_files
+    repository do |root|
+      missing = %r{\Arelease artifact is incomplete: pkg/rich-ri-0\.1\.0\.gem and pkg/SHA256SUMS not found\z}
+      assert_release_error(missing) do
+        Release::Artifact.verify(root: root)
+      end
+    end
+  end
+
+  def test_an_artifact_that_is_not_a_gem_is_refused_without_a_backtrace
+    repository do |root|
       FileUtils.mkdir_p(File.join(root, "pkg"))
       File.binwrite(Release::Artifact.path(root: root), "not a gem")
       Release::Artifact.record(root: root)
 
-      assert_release_error(/not a valid gem/) { Release::Artifact.verify(root: root) }
+      assert_release_error(/\Arelease artifact is not a valid gem: /) { Release::Artifact.verify(root: root) }
     end
   end
 

@@ -52,16 +52,22 @@ class ReleaseBranchTest < Minitest::Test
     assert_equal "hotfix/0.2", Release.validate_branch("hotfix/0.2", "0.2.1")
   end
 
-  def test_ci_checks_real_git_ancestry_before_publication
+  def test_ci_refuses_a_release_commit_outside_main_and_the_matching_hotfix_branch
     repository do |root|
       sha = git(root, "rev-parse", "HEAD")
+      git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
       Dir.chdir(root) do
-        assert_release_error(/must belong to main/) { Release.verify_ref(sha: sha, version: "0.2.1") }
-        git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
         Release.verify_ref(sha: sha, version: "0.2.1")
-        assert_release_error(/matching hotfix branch/) { Release.verify_ref(sha: sha, version: "0.3.0") }
-        assert_release_error(/set GITHUB_SHA/) { Release.verify_ref(sha: nil, version: "0.2.1") }
+        assert_release_error(/\Arelease commit must belong to main or its matching hotfix branch\z/) do
+          Release.verify_ref(sha: sha, version: "0.3.0")
+        end
       end
+    end
+  end
+
+  def test_ci_refuses_to_check_ancestry_without_a_release_commit
+    assert_release_error(/\Ainvalid release commit: set GITHUB_SHA to a full commit ID\z/) do
+      Release.verify_ref(sha: nil, version: "0.2.1")
     end
   end
 end

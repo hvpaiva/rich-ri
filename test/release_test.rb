@@ -11,22 +11,34 @@ class ReleaseTest < Minitest::Test
 
   def test_preparation_updates_version_and_preserves_unreleased_for_next_changes
     repository do |root|
-      changes = Release.changes("0.2.0", root: root)
+      changes = Release.changes("0.2.0", root: root, date: Date.new(2026, 10, 4))
       changelog = changes.fetch("CHANGELOG.md")
 
       assert_equal "VERSION = \"0.2.0\"\n", changes.fetch(Release::VERSION_FILE)
-      assert_includes changelog, "## [Unreleased]\n\n## [0.2.0] - #{Time.now.utc.to_date.iso8601}"
+      assert_includes changelog, "## [Unreleased]\n\n## [0.2.0] - 2026-10-04"
       assert_includes changelog, "- Readable documentation."
       assert_includes changelog, "compare/v0.2.0...HEAD"
     end
   end
 
-  def test_preparation_refuses_a_dirty_tree_and_invalid_versions
+  def test_preparation_refuses_a_version_lower_than_the_current_one
     repository do |root|
       assert_release_error(/\Aversion cannot go backwards\z/) { Release.changes("0.0.1", root: root) }
-      assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes("01.2.3", root: root) }
-      assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes("invalid", root: root) }
+    end
+  end
+
+  def test_preparation_refuses_a_version_that_is_not_stable_x_y_z
+    repository do |root|
+      %w[01.2.3 invalid 1.0.0.rc1].each do |version|
+        assert_release_error(/\Ause a stable X\.Y\.Z version\z/) { Release.changes(version, root: root) }
+      end
+    end
+  end
+
+  def test_preparation_refuses_a_dirty_tree
+    repository do |root|
       File.write(File.join(root, "unfinished"), "work")
+
       assert_release_error(/\Acommit or stash changes before preparing a release\z/) do
         Release.changes("0.2.0", root: root)
       end
