@@ -97,8 +97,10 @@ module ReleaseFixtures
     when %w[gh pr create] then "https://github.com/hvpaiva/rich-ri/pull/1\n"
     when %w[gh pr view] then argv.include?("mergeCommit") ? "#{'b' * 40}\n" : "1\n"
     when %w[gh run list]
-      JSON.generate([{ databaseId: 123, headSha: "b" * 40, status: state.fetch(:run_status, "completed"),
-                       conclusion: state.fetch(:conclusion, "success") }])
+      JSON.generate(state.fetch(:runs) do
+        [{ databaseId: 123, headSha: "b" * 40, status: state.fetch(:run_status, "completed"),
+           conclusion: state.fetch(:conclusion, "success") }]
+      end)
     when %w[gh run view]
       data = if argv.include?("jobs")
                { jobs: state.fetch(:jobs, []) }

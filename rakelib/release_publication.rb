@@ -33,12 +33,9 @@ module Release
 
       exists = !@commands.call(["git", "tag", "--list", tag]).strip.empty?
       verify_tag(sha) if exists
-      if dry_run || (!push && remote.empty?)
-        next_step = exists ? "push the signed tag" : "sign and push its tag"
-        command = "bin/release #{@version}#{" --branch #{@base}" unless @base == 'main'} --push"
-        @out.puts "Release merge #{sha} is ready. Run #{command} to #{next_step}."
-        return
-      end
+      return report_pushed_tag(sha) if dry_run && remote.any?
+      return report_ready(sha, exists) if dry_run || (!push && remote.empty?)
+
       if remote.empty?
         @commands.call(["git", "tag", "-s", tag, "-m", "Release #{@version}", sha]) unless exists
         verify_tag(sha)
@@ -63,6 +60,34 @@ module Release
 
     private
 
+    def command = "bin/release #{@version}#{" --branch #{@base}" unless @base == 'main'}"
+
+    def report_ready(sha, tagged)
+      next_step = tagged ? "push the signed tag" : "sign and push its tag"
+      @out.puts "Release merge #{sha} is ready. Run #{command} --push to #{next_step}."
+    end
+
+    # A dry run only reads: it reports where the pushed tag stands without waiting for its run.
+    def report_pushed_tag(sha)
+      run = release_runs.find { |candidate| candidate["headSha"] == sha }
+      @out.puts "#{tag} is already on origin at #{sha}: #{run ? run_state(run) : missing_run}."
+    end
+
+    def run_state(run)
+      name = "Release run #{run.fetch('databaseId')}"
+      return "#{name} is #{run['status']}; run #{command} to watch it" unless run["status"] == "completed"
+      return "#{name} succeeded; nothing is left to do" if run["conclusion"] == "success"
+
+      "#{name} ended with #{run['conclusion']}; run #{command} for the recovery steps"
+    end
+
+    def missing_run = "no Release run was found; inspect Actions before dispatching one"
+
+    def release_runs
+      @commands.json(["gh", "run", "list", "--workflow", "release.yml", "--branch", tag, "--event", "push",
+                      "--limit", "20", "--json", "databaseId,headSha,status,conclusion"])
+    end
+
     def verify_tag(sha)
       unless @commands.call(["git", "cat-file", "-t", "refs/tags/#{tag}"]).strip == "tag" &&
              @commands.call(["git", "rev-parse", "#{tag}^{commit}"]).strip == sha
@@ -75,9 +100,7 @@ module Release
     def watch_release(sha)
       run = nil
       60.times do
-        runs = @commands.json(["gh", "run", "list", "--workflow", "release.yml", "--branch", tag, "--event", "push",
-                               "--limit", "20", "--json", "databaseId,headSha,status,conclusion"])
-        run = runs.find { |candidate| candidate["headSha"] == sha }
+        run = release_runs.find { |candidate| candidate["headSha"] == sha }
         break if run
 
         @sleeper.sleep(5)
