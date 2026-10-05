@@ -27,9 +27,8 @@ class OptionalDependencyTest < Minitest::Test
 
       assert_equal 1, status.exitstatus, err
       assert_empty out
-      assert_includes err, "--#{option} requires the optional #{dependency} gem"
-      assert_includes err, "gem install #{dependency}"
-      refute_match(/from .*\.rb:\d+/, err)
+      assert_equal "rich-ri: --#{option} requires the optional #{dependency} gem\n" \
+                   "Install it for your active Ruby: gem install #{dependency}\n", err
     end
   end
 

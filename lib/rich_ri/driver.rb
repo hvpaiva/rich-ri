@@ -236,7 +236,7 @@ module RichRI
     rescue LoadError => e
       raise unless e.path == name
 
-      raise Error.new("#{option} requires the optional #{name} gem.",
+      raise Error.new("#{option} requires the optional #{name} gem",
                       hint: "Install it for your active Ruby: gem install #{name}")
     end
 
