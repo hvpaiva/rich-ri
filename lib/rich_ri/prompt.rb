@@ -12,12 +12,18 @@ module RichRI
     # The completion answers the candidates for the name being typed.
     def initialize(completion)
       @completion = completion
+      @pasted = []
     end
 
     # The next name, or nil at a blank line or the end of input.
     def read
-      name = RichRI.utf8($stdin.tty? && $stdout.tty? ? edit : $stdin.gets).strip
-      name unless name.empty?
+      return @pasted.shift unless @pasted.empty?
+
+      # A terminal marks what is pasted, and the editor then takes its line
+      # breaks for text: several names arrive as one line.
+      text = RichRI.utf8($stdin.tty? && $stdout.tty? ? edit : $stdin.gets)
+      name, *@pasted = text.lines.map(&:strip).reject(&:empty?)
+      name
     end
 
     private

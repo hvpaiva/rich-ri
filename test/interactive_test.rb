@@ -81,6 +81,21 @@ class InteractiveTest < Minitest::Test
     refute_includes output, "rich-ri:"
   end
 
+  def test_each_line_of_a_pasted_block_is_looked_up
+    Dir.mktmpdir("rich-ri-interactive-") do |dir|
+      environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
+      # A terminal brackets what is pasted, so that the editor takes the line breaks in it for text.
+      pasted = "\e[200~RichRIExample#map\n\n  RichRIExample.build\n\e[201~"
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                                    env: environment, prompt: ">> ", input: "#{pasted}\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "Return transformed values."
+      assert_includes output, "Create an example."
+      refute_includes output, "rich-ri:"
+    end
+  end
+
   def test_session_continues_after_names_that_cannot_be_looked_up
     names = "RichRIExample[\nNoSuchExample123\nRichRIExample#ma\nRichRIExample#map\n\n"
     out, err, status = cli("--interactive", stdin: names)
