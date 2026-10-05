@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/.."
-bundle install
+# Install the bundle and the lint tools mise.toml pins, then report every program
+# the full check still needs. A failed step never hides that report.
+cd "$(dirname "$0")/.." || exit 1
+
+bundle install || exit 1
+
 if command -v mise >/dev/null 2>&1; then
-  mise install shellcheck typos zizmor lychee
-fi
-missing=0
-for tool in shellcheck typos zizmor lychee groff man; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    printf 'Missing: %s (required for the full check)\n' "$tool"
-    missing=1
+  pinned=()
+  while IFS= read -r tool; do
+    pinned+=("$tool")
+  done < <(ruby -r ./rakelib/tools -e 'puts Tools.pinned.keys - %w[ruby]')
+  # Without names, mise would install everything mise.toml lists, Ruby included.
+  if [ "${#pinned[@]}" -gt 0 ]; then
+    mise install "${pinned[@]}" || printf 'mise install failed; the report below names what is still missing.\n'
   fi
-done
-if ! ruby -r ./rakelib/shell_tests -e 'begin; ShellTests.verify_environment!; rescue ShellTests::Error => e; abort e.message; end'; then
-  missing=1
 fi
+
+status=0
+ruby -r ./rakelib/tools -e 'exit Tools.report.empty?' || status=1
+ruby -r ./rakelib/shell_tests -e '
+  begin
+    ShellTests.verify_environment!
+  rescue ShellTests::Error => e
+    abort e.message
+  end
+' || status=1
 printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'
-exit "$missing"
+exit "$status"
