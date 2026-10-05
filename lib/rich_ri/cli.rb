@@ -10,13 +10,7 @@ module RichRI
 
     def run(argv)
       argv = argv.map { |argument| RichRI.utf8(argument) }
-      if argv.first == "--complete"
-        Completion.new.write(argv.drop(1), $stdout)
-        return 0
-      end
-
-      options = Options.new.parse(argv)
-      status = options.action ? action(*options.action, options: options) : lookup(options)
+      status = argv.first == "--complete" ? complete(argv.drop(1)) : command(Options.new.parse(argv))
       # Buffered output that cannot be written must not pass for success.
       $stdout.flush
       status
@@ -29,6 +23,15 @@ module RichRI
     end
 
     private
+
+    def complete(words)
+      Completion.new.write(words, $stdout)
+      0
+    end
+
+    def command(options)
+      options.action ? action(*options.action, options: options) : lookup(options)
+    end
 
     def lookup(options)
       driver_options = options.driver_options

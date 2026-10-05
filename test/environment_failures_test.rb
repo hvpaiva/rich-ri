@@ -35,29 +35,41 @@ class EnvironmentFailuresTest < Minitest::Test
     end
   end
 
-  def version_written_to(output)
+  def written_to(output, *)
     IO.pipe do |reader, writer|
-      pid = Process.spawn(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib",
-                          File.join(TestSupport::ROOT, "exe/rich-ri"), "--version", out: output, err: writer)
+      pid = Process.spawn(TestSupport::ENVIRONMENT.merge("COVERAGE_CHILD" => "1"), *executable(*),
+                          out: output, err: writer)
       writer.close
       _pid, status = Process.wait2(pid)
       [status.exitstatus, reader.read]
     end
   end
 
-  def test_output_that_cannot_be_written_is_a_failure
+  # Open for reading only, so every write fails on any system.
+  def with_read_only_output(&)
     Dir.mktmpdir("rich-ri-output-") do |dir|
       path = File.join(dir, "read-only")
       File.write(path, "")
-      # Open for reading only, so every write fails on any system.
-      File.open(path) do |read_only|
-        outputs = { read_only => "Bad file descriptor" }
-        outputs["/dev/full"] = "No space left on device" if File.chardev?("/dev/full")
+      File.open(path, &)
+    end
+  end
 
-        outputs.each do |output, reason|
-          assert_equal [1, "rich-ri: standard output: #{reason}\n"], version_written_to(output)
-        end
+  def test_output_that_cannot_be_written_is_a_failure
+    with_read_only_output do |read_only|
+      outputs = { read_only => "Bad file descriptor" }
+      outputs["/dev/full"] = "No space left on device" if File.chardev?("/dev/full")
+
+      outputs.each do |output, reason|
+        assert_equal [1, "rich-ri: standard output: #{reason}\n"], written_to(output, "--version")
       end
+    end
+  end
+
+  def test_completion_that_cannot_be_written_is_a_failure
+    with_read_only_output do |read_only|
+      result = written_to(read_only, "--complete", "--no-all")
+
+      assert_equal [1, "rich-ri: standard output: Bad file descriptor\n"], result
     end
   end
 
