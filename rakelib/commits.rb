@@ -17,7 +17,7 @@ module CommitPolicy
                app\.devin\.ai/sessions/|jules\.google\.com/task/|cursor\.com/(?:agents|background-agent)\b)}ix
   # People share assistants' names (Claude Monet), so a signature counts as a tool's only by
   # a tool's address or by a name that is nothing but a product.
-  SIGNATURE = /\A(?:Co-authored-by|Signed-off-by):\s*(?<name>[^<\n]*?)\s*<(?<address>[^>\n]+)>/i
+  SIGNATURE = /\A[a-z]+(?:-[a-z]+)*-by:\s*(?<name>[^<\n]*?)\s*<(?<address>[^>\n]+)>/i
   TOOL_ADDRESS = /\A(?:noreply@anthropic\.com|(?:codex|noreply)@openai\.com|cursoragent@cursor\.com|
                     (?:aider|noreply)@aider\.chat|copilot@github\.com|noreply@opencode\.ai|amp@ampcode\.com|
                     \d+\+(?:Copilot|gemini-cli|[\w-]+\[bot\])@users\.noreply\.github\.com)\z/ix
