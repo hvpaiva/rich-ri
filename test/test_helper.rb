@@ -28,6 +28,51 @@ module TestSupport
     RDoc::RDoc.new.document(["--ri", "--quiet", "--op", STORE, "example.rb", "GUIDE.rdoc"])
   end
 
+  # Gems as an installation leaves them: a specification and the RI data of
+  # the gem's files, in a gem home of their own. Every other store in the suite
+  # is a directory given with --doc-dir; these are the ones RubyGems finds and
+  # names by gem, version and platform. Each is a directory of fixtures with
+  # its version and platform, one of them for another system.
+  GEMS = { "inkwell" => %w[1.4.0 ruby], "inkwell-2" => %w[0.3.0 ruby],
+           "inkwell-native" => %w[2.0.1 arm64-darwin-23] }.freeze
+
+  # The gem home, generated when a test first asks for it.
+  def self.gem_home
+    @gem_home ||= File.join(TEMP, "gems").tap do |home|
+      FileUtils.mkdir_p(File.join(home, "specifications"))
+      GEMS.each { |name, (version, platform)| install_gem(home, name, version, platform) }
+    end
+  end
+
+  def self.install_gem(home, name, version, platform)
+    source = File.join(__dir__, "fixtures/gems", name)
+    files = Dir.glob("**/*.{rb,rdoc}", base: source).sort
+    specification = Gem::Specification.new do |gem|
+      gem.name = name
+      gem.version = version
+      gem.platform = platform
+      gem.summary = "A documented gem"
+      gem.authors = ["rich-ri"]
+      gem.files = files
+    end
+    File.write(File.join(home, "specifications", "#{specification.full_name}.gemspec"), specification.to_ruby)
+    RDoc::RDoc.new.document(["--ri", "--quiet", "--root", source, "--op",
+                             File.join(home, "doc", specification.full_name, "ri"),
+                             *files.map { |file| File.join(source, file) }])
+  end
+  private_class_method :install_gem
+
+  # The environment of a command that finds the gems of gem_home in place of
+  # the installed ones. Bundler would show it the bundle alone, so it runs
+  # without, and the libraries rich-ri requires come from this process's load path.
+  def self.gem_environment
+    libraries = $LOAD_PATH.map(&:to_s).select { |path| File.absolute_path?(path) }
+    ENV.keys.grep(/\ABUNDLER?_/).to_h { |key| [key, nil] }.merge(
+      "GEM_HOME" => gem_home, "GEM_PATH" => gem_home, "RUBYOPT" => nil,
+      "RUBYLIB" => libraries.join(File::PATH_SEPARATOR)
+    )
+  end
+
   def cli(*, env: {}, docs: true, stdin: "")
     sources = docs ? ["--no-standard-docs", "--doc-dir", STORE] : []
     coverage = ENV["COVERAGE"] ? ["-r#{ROOT}/test/coverage_helper"] : []

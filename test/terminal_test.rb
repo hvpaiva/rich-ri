@@ -8,12 +8,6 @@ class TerminalTest < Minitest::Test
 
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
 
-  def terminal_cli(*, env: {}, prompt: nil, input: nil)
-    coverage = ENV["COVERAGE"] ? ["-r#{TestSupport::ROOT}/test/coverage_helper"] : []
-    terminal(RbConfig.ruby, *coverage, "-I#{TestSupport::ROOT}/lib", "#{TestSupport::ROOT}/exe/rich-ri", *,
-             env: { "COVERAGE_CHILD" => "1", "NO_COLOR" => nil }.merge(env), prompt: prompt, input: input)
-  end
-
   # A pager that appends its arguments to the log beside it and shows the page.
   def logging_pager(dir)
     pager = File.join(dir, "pager.rb")

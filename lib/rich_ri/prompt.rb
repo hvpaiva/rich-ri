@@ -9,7 +9,7 @@ module RichRI
     TEXT = ">> "
     FAILURES = 3
 
-    # The completion answers the candidates for the word being typed.
+    # The completion answers the candidates for the name being typed.
     def initialize(completion)
       @completion = completion
     end
@@ -23,7 +23,7 @@ module RichRI
     private
 
     def edit
-      Reline.completion_proc = @completion
+      complete_whole_line
       failures = 0
       begin
         Reline.readline(TEXT, true)
@@ -37,6 +37,20 @@ module RichRI
         Error.report(e)
         retry
       end
+    end
+
+    # The line is one name. The editor would complete only what follows the
+    # last space, quote or one of "<>=;|&{(`", as a shell does with a command,
+    # and after "Array#<" or "Hash#=" that is nothing at all.
+    def complete_whole_line
+      Reline.completer_word_break_characters = ""
+      Reline.completer_quote_characters = ""
+      Reline.completion_proc = method(:candidates)
+    end
+
+    def candidates(line)
+      indentation = line[/\A\s*/]
+      @completion.call(line.delete_prefix(indentation)).map { |name| indentation + name }
     end
   end
 end

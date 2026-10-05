@@ -19,6 +19,68 @@ class InteractiveTest < Minitest::Test
     end
   end
 
+  # An interactive session over the gems of the suite alone. The keys are
+  # typed at the first prompt, or are [text, keys] pairs as terminal takes
+  # them. Returns what the terminal showed and the exit status.
+  def gem_session(keys)
+    Dir.mktmpdir("rich-ri-interactive-") do |dir|
+      environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
+      terminal_cli("--no-system", "--no-site", "--no-home", env: environment, prompt: ">> ", input: keys)
+    end
+  end
+
+  def test_tab_takes_the_whole_line_for_the_name_being_typed
+    output, status = gem_session([[">> ", "Inkwell#<\t\t"], ["Inkwell#<=>", "<\n"], [">> ", "Inkwell#=\t\t"],
+                                  ["Inkwell#===", "~\n\n"]])
+
+    assert_equal 0, status, output
+    assert_match(/Inkwell#<<\s+Inkwell#<=\s+Inkwell#<=>/, output)
+    assert_includes output, "Add ink."
+    assert_match(/Inkwell#==\s+Inkwell#===\s+Inkwell#=~/, output)
+    assert_includes output, "Match the name of the ink."
+    refute_includes output, "rich-ri:"
+  end
+
+  def test_tab_twice_lists_the_names_that_share_what_was_typed
+    output, status = gem_session([[">> ", "  Inkwell#fi\t\t"], ["Inkwell#filled?", "\n\n"]])
+
+    assert_equal 0, status, output
+    assert_match(/Inkwell#fill\s+Inkwell#filled\?/, output)
+    assert_includes output, "Fill the well."
+    refute_includes output, "rich-ri:"
+  end
+
+  # RubyGems builds its default directory from RbConfig, whose strings are
+  # BINARY in every locale, and the directories of its gems inherit the label.
+  def test_tab_works_over_gem_directories_labelled_binary_and_on_an_empty_line
+    source = <<~RUBY
+      home = ENV.fetch("GEM_HOME").b
+      Gem.paths = { "GEM_HOME" => home, "GEM_PATH" => home }
+      require "rich_ri"
+      exit RichRI::CLI.run(ARGV)
+    RUBY
+    Dir.mktmpdir("rich-ri-interactive-") do |dir|
+      environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
+      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
+                                "--no-system", "--no-site", "--no-home",
+                                env: environment, prompt: ">> ", input: "\tinkwell-2\t\nInkwell#filled\t\n\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "UPGRADING.rdoc"
+      assert_includes output, "Report whether the well is full."
+      refute_match(/rich-ri:|incompatible character encodings/, output)
+    end
+  end
+
+  def test_tab_completes_a_gem_and_then_its_page
+    output, status = gem_session("inkwell-2\tU\t\n\n")
+
+    assert_equal 0, status, output
+    assert_includes output, "inkwell-2:UPGRADING.rdoc"
+    assert_includes output, "Move from the first inkwell."
+    refute_includes output, "rich-ri:"
+  end
+
   def test_session_continues_after_names_that_cannot_be_looked_up
     names = "RichRIExample[\nNoSuchExample123\nRichRIExample#ma\nRichRIExample#map\n\n"
     out, err, status = cli("--interactive", stdin: names)
