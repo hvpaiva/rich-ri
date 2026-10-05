@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require_relative "../rakelib/changelog"
+require_relative "../rakelib/changelog_lint"
 require_relative "release_support"
 
 class ChangelogCommandTest < Minitest::Test
@@ -22,7 +22,7 @@ class ChangelogCommandTest < Minitest::Test
       _out, err, status = lint_changelog(root, base)
 
       assert_equal 1, status.exitstatus
-      assert_equal "#{Changelog::PATH}: #{Changelog::ENTRY_REQUIRED}\n", err
+      assert_equal "#{Changelog::PATH}: #{Changelog::Lint::ENTRY_REQUIRED}\n", err
     end
   end
 

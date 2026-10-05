@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require "optparse"
-require_relative "../rakelib/changelog"
+require_relative "../rakelib/changelog_lint"
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: ruby bin/lint-changelog [BASE]"
@@ -23,11 +23,11 @@ begin
   end
 
   base = nil if %w[1 true].include?(ENV.fetch("SKIP_CHANGELOG", nil))
-  problems = Changelog.lint(root: Dir.pwd, base: base)
+  problems = Changelog::Lint.problems(root: Dir.pwd, base: base)
   abort problems.map { |problem| "#{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
 rescue OptionParser::ParseError => e
   warn "lint-changelog: #{e.message}\n#{parser}"
   exit 2
-rescue Changelog::Error => e
+rescue Changelog::Lint::Error => e
   abort "lint-changelog: #{e.message}"
 end

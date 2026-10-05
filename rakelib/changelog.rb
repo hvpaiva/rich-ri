@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "date"
-require_relative "ci"
 require_relative "github"
 
 # Keep a Changelog: Unreleased, then releases newest first, then their link references.
@@ -13,12 +12,6 @@ module Changelog
   RELEASE = /\A\[(?<version>\d+\.\d+\.\d+)\] - (?<date>\d{4}-\d{2}-\d{2})(?: \[YANKED\])?\z/
   REFERENCE = /^\[(?:Unreleased|\d+\.\d+\.\d+)\]: .*$/
   SECTION_END = /^## |#{REFERENCE}/
-  USER_VISIBLE = %r{\A(?:lib|exe|completions|man)/}
-  ENTRY_REQUIRED = 'Changes under lib/, exe/, completions/ or man/ need a line under "## [Unreleased]". ' \
-                   "When users cannot see the change, set SKIP_CHANGELOG=1; a maintainer adds the " \
-                   "skip-changelog label to the pull request."
-
-  class Error < StandardError; end
 
   Heading = Data.define(:version, :date) do
     def day = Date.strptime(date, "%Y-%m-%d")
@@ -56,29 +49,6 @@ module Changelog
     released.sub(/^\[Unreleased\]: .*\n/) do
       "[Unreleased]: #{URL}/compare/v#{version}...HEAD\n[#{version}]: #{URL}/releases/tag/v#{version}\n"
     end
-  end
-
-  def self.entry_missing?(paths)
-    paths.any? { |path| path.scrub.match?(USER_VISIBLE) } && !paths.include?(PATH)
-  end
-
-  def self.lint(root:, base: nil)
-    problems = problems(read(root))
-    return problems unless base
-
-    entry_missing?(changed_paths(root, base)) ? problems << ENTRY_REQUIRED : problems
-  end
-
-  def self.changed_paths(root, base)
-    CI.changed_paths("#{base}...HEAD", root)
-  rescue CI::Error => e
-    raise Error, "Cannot compare HEAD with #{base}: #{e.message}"
-  end
-
-  def self.read(root)
-    File.read(File.join(root, PATH))
-  rescue SystemCallError => e
-    raise Error, "Cannot read #{PATH} in #{root}: #{e.message.split(' @ ').first}"
   end
 
   def self.problems(text, today: Time.now.utc.to_date)
