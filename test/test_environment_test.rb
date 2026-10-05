@@ -28,11 +28,11 @@ class TestEnvironmentTest < Minitest::Test
       before = repository_state(repository)
       hook = { "GIT_DIR" => File.join(repository, ".git"), "GIT_WORK_TREE" => repository,
                "GIT_INDEX_FILE" => File.join(repository, ".git/index"), "COVERAGE_CHILD" => "1" }
-      %w[ci commit_policy release_branch].each do |name|
+      git_tests.each do |path|
         out, err, status = Open3.capture3(TestSupport::ENVIRONMENT.merge(hook), RbConfig.ruby, "-Ilib", "-Itest",
-                                          "test/#{name}_test.rb", chdir: TestSupport::ROOT)
+                                          path, chdir: TestSupport::ROOT)
 
-        assert_predicate status, :success?, "#{out}\n#{err}"
+        assert_predicate status, :success?, "#{path}\n#{out}\n#{err}"
       end
 
       assert_equal before, repository_state(repository)
@@ -108,6 +108,14 @@ class TestEnvironmentTest < Minitest::Test
   end
 
   private
+
+  # Every test file that runs Git or loads the Git fixtures, except this one, which would run itself again.
+  def git_tests
+    Dir.glob("test/*_test.rb", base: TestSupport::ROOT).select do |path|
+      source = File.read(File.join(TestSupport::ROOT, path))
+      path != "test/#{File.basename(__FILE__)}" && source.match?(/\bgit\b|\b(?:git|release)_support\b/)
+    end
+  end
 
   def repository_state(root)
     [git(root, "for-each-ref"), git(root, "config", "--local", "--list"), git(root, "status", "--porcelain")]
