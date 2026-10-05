@@ -56,16 +56,12 @@ class ReleaseBranchTest < Minitest::Test
 
   def test_ci_checks_real_git_ancestry_before_publication
     repository do |root|
-      sha, status = Open3.capture2("git", "rev-parse", "HEAD", chdir: root)
-
-      assert_predicate status, :success?
+      sha = git(root, "rev-parse", "HEAD")
       Dir.chdir(root) do
-        assert_raises(RuntimeError) { Release.verify_ref(sha: sha.strip, version: "0.2.1") }
-        _out, status = Open3.capture2e("git", "update-ref", "refs/remotes/origin/hotfix/0.2", sha.strip)
-
-        assert_predicate status, :success?
-        Release.verify_ref(sha: sha.strip, version: "0.2.1")
-        assert_raises(RuntimeError) { Release.verify_ref(sha: sha.strip, version: "0.3.0") }
+        assert_raises(RuntimeError) { Release.verify_ref(sha: sha, version: "0.2.1") }
+        git(root, "update-ref", "refs/remotes/origin/hotfix/0.2", sha)
+        Release.verify_ref(sha: sha, version: "0.2.1")
+        assert_raises(RuntimeError) { Release.verify_ref(sha: sha, version: "0.3.0") }
       end
     end
   end

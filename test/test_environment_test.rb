@@ -3,8 +3,11 @@
 require "test_helper"
 require "json"
 require "shell_support"
+require "git_support"
 
 class TestEnvironmentTest < Minitest::Test
+  include GitSupport
+
   def test_application_settings_are_cleared_without_erasing_suite_controls
     values = { "RICH_RI_REQUIRE_SHELLS" => "1", "RICH_RI_CONFIG" => "/missing/config.yml",
                "RICH_RI_THEME" => "invalid", "RICH_RI_STYLE_COMMENT" => "invalid" }
@@ -16,6 +19,24 @@ class TestEnvironmentTest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_equal({ "RICH_RI_REQUIRE_SHELLS" => "1" }, JSON.parse(out.lines.first))
+  end
+
+  def test_git_fixtures_never_touch_the_repository_exported_to_a_hook
+    Dir.mktmpdir("rich-ri-hook-") do |repository|
+      git(repository, "init", "-q")
+      git(repository, "commit", "--allow-empty", "-qm", "chore: initialize")
+      before = repository_state(repository)
+      hook = { "GIT_DIR" => File.join(repository, ".git"), "GIT_WORK_TREE" => repository,
+               "GIT_INDEX_FILE" => File.join(repository, ".git/index"), "COVERAGE_CHILD" => "1" }
+      %w[ci commit_policy release_branch].each do |name|
+        out, err, status = Open3.capture3(TestSupport::ENVIRONMENT.merge(hook), RbConfig.ruby, "-Ilib", "-Itest",
+                                          "test/#{name}_test.rb", chdir: TestSupport::ROOT)
+
+        assert_predicate status, :success?, "#{out}\n#{err}"
+      end
+
+      assert_equal before, repository_state(repository)
+    end
   end
 
   def test_missing_shells_fail_in_required_mode_and_skip_in_optional_mode
@@ -84,5 +105,11 @@ class TestEnvironmentTest < Minitest::Test
       end
       with_environment("PATH" => dir) { refute_predicate ShellSupport, :available? }
     end
+  end
+
+  private
+
+  def repository_state(root)
+    [git(root, "for-each-ref"), git(root, "config", "--local", "--list"), git(root, "status", "--porcelain")]
   end
 end

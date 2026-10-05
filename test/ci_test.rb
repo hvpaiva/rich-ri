@@ -87,15 +87,6 @@ class CITest < Minitest::Test
     CI.scope(root: root, base: base, head: head, event: "pull_request", ref: "refs/pull/1/merge", **)
   end
 
-  def git(root, *)
-    out, err, status = Open3.capture3("git", "-c", "user.name=Test", "-c", "user.email=test@example.org",
-                                      "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
-                                      "-c", "maintenance.auto=false", *, chdir: root)
-
-    assert_predicate status, :success?, err
-    out.strip
-  end
-
   def commit(root, files)
     files.each do |path, content|
       FileUtils.mkdir_p(File.dirname(File.join(root, path)))

@@ -1,22 +1,14 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "git_support"
 
 class CommitPolicyTest < Minitest::Test
-  def git(root, *)
-    # Keep background Git maintenance out of disposable test repositories.
-    out, err, status = Open3.capture3("git", "-c", "maintenance.auto=false", "-c", "commit.gpgsign=false",
-                                      "-c", "core.hooksPath=/dev/null", *, chdir: root)
-
-    assert_predicate status, :success?, err
-    out
-  end
+  include GitSupport
 
   def repository
     Dir.mktmpdir("rich-ri-commits-") do |root|
-      git(root, "init", "-q", "-b", "main")
-      git(root, "config", "user.name", "Test Contributor")
-      git(root, "config", "user.email", "contributor@example.org")
+      git(root, "init", "-q")
       git(root, "commit", "--allow-empty", "-qm", "chore: initialize")
       yield root
     end
