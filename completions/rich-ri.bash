@@ -61,10 +61,12 @@ __rich_ri_get_completion_results() {
 # for its menu, the others as an array.
 __rich_ri_handle_completion_types() {
     local chunk line
-    local -a names=()
+    local -a names=() notes=()
     for chunk in "${out[@]}"; do
         while IFS= read -r line; do
-            [[ -n $line ]] && names+=("${line%%$'\t'*}")
+            [[ -n $line ]] || continue
+            names+=("${line%%$'\t'*}")
+            if [[ $line == *$'\t'* ]]; then notes+=("${line#*$'\t'}"); else notes+=(""); fi
         done <<<"$chunk"
     done
 
@@ -76,9 +78,14 @@ __rich_ri_handle_completion_types() {
     # ble.sh breaks the word itself, says what it keeps and quotes what it inserts.
     [[ -n ${BLE_ATTACHED-} ]] && head=${progcomp_prefix-$head} quote=ble
 
-    local name reply
-    for name in "${names[@]}"; do
-        [[ $name == "$head"* ]] || continue
+    local i name reply
+    local -a replies=()
+    for i in "${!names[@]}"; do
+        name=${names[i]}
+        if [[ $name != "$head"* ]]; then
+            unset "names[i]" "notes[i]"
+            continue
+        fi
         reply=${name#"$head"}
         case $quote in
             ble) ;;
@@ -86,7 +93,35 @@ __rich_ri_handle_completion_types() {
             '"') reply=${reply//\\/\\\\} reply=${reply//\"/\\\"} reply=${reply//\$/\\\$} reply=${reply//\`/\\\`} ;;
             *) [[ -n $reply ]] && printf -v reply %q "$reply" ;;
         esac
-        COMPREPLY+=("$reply")
+        replies[i]=$reply
+    done
+
+    # A list is asked for by the second Tab (63) or shown along with what is
+    # inserted (33 and 64). Only the first inserts nothing, so it can show the
+    # names whole; all of them can carry the descriptions.
+    case ${COMP_TYPE-}:${#replies[@]} in
+        *:[01]) COMPREPLY=("${replies[@]}") ;;
+        63:*) __rich_ri_describe "${names[@]}" ;;
+        33:* | 64:*) __rich_ri_describe "${replies[@]}" ;;
+        *) COMPREPLY=("${replies[@]}") ;;
+    esac
+}
+
+# Replies with the given texts, each followed by its description in a column.
+__rich_ri_describe() {
+    local text note line width=0 room
+    for text in "$@"; do (( ${#text} > width )) && width=${#text}; done
+    room=$(( ${COLUMNS:-80} - width - 4 ))
+    for note in "${notes[@]}"; do
+        text=$1
+        shift
+        if [[ -z $note ]] || (( room < 8 )); then
+            COMPREPLY+=("$text")
+            continue
+        fi
+        (( ${#note} > room )) && note="${note:0:room-3}..."
+        printf -v line '%-*s  (%s)' "$width" "$text" "$note"
+        COMPREPLY+=("$line")
     done
 }
 

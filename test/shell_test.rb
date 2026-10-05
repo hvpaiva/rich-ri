@@ -113,6 +113,22 @@ class BashCompletionTest < Minitest::Test
     assert_equal ["-o default"], asked
   end
 
+  def test_bash_lists_whole_names_and_descriptions_on_the_second_tab
+    assert_equal ["Inkwell#==", "Inkwell#==="],
+                 bash_answer("rich-ri Inkwell#==", "Inkwell#", "==", typed: "", type: 63).first
+    assert_equal ["--color-depth"], bash_answer("rich-ri --color-", "--color-", type: 63).first
+    replies, = bash_answer("rich-ri --colo", "--colo", type: 63)
+
+    assert_equal 2, replies.length
+    assert_match(/\A--color-depth  \(Color depth: .+\)\z/, replies.first)
+    assert_match(/\A--color=       \(Color: .+\)\z/, replies.last)
+    assert_equal ["--color=always  (Color mode)", "--color=auto    (Color mode)"],
+                 bash_answer("rich-ri --color=a", "--color", "=", "a", type: 63).first
+    # A list shown along with what is inserted carries what is inserted.
+    assert_equal ["always  (Color mode)", "auto    (Color mode)"],
+                 bash_answer("rich-ri --color=a", "--color", "=", "a", type: 33).first
+  end
+
   private
 
   # The replies and the compopt calls for a line whose pieces are the ones bash
@@ -350,6 +366,11 @@ class ShellInsertionTest < Minitest::Test
     assert_equal ["--theme=dark"], inserted_arguments("bash", "rich-ri --theme=da", library: nil), @terminal_output
     assert_equal ["--doc-dir", "#{@bin}/docs spaced/"],
                  inserted_arguments("bash", "rich-ri --doc-dir ~/doc", library: nil), @terminal_output
+  end
+
+  def test_bash_lists_the_options_with_their_descriptions_and_keeps_the_line
+    assert_equal ["--color"], inserted_arguments("bash", "rich-ri --color\t"), @terminal_output
+    assert_match(/^--color-depth  \(Color depth: .+\)\r$/, @terminal_output)
   end
 
   def test_zsh_inserts_names_that_no_shell_takes_unquoted

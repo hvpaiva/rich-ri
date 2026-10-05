@@ -33,9 +33,9 @@ class TestEnvironmentTest < Minitest::Test
           assert_includes out, "fish is required"
           assert_includes out, "zsh is required"
           assert_includes out, "bash-completion 2.x with a compatible bash is required"
-          assert_match(/23 failures, 0 errors, 3 skips/, out)
+          assert_match(/25 failures, 0 errors, 3 skips/, out)
         else
-          assert_match(/0 failures, 0 errors, 26 skips/, out)
+          assert_match(/0 failures, 0 errors, 28 skips/, out)
         end
       end
     end
@@ -54,7 +54,7 @@ class TestEnvironmentTest < Minitest::Test
       message = "#{out}\n#{err}"
 
       assert_equal required ? 1 : 0, status.exitstatus, message
-      assert_match(required ? /8 failures, 0 errors, 0 skips/ : /0 failures, 0 errors, 8 skips/, out)
+      assert_match(required ? /10 failures, 0 errors, 0 skips/ : /0 failures, 0 errors, 10 skips/, out)
     end
   end
 
