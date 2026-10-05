@@ -127,7 +127,7 @@ class TerminalTest < Minitest::Test
   def test_pager_command_is_split_into_words_and_run_without_a_shell
     Dir.mktmpdir("rich-ri-pager-") do |dir|
       working, log = logging_pager(dir)
-      command = "#{working} 'two words' | $HOME > #{dir}/redirected"
+      command = "#{working} 'two words' | $HOME > #{Shellwords.escape("#{dir}/redirected")}"
       output, status = terminal_cli(*SOURCES, "--pager-command=#{command}", "RichRIExample#map")
 
       assert_equal 0, status, output
