@@ -165,9 +165,11 @@ class CompletionProtocolTest < Minitest::Test
     assert_equal ":files\n", cli("--complete", "--config=", docs: false).first
   end
 
-  def test_nothing_follows_install_man_and_a_plain_value_has_no_candidates
+  def test_only_options_follow_install_man_and_a_plain_value_has_no_candidates
     assert_equal ":\n", cli("--complete", "--no-standard-docs", "--install-man", "/usr/do", docs: false).first
     assert_equal ":\n", cli("--complete", "--doc-dir", TestSupport::STORE, "--install-man", "Rich", docs: false).first
+    assert_equal "--no-color\tPlain text with the same page layout.\n:\n",
+                 cli("--complete", "--install-man", "--no-col", docs: false).first
     assert_equal ":\n", cli("--complete", "--width", "", docs: false).first
     assert_equal ":\n", cli("--complete", "--pager-command", "RichRIExample", docs: false).first
   end
@@ -255,6 +257,8 @@ class CommandLineCompletionTest < Minitest::Test
       [["--width=abc"], {}] => [2, "--width #{width} \"abc\"#{usage}"],
       [["--width", "5"], {}] => [2, "--width #{width} \"5\"#{usage}"],
       [["--theme=nope"], {}] => [2, "#{theme}#{usage}"], [["-ax"], {}] => [2, "invalid option: -x#{usage}"],
+      [["--install-man=#{TestSupport::TEMP}/man1"], {}] =>
+        [2, "--install-man does not accept lookup names; use --install-man=DIR#{usage}"],
       [[], { "RI" => "-x" }] => [1, "RI: invalid option: -x\n"],
       [[], { "RI" => "--width=abc" }] => [1, "RI: --width #{width} \"abc\"\n"],
       [[], { "RI" => "--theme=nope" }] => [1, "RI: #{theme}\n"],

@@ -118,6 +118,8 @@ module RichRI
       name, value = @actions.current
       if name == :interactive && !names.empty?
         raise UsageError, "--interactive does not accept lookup names; enter them at its prompt"
+      elsif name == :install_man && !names.empty?
+        raise UsageError, "--install-man does not accept lookup names; use --install-man=DIR"
       elsif name.nil? && names.empty? && @actions.declined?(:interactive)
         raise UsageError, "--no-interactive requires a name to look up"
       end

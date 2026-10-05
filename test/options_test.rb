@@ -132,6 +132,8 @@ class OptionsTest < Minitest::Test
   def test_manual_install_destination_uses_equals
     assert_equal [:install_man, nil], parse("--install-man").action
     assert_equal [:install_man, "/tmp/example/man1"], parse("--install-man=/tmp/example/man1").action
-    assert_equal ["subject"], parse("--install-man", "subject").driver_options[:names]
+    error = assert_raises(RichRI::UsageError) { parse("--install-man", "subject") }
+
+    assert_equal "--install-man does not accept lookup names; use --install-man=DIR", error.message
   end
 end

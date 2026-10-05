@@ -20,8 +20,6 @@ module RichRI
     end
 
     def answer(words)
-      return Answer.new([], nil) if words[0...-1].include?("--install-man")
-
       current, option, prefix = context(words)
       return Answer.new([], PATHS.fetch(option)) if PATHS.key?(option)
 

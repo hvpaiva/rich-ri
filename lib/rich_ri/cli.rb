@@ -58,12 +58,7 @@ module RichRI
       when :completion then puts File.read(File.expand_path("../../completions/rich-ri.#{value}", __dir__))
       when :man_path then puts Manual.new.path
       when :man then return Manual.new.show(color: color?(options.color), theme: options.theme)
-      when :install_man
-        unless options.driver_options[:names].empty?
-          raise UsageError, "--install-man does not accept lookup names; use --install-man=DIR"
-        end
-
-        return Manual.new.install(value)
+      when :install_man then return Manual.new.install(value)
       end
       0
     end
