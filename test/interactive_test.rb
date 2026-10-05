@@ -6,8 +6,6 @@ require "terminal_helper"
 class InteractiveTest < Minitest::Test
   include TerminalTestSupport
 
-  # Runs the command reading from a terminal on which the text is typed, with
-  # its output in a pipe. Returns the output and the exit status.
   def typed_into(text, environment, *command)
     PTY.open do |terminal, keyboard|
       terminal.write(text)
@@ -19,9 +17,6 @@ class InteractiveTest < Minitest::Test
     end
   end
 
-  # An interactive session over the gems of the suite alone. The keys are
-  # typed at the first prompt, or are [text, keys] pairs as terminal takes
-  # them. Returns what the terminal showed and the exit status.
   def gem_session(keys)
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
       environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
@@ -84,7 +79,7 @@ class InteractiveTest < Minitest::Test
   def test_each_line_of_a_pasted_block_is_looked_up
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
       environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
-      # A terminal brackets what is pasted, so that the editor takes the line breaks in it for text.
+      # Bracketed paste: the editor takes the line breaks inside it for text.
       pasted = "\e[200~RichRIExample#map\n\n  RichRIExample.build\n\e[201~"
       output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
                                     env: environment, prompt: ">> ", input: "#{pasted}\n\n")

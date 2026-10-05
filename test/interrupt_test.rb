@@ -9,13 +9,10 @@ class InterruptTest < Minitest::Test
   EXECUTABLE = File.join(TestSupport::ROOT, "exe/rich-ri")
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
 
-  # What the program below does on Ctrl-C: carry on as less does, leave with
-  # a failure as less -K does, or be ended by the signal.
+  # Ctrl-C handled as less does, as less -K does, or not at all.
   ON_INTERRUPT = { handles: 'trap("INT") { File.write(log, "interrupted\n", mode: "a") }',
                    leaves: 'trap("INT") { exit 2 }', dies: "" }.freeze
 
-  # A program that takes over the terminal the way a pager does: it announces
-  # itself, then waits for a line.
   def terminal_program(path, on_interrupt)
     File.write(path, <<~RUBY)
       #!#{RbConfig.ruby}

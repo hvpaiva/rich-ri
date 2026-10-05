@@ -86,7 +86,6 @@ class CLITest < Minitest::Test
     end
   end
 
-  # Runs the real command with a defect planted in page rendering.
   def defective_cli(*, env: {})
     source = <<~RUBY
       require "rich_ri"

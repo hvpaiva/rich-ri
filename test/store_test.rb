@@ -18,8 +18,7 @@ class StoreTest < Minitest::Test
     cli("--no-standard-docs", "--doc-dir", store, *, docs: false)
   end
 
-  # Marshal data naming a class the reading RDoc does not have, as when a
-  # store was written by another RDoc version.
+  # As written by another RDoc version: Marshal names a class this one lacks.
   def retired_class_data
     RDoc.const_set(:RetiredMethod, Class.new)
     Marshal.dump(RDoc::RetiredMethod.new)

@@ -166,7 +166,6 @@ class ManualDisplayTest < Minitest::Test
     end
   end
 
-  # The page as a terminal shows it at the given width, without overstrikes.
   def formatted(source, width)
     out, err, status = Open3.capture3("groff", "-ww", "-Tutf8", "-rLL=#{width}n", "-rLT=#{width}n",
                                       "-man", stdin_data: source)
@@ -223,8 +222,7 @@ class ManualDisplayTest < Minitest::Test
     assert_equal 2, source.scan("from 20 to 10000").length
   end
 
-  # A formatter without a distribution's adjustments typesets these characters
-  # as typography: a hyphen, a curly quote, an accent.
+  # How groff without a distribution's adjustments typesets these characters.
   TYPOGRAPHY = { "-" => "u2010", "'" => "u2019", "`" => "u2018", "^" => "u02C6", "~" => "u02DC" }.freeze
   LITERALS = ["rich-ri 'Array.[]'", "alias ri='rich-ri'", 'data=${XDG_DATA_HOME:-"$HOME/.local/share"}',
               "--no-pager", "~/.config/rich-ri/config.yml", "^===", "--install-man=DIR",
@@ -237,7 +235,7 @@ class ManualDisplayTest < Minitest::Test
     assert_includes source, 'alias ri=\(aqrich\-ri\(aq'
     typography = TYPOGRAPHY.map { |char, glyph| ".char #{char} \\[#{glyph}]\n" }.join
     [60, 80].each do |width|
-      # The date in the footer is the one field left as written, for formatters that read it.
+      # The footer is dropped: its date is deliberately left unescaped.
       body = formatted(source.sub(".SH NAME", "#{typography}.SH NAME"), width).rstrip.lines[0...-1].join
 
       refute_match(/[\u2010\u2018\u2019\u02C6\u02DC]/, body)
