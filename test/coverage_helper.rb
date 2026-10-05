@@ -12,3 +12,5 @@ SimpleCov.start do
 end
 
 SimpleCov.at_exit { SimpleCov.result } if ENV["COVERAGE_CHILD"]
+# A command that fails exits nonzero on purpose, and SimpleCov would add a line to its stderr.
+SimpleCov.print_error_status = false if ENV["COVERAGE_CHILD"]
