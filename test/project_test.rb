@@ -33,7 +33,7 @@ class ProjectTest < Minitest::Test
       Release.verify(tag: "v#{RichRI::VERSION}", changelog: "## [Unreleased]\n")
     end
 
-    assert_match(/Unreleased section before the release/, error.message)
+    assert_includes error.message, %(CHANGELOG.md has no "## [#{RichRI::VERSION}] - YYYY-MM-DD" heading)
   end
 
   def test_a_failed_release_check_reports_its_reason_without_a_backtrace

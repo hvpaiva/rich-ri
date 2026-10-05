@@ -14,9 +14,10 @@ module Release
       gem = path(root: root)
       digest = Digest::SHA256.file(gem).hexdigest
       File.write(File.join(root, "pkg/SHA256SUMS"), "#{digest}  #{File.basename(gem)}\n")
-      changelog = File.read(File.join(root, "CHANGELOG.md"))
-      section = changelog.include?("## [#{Release.version(root: root)}]") ? Release.version(root: root) : "Unreleased"
-      File.write(File.join(root, "pkg/release-notes.md"), "#{Release.notes(changelog, section).strip}\n")
+      changelog = File.read(File.join(root, Changelog::PATH))
+      version = Release.version(root: root)
+      section = Changelog.released?(changelog, version) ? version : "Unreleased"
+      File.write(File.join(root, "pkg/release-notes.md"), "#{Changelog.notes(changelog, section)}\n")
       digest
     end
 

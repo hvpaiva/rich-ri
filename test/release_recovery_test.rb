@@ -146,11 +146,15 @@ class ReleaseRecoveryTest < Minitest::Test
     end
   end
 
-  def test_verification_rejects_invalid_date_empty_notes_wrong_links_and_duplicates
-    { /Invalid changelog release date/ => released_changelog.sub("2026-10-04", "2026-99-99"),
-      /Release notes for 0\.2\.0 are empty/ => released_changelog.sub("- Readable documentation.", ""),
-      /Missing or incorrect release links/ => released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
-      /Expected one dated changelog/ => "#{released_changelog}\n## [0.2.0] - 2026-10-04\n" }.each do |reason, text|
+  def test_verification_rejects_a_malformed_changelog_and_a_version_it_does_not_release
+    rejected = {
+      /\[0\.2\.0\] has an invalid date/ => released_changelog.sub("2026-10-04", "2026-99-99"),
+      /\[0\.2\.0\] has no entries/ => released_changelog.sub("- Readable documentation.", ""),
+      /Link references must be, in this order/ => released_changelog.sub("releases/tag/v0.2.0", "unrelated"),
+      /has no "## \[0\.2\.0\] - YYYY-MM-DD" heading/ => released_changelog.gsub("0.2.0", "0.1.9")
+    }
+
+    rejected.each do |reason, text|
       assert_release_error(reason) { Release.verify(tag: "v0.2.0", version: "0.2.0", changelog: text) }
     end
   end

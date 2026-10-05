@@ -71,6 +71,11 @@ namespace :lint do
     sh RbConfig.ruby, "bin/lint-commits", range
   end
 
+  desc "Check CHANGELOG.md headings, dates, sections and link references"
+  task :changelog do
+    sh RbConfig.ruby, "bin/lint-changelog"
+  end
+
   desc "Check Bash scripts with ShellCheck"
   task :shell do
     sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
@@ -113,11 +118,11 @@ end
 
 namespace :docs do
   desc "Check documentation links, spelling, generated manual and runnable examples"
-  task check: %w[lint:links lint:spelling generate:check test:docs]
+  task check: %w[lint:links lint:spelling lint:changelog generate:check test:docs]
 end
 
 desc "Run local CI checks (native shells or Docker/Podman, and security database required)"
-task check: %w[rubocop lint:commits lint:shell lint:spelling lint:workflows lint:links lint:man generate:check
-               test:cov test:shells package:check audit]
+task check: %w[rubocop lint:commits lint:changelog lint:shell lint:spelling lint:workflows lint:links lint:man
+               generate:check test:cov test:shells package:check audit]
 
 task default: %w[rubocop test]

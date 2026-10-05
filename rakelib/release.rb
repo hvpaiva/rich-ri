@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require "date"
 require "open3"
+require_relative "changelog"
 
 module Release
   ROOT = File.expand_path("..", __dir__)
   VERSION_PATTERN = /\A(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\z/
-  URL = "https://github.com/hvpaiva/rich-ri"
   VERSION_FILE = "lib/rich_ri/version.rb"
 
   # A condition the maintainer can correct; anything else is a defect in this code.
@@ -17,27 +16,17 @@ module Release
   end
 
   def self.verify(tag: ENV.fetch("GITHUB_REF_NAME", nil), changelog: nil, version: self.version)
-    changelog ||= File.read(File.join(ROOT, "CHANGELOG.md"))
+    changelog ||= File.read(File.join(ROOT, Changelog::PATH))
     validate_version(version)
     raise Error, "Release tag must be v#{version}" unless tag == "v#{version}"
 
-    unreleased = changelog.scan(/^## \[Unreleased\]$/).length
-    ordered = changelog.index("## [Unreleased]").to_i < changelog.index("## [#{version}]").to_i
-    raise Error, "Expected one Unreleased section before the release" unless unreleased == 1 && ordered
-
-    dates = changelog.scan(/^## \[#{Regexp.escape(version)}\] - (\d{4}-\d{2}-\d{2})$/).flatten
-    raise Error, "Expected one dated changelog for #{version}" unless dates.length == 1
-    raise Error, "Release date cannot be in the future" if Date.iso8601(dates.first) > Time.now.utc.to_date
-    raise Error, "Release notes for #{version} are empty" unless notes(changelog, version).match?(/^[-*] \S/)
-
-    expected_links = ["[#{version}]: #{URL}/releases/tag/v#{version}",
-                      "[Unreleased]: #{URL}/compare/v#{version}...HEAD"]
-    links = changelog.lines.map(&:chomp)
-    raise Error, "Missing or incorrect release links" unless expected_links.all? { |link| links.count(link) == 1 }
+    problems = Changelog.problems(changelog)
+    unless Changelog.released?(changelog, version)
+      problems << %(#{Changelog::PATH} has no "## [#{version}] - YYYY-MM-DD" heading)
+    end
+    raise Error, problems.join("\n") unless problems.empty?
 
     version
-  rescue Date::Error
-    raise Error, "Invalid changelog release date"
   end
 
   def self.validate_version(target)
@@ -62,29 +51,20 @@ module Release
     raise Error, "Release commit must belong to main or its matching hotfix branch"
   end
 
-  def self.notes(changelog, target)
-    changelog.split(/^## \[#{Regexp.escape(target)}\][^\n]*\n/, 2).last.to_s.split(/^## |^\[[^\]]+\]:/, 2).first.to_s
-  end
-
   def self.changes(target, root: ROOT, source: nil, date: Time.now.utc.to_date)
     validate_version(target)
     source ||= clean_source(root)
     current_version = source.fetch(VERSION_FILE)[/VERSION = "([^"]+)"/, 1]
     raise Error, "Version cannot go backwards" if Gem::Version.new(target) < Gem::Version.new(current_version)
 
-    changelog = source.fetch("CHANGELOG.md")
-    raise Error, "Version already appears in the changelog" if changelog.include?("## [#{target}]")
-    raise Error, "Missing Unreleased section" unless changelog.include?("## [Unreleased]\n")
+    changelog = source.fetch(Changelog::PATH)
+    raise Error, "Version already appears in the changelog" if Changelog.released?(changelog, target)
+    raise Error, "Add release notes under Unreleased first" unless Changelog.entries?(changelog, "Unreleased")
 
-    raise Error, "Add release notes under Unreleased first" unless notes(changelog, "Unreleased").match?(/^[-*] \S/)
-
-    updated = changelog.sub("## [Unreleased]\n",
-                            "## [Unreleased]\n\n## [#{target}] - #{date.iso8601}\n")
-    updated = updated.sub(/^\[Unreleased\]:.*$/, "[Unreleased]: #{URL}/compare/v#{target}...HEAD")
-    updated << "[#{target}]: #{URL}/releases/tag/v#{target}\n"
+    updated = Changelog.cut(changelog, target, date)
     verify(tag: "v#{target}", changelog: updated, version: target)
     {
-      "CHANGELOG.md" => updated,
+      Changelog::PATH => updated,
       VERSION_FILE => source.fetch(VERSION_FILE).sub(/VERSION = "[^"]+"/, "VERSION = \"#{target}\"")
     }
   end
@@ -93,6 +73,6 @@ module Release
     status, process = Open3.capture2("git", "status", "--porcelain", chdir: root)
     raise Error, "Commit or stash changes before preparing a release" unless process.success? && status.empty?
 
-    [VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, File.read(File.join(root, path))] }
+    [VERSION_FILE, Changelog::PATH].to_h { |path| [path, File.read(File.join(root, path))] }
   end
 end
