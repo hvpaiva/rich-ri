@@ -128,6 +128,12 @@ class ShellTest < Minitest::Test
     result = inserted_arguments(name, "ri RichRIExample#rea")
 
     assert_equal ["RichRIExample#ready?"], result, @terminal_output
+    result = inserted_arguments(name, "ri RichRIExample#val")
+
+    assert_equal ["RichRIExample#value="], result, @terminal_output
+    result = inserted_arguments(name, "ri RichRIExample#value=")
+
+    assert_equal ["RichRIExample#value="], result, @terminal_output
     result = inserted_arguments(name, "ri 'RichRIExample#[")
 
     assert_equal ["RichRIExample#[]"], result, @terminal_output

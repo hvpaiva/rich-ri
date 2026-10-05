@@ -4,7 +4,7 @@
 _rich_ri() {
   # _init_completion assigns prev through Bash's dynamic scope.
   # shellcheck disable=SC2034
-  local cur prev words cword value _description
+  local cur prev words cword value _description prefix
   COMPREPLY=()
   _init_completion -n ':=' || return
   while IFS=$'\t' read -r value _description; do
@@ -15,7 +15,11 @@ _rich_ri() {
   fi
   [[ $cur == *:* ]] && __ltrim_colon_completions "$cur"
   if [[ $cur == *=* && $COMP_WORDBREAKS == *'='* ]]; then
-    COMPREPLY=("${COMPREPLY[@]#*=}")
+    prefix=${cur%"${cur##*=}"}
+    COMPREPLY=("${COMPREPLY[@]#"$prefix"}")
+    if ((${#COMPREPLY[@]} == 1)) && [[ -z ${COMPREPLY[0]} ]]; then
+      COMPREPLY=()
+    fi
   fi
   return 0
 }
