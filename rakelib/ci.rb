@@ -8,6 +8,8 @@ module CI
   DOCUMENTS = %w[README.md ARCHITECTURE.md CONTRIBUTING.md CHANGELOG.md CODE_OF_CONDUCT.md SECURITY.md
                  docs/config.example.yml .github/PULL_REQUEST_TEMPLATE.md].freeze
   FULL_JOBS = %w[quality test audit fresh-dependencies compatibility].freeze
+  # What can break without a commit: a new advisory, or a dependency release.
+  SCHEDULED_JOBS = %w[audit fresh-dependencies].freeze
   JOBS = (%w[changes docs commits] + FULL_JOBS).freeze
 
   class Error < StandardError; end
@@ -19,7 +21,7 @@ module CI
 
   def self.scope(event:, ref:, base:, head:, force_full: false, root: ROOT)
     return "full" if force_full
-    return "audit" if event == "schedule"
+    return "scheduled" if event == "schedule"
 
     pull_request = event == "pull_request"
     branch_push = event == "push" && ref.match?(%r{\Arefs/heads/(?:main|hotfix/[^/]+)\z})
@@ -45,11 +47,11 @@ module CI
     required = case scope
                when "full" then FULL_JOBS.dup
                when "docs" then ["docs"]
-               when "audit" then ["audit"]
+               when "scheduled" then SCHEDULED_JOBS.dup
                else raise Error, "Unknown CI scope: #{scope.inspect}"
                end
     raise Error, "This run requires the full suite" if force_full && scope != "full"
-    raise Error, "Only scheduled runs may use audit scope" if scope == "audit" && event != "schedule"
+    raise Error, "Only scheduled runs may use scheduled scope" if scope == "scheduled" && event != "schedule"
     if scope == "docs" && !%w[push pull_request].include?(event)
       raise Error, "Only pushes and pull requests may use docs scope"
     end

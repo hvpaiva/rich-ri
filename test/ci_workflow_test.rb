@@ -24,6 +24,15 @@ class CIWorkflowTest < Minitest::Test
     assert_same true, concurrency.fetch("cancel-in-progress")
   end
 
+  def test_each_job_runs_for_exactly_the_scopes_that_require_it
+    scopes = ci.fetch("jobs").transform_values { |job| job["if"].to_s.scan(/scope == '(\w+)'/).flatten }
+    jobs = %w[full scheduled docs].to_h { |scope| [scope, scopes.select { |_job, list| list.include?(scope) }.keys] }
+
+    assert_equal CI::FULL_JOBS.sort, jobs.fetch("full").sort
+    assert_equal CI::SCHEDULED_JOBS.sort, jobs.fetch("scheduled").sort
+    assert_equal ["docs"], jobs.fetch("docs")
+  end
+
   def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
     jobs = ci.fetch("jobs")
     matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")

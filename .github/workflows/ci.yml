@@ -130,7 +130,7 @@ jobs:
 
   audit:
     needs: changes
-    if: needs.changes.outputs.scope == 'full' || needs.changes.outputs.scope == 'audit'
+    if: needs.changes.outputs.scope == 'full' || needs.changes.outputs.scope == 'scheduled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -142,9 +142,11 @@ jobs:
           bundler-cache: true
       - run: bundle exec rake audit
 
+  # Resolves every gem again instead of using Gemfile.lock. The weekly run includes it, so a
+  # new RDoc or Reline release that breaks the reader shows up without waiting for a commit.
   fresh-dependencies:
     needs: changes
-    if: needs.changes.outputs.scope == 'full'
+    if: needs.changes.outputs.scope == 'full' || needs.changes.outputs.scope == 'scheduled'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

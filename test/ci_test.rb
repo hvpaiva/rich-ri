@@ -89,7 +89,7 @@ class CITest < Minitest::Test
       assert_equal "full", scope(root, base, head, force_full: true)
       assert_equal "full", scope(root, base, head, event: "workflow_dispatch")
       assert_equal "full", scope(root, base, head, event: "push", ref: "refs/tags/v0.1.0")
-      assert_equal "audit", scope(root, base, head, event: "schedule")
+      assert_equal "scheduled", scope(root, base, head, event: "schedule")
       assert_equal "full", scope(root, base, head, event: "schedule", force_full: true)
     end
   end

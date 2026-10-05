@@ -7,7 +7,7 @@ class CIResultTest < Minitest::Test
   def test_documentation_code_and_scheduled_checks_can_pass
     assert_equal "docs", CI.verify!(results("docs"), event: "pull_request")
     assert_equal "full", CI.verify!(results("full"), event: "pull_request")
-    assert_equal "audit", CI.verify!(results("audit", event: "schedule"), event: "schedule")
+    assert_equal "scheduled", CI.verify!(results("scheduled", event: "schedule"), event: "schedule")
     assert_equal "full", CI.verify!(results("full", event: "push"), event: "push", force_full: true)
   end
 
@@ -46,9 +46,19 @@ class CIResultTest < Minitest::Test
     assert_rejected(/Unknown CI scope: "unknown"/, data)
   end
 
-  def test_a_release_cannot_pass_using_only_documentation_or_audit_checks
+  def test_a_scheduled_run_needs_the_audit_and_freshly_resolved_dependencies
+    assert_equal %w[audit fresh-dependencies], CI::SCHEDULED_JOBS
+    CI::SCHEDULED_JOBS.each do |job|
+      data = results("scheduled", event: "schedule")
+      data.fetch(job)["result"] = "skipped"
+
+      assert_rejected(/^#{job}: expected success, got "skipped"$/, data, event: "schedule")
+    end
+  end
+
+  def test_a_release_cannot_pass_using_only_documentation_or_scheduled_checks
     assert_rejected(/requires the full suite/, results("docs"), force_full: true)
-    assert_rejected(/Only scheduled runs/, results("audit", event: "push"), event: "push")
+    assert_rejected(/Only scheduled runs/, results("scheduled", event: "push"), event: "push")
     assert_rejected(/Only pushes and pull requests/, results("docs", event: "workflow_dispatch"),
                     event: "workflow_dispatch")
     assert_rejected(/Only pushes and pull requests/, results("docs", event: "schedule"), event: "schedule")
@@ -65,7 +75,7 @@ class CIResultTest < Minitest::Test
   def results(scope, event: "pull_request")
     needed = case scope
              when "docs" then ["docs"]
-             when "audit" then ["audit"]
+             when "scheduled" then CI::SCHEDULED_JOBS.dup
              else CI::FULL_JOBS.dup
              end
     needed += ["changes"]
