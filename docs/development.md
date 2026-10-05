@@ -72,15 +72,20 @@ To test the minimum runtime dependencies, use Ruby 3.4 with Bash, Zsh, Fish and
 bash-completion 2.x installed locally, then run:
 
 ```sh
-BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle install
-BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle exec ruby -rrdoc/rdoc -e \
-  'RDoc::RDoc.new.document(ARGV)' -- --ri --quiet --op tmp/legacy-ri test/fixtures/example.rb
-BUNDLE_GEMFILE=gemfiles/minimum.gemfile bundle install
-LEGACY_RI_STORE="$PWD/tmp/legacy-ri" BUNDLE_GEMFILE=gemfiles/minimum.gemfile \
-  RICH_RI_REQUIRE_SHELLS=1 bundle exec ruby bin/test-compatibility
+(
+  export BUNDLE_PATH="$PWD/tmp/compatibility-gems"
+  BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle install
+  BUNDLE_GEMFILE=gemfiles/legacy.gemfile bundle exec ruby -rrdoc/rdoc -e \
+    'RDoc::RDoc.new.document(ARGV)' -- --ri --quiet --op tmp/legacy-ri test/fixtures/example.rb
+  BUNDLE_GEMFILE=gemfiles/minimum.gemfile bundle install
+  LEGACY_RI_STORE="$PWD/tmp/legacy-ri" BUNDLE_GEMFILE=gemfiles/minimum.gemfile \
+    RICH_RI_REQUIRE_SHELLS=1 bundle exec ruby bin/test-compatibility
+)
 ```
 
-The first bundle generates a store using RDoc 6.14. The second runs the runtime
+The subshell's own bundle path keeps RDoc 6.14 out of the active Ruby, where
+installing it would replace the RubyGems plugin that `gem rdoc` loads. The first
+bundle generates a store using RDoc 6.14. The second runs the runtime
 tests using the minimum direct dependencies compatible with RDoc 8.1, including
 lookup and completion against that older store. Maintenance-only tests and the
 optional server/profiler modes use the main bundle; missing-gem behavior is tested
