@@ -213,7 +213,7 @@ an empty value, to fall back to the file or an earlier layer.
 | `RI` | Default command-line options, parsed as shell words. |
 | `RI_PAGER` | Documentation pager command; overrides the file, below `--pager-command`. |
 | `PAGER` | Fallback documentation pager; also used by man according to its own rules. |
-| `LESS` | Options for less; rich-ri appends `-R` for its child documentation pager. |
+| `LESS` | Options for less; rich-ri adds `-R` for its child documentation pager. |
 | `BAT_THEME` | Backward-compatible bat theme override when `RICH_RI_BAT_THEME` is unset. |
 | `NO_COLOR` | Nonempty values disable automatic colors. |
 | `TERM` | `dumb` disables automatic colors; `256color` indicates 256-color capability. |

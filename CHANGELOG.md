@@ -17,6 +17,7 @@ User-visible changes are recorded here. This project follows
 - Configuration paths outside ASCII are read under the C locale.
 - Ctrl-C is left to the pager while a page is open; it no longer leaves the pager
   running in a terminal without echo.
+- Colors reach less when `LESS` ends with a string-valued option such as `-P`.
 
 ## [0.1.0] - 2026-10-05
 

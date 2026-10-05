@@ -102,7 +102,7 @@ module RichRI
       previous_pager = ENV.fetch("RI_PAGER", nil)
       ENV["RI_PAGER"] = command if command
       previous = ENV.fetch("LESS", nil)
-      ENV["LESS"] = "#{previous || '-Fi'} -R"
+      ENV["LESS"] = "-R #{previous || '-Fi'}"
       yield
     ensure
       ENV["LESS"] = previous

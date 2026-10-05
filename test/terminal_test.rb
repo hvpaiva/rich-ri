@@ -30,13 +30,14 @@ class TerminalTest < Minitest::Test
       pager = File.join(dir, "pager.rb")
       capture = File.join(dir, "output")
       File.write(pager, "File.write(ARGV.fetch(0), ENV.fetch('LESS', '') + \"\\n\" + STDIN.read)\n")
-      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "LESS" => "-i", "PAGER" => "missing" }
+      environment = { "RI_PAGER" => [RbConfig.ruby, pager, capture].shelljoin, "LESS" => "-i -Pprompt",
+                      "PAGER" => "missing" }
       output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
                                     env: environment)
       page = File.read(capture)
 
       assert_equal 0, status, output
-      assert_equal "-i -R\n", page.lines.first
+      assert_equal "-R -i -Pprompt\n", page.lines.first
       assert_includes page, "\e["
       assert_includes RichRI.plain(page), "Return transformed values."
     end
