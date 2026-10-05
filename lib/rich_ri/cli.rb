@@ -16,7 +16,10 @@ module RichRI
       end
 
       options = Options.new.parse(argv)
-      options.action ? action(*options.action, options: options) : lookup(options)
+      status = options.action ? action(*options.action, options: options) : lookup(options)
+      # Buffered output that cannot be written must not pass for success.
+      $stdout.flush
+      status
     rescue Errno::EPIPE
       0
     rescue Interrupt

@@ -6,6 +6,9 @@ module RichRI
   # exit_status. Any other exception reaching the command is a defect.
   class Error < StandardError
     DEBUG_VARIABLE = "RICH_RI_DEBUG"
+    # Ruby words a failed system call as "reason @ function - subject".
+    SYSTEM_CALL = /\A(?<reason>.+?) @ \S+ - (?<subject>.+)\z/m
+    STREAMS = { "<STDOUT>" => "standard output", "<STDERR>" => "standard error" }.freeze
 
     # Advice printed on its own line after the message, or nil.
     attr_reader :hint
@@ -17,10 +20,17 @@ module RichRI
     # when RICH_RI_DEBUG is set.
     def self.report(error, io = $stderr)
       explained = error.is_a?(Error)
-      io.puts "rich-ri: #{RichRI.sanitize(error.message)}"
+      io.puts "rich-ri: #{RichRI.sanitize(message(error))}"
       io.puts error.hint if explained && error.hint
       trace(error, io) unless ENV.fetch(DEBUG_VARIABLE, "").empty?
       explained ? error.exit_status : 1
+    end
+
+    # A failed system call reads as tools usually print it: what it failed on,
+    # then why, without the name of the C function that noticed.
+    def self.message(error)
+      match = SYSTEM_CALL.match(error.message) if error.is_a?(SystemCallError)
+      match ? "#{STREAMS.fetch(match[:subject], match[:subject])}: #{match[:reason]}" : error.message
     end
 
     def self.trace(error, io)
@@ -31,7 +41,7 @@ module RichRI
         io.puts "caused by #{error.class.name}: #{RichRI.sanitize(error.message)}" if error
       end
     end
-    private_class_method :trace
+    private_class_method :message, :trace
 
     def initialize(message = nil, hint: nil)
       super(message)
