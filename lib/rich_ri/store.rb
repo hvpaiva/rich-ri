@@ -32,12 +32,9 @@ module RichRI
 
     private
 
-    # RDoc handles a missing file, and a failed system call already names its file.
     def reading
       yield
-    rescue Error, RDoc::Error, SystemCallError
-      raise
-    rescue StandardError
+    rescue TypeError, ArgumentError, EOFError, NoMethodError
       raise StoreError, path
     end
   end

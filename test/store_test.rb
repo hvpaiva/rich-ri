@@ -34,6 +34,18 @@ class StoreTest < Minitest::Test
     end
   end
 
+  def test_a_defect_while_reading_a_store_is_not_blamed_on_the_store
+    defect = <<~RUBY
+      require "rich_ri"
+      RDoc::Store.prepend(Module.new { def load_cache = raise(EncodingError, "planted defect") })
+    RUBY
+    out, err, status = with_planted(defect) { |env| cli("RichRIExample", env: env) }
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_equal "rich-ri: planted defect\n", err
+  end
+
   def test_searched_directories_are_listed_without_reading_a_damaged_cache
     with_store do |store|
       File.binwrite(File.join(store, "cache.ri"), "")
