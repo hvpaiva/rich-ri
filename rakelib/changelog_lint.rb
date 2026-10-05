@@ -6,19 +6,25 @@ require_relative "ci"
 
 module Changelog
   module Lint
-    USER_VISIBLE = %r{\A(?:(?:lib|exe|completions|man)/|rich-ri\.gemspec\z)}
-    ENTRY_REQUIRED = "changes to lib/, exe/, completions/, man/ or rich-ri.gemspec need a new entry under " \
+    # A trailing slash names a directory; anything else names one file.
+    USER_VISIBLE = %w[lib/ exe/ completions/ man/ rich-ri.gemspec].freeze
+    USER_VISIBLE_NAMES = "#{USER_VISIBLE[...-1].join(', ')} or #{USER_VISIBLE.last}".freeze
+    ENTRY_REQUIRED = "changes to #{USER_VISIBLE_NAMES} need a new entry under " \
                      '"## [Unreleased]"; if users cannot see the change, set SKIP_CHANGELOG=1 and ask a ' \
-                     "maintainer for the skip-changelog label on the pull request"
+                     "maintainer for the skip-changelog label on the pull request".freeze
 
     class Error < StandardError; end
 
     def self.problems(root:, base: nil)
       text = read(root)
       problems = Changelog.problems(text)
-      return problems unless base && changed_paths(root, base).any? { |path| path.scrub.match?(USER_VISIBLE) }
+      return problems unless base && changed_paths(root, base).any? { |path| user_visible?(path.scrub) }
 
       entry_added?(fork_point_text(root, base), text) ? problems : problems << ENTRY_REQUIRED
+    end
+
+    def self.user_visible?(path)
+      USER_VISIBLE.any? { |entry| entry.end_with?("/") ? path.start_with?(entry) : path == entry }
     end
 
     def self.changed_paths(root, base)
@@ -53,6 +59,6 @@ module Changelog
       raise Error, "cannot read #{Changelog::PATH} in #{root}: #{e.message.split(' @ ').first}"
     end
 
-    private_class_method :changed_paths, :fork_point_text, :git, :entry_added?, :read
+    private_class_method :user_visible?, :changed_paths, :fork_point_text, :git, :entry_added?, :read
   end
 end

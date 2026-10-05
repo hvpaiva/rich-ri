@@ -10,7 +10,7 @@ parser = OptionParser.new do |opts|
   opts.separator "Checks the structure of CHANGELOG.md in the current directory."
   opts.separator ""
   opts.separator "BASE is a revision such as origin/main. When it is given, a branch that changes"
-  opts.separator "lib/, exe/, completions/, man/ or rich-ri.gemspec needs a new entry under"
+  opts.separator "#{Changelog::Lint::USER_VISIBLE_NAMES} needs a new entry under"
   opts.separator '"## [Unreleased]". SKIP_CHANGELOG=1 or SKIP_CHANGELOG=true waives that entry;'
   opts.separator "the structure is still checked."
 end
