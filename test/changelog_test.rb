@@ -146,6 +146,18 @@ class ChangelogTest < Minitest::Test
     end
   end
 
+  def test_a_file_name_that_is_not_utf8_is_still_classified
+    repository do |root|
+      base = git(root, "rev-parse", "HEAD")
+      commit(root, "notes-\xFF.txt".b => "maintenance")
+
+      assert_empty Changelog.lint(root: root, base: base)
+      commit(root, "lib/rich_ri/\xFF.rb".b => "# user-visible")
+
+      assert_equal [Changelog::ENTRY_REQUIRED], Changelog.lint(root: root, base: base)
+    end
+  end
+
   def test_the_comparison_starts_where_the_branch_left_its_base
     repository do |root|
       original = git(root, "rev-parse", "HEAD")

@@ -58,7 +58,9 @@ module Changelog
     end
   end
 
-  def self.entry_missing?(paths) = paths.any?(USER_VISIBLE) && !paths.include?(PATH)
+  def self.entry_missing?(paths)
+    paths.any? { |path| path.scrub.match?(USER_VISIBLE) } && !paths.include?(PATH)
+  end
 
   def self.lint(root:, base: nil)
     problems = problems(read(root))
