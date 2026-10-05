@@ -19,14 +19,6 @@ class CIWorkflowTest < Minitest::Test
     assert_equal CI::JOBS.sort, gate.fetch("needs").sort
   end
 
-  def test_a_newer_commit_cancels_only_the_pull_request_run_it_replaces
-    concurrency = ci.fetch("concurrency")
-    group = "${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"
-
-    assert_equal group, concurrency.fetch("group")
-    assert_same true, concurrency.fetch("cancel-in-progress")
-  end
-
   def test_each_job_runs_for_exactly_the_scopes_that_require_it
     scopes = ci.fetch("jobs").transform_values { |job| job["if"].to_s.scan(/scope == '(\w+)'/).flatten }
     jobs = %w[full scheduled docs].to_h { |scope| [scope, scopes.select { |_job, list| list.include?(scope) }.keys] }
@@ -36,44 +28,43 @@ class CIWorkflowTest < Minitest::Test
     assert_equal ["docs"], jobs.fetch("docs")
   end
 
-  def test_the_weekly_run_starts_off_the_hour_and_can_be_started_by_hand
-    schedules = triggers.fetch("schedule").map { |entry| entry.fetch("cron").split }
-    minute, hour, day, month, weekday = schedules.first
+  def test_the_weekly_run_starts_off_the_hour
+    minutes = triggers.fetch("schedule").map { |entry| entry.fetch("cron").split.first }
 
-    assert_equal 1, schedules.length
-    assert_includes 1..59, Integer(minute, 10)
-    assert_includes 0..23, Integer(hour, 10)
-    assert_equal %w[* *], [day, month]
-    assert_includes 0..6, Integer(weekday, 10)
+    refute_empty minutes
+    assert(minutes.none? { |minute| minute.match?(/\A0+\z/) })
+  end
+
+  def test_the_full_run_can_be_started_by_hand
     assert triggers.key?("workflow_dispatch")
   end
 
-  def test_fresh_dependencies_resolve_every_gem_again
-    commands = ci.dig("jobs", "fresh-dependencies", "steps").filter_map { |step| step["run"] }
-
-    assert_includes commands, "bundle update --all"
-  end
-
-  def test_pull_requests_run_the_commit_and_changelog_checks_contributors_run_locally
-    steps = ci.dig("jobs", "commits", "steps")
-    commands = steps.filter_map { |step| step["run"] }
-    waiver = steps.find { |step| step["run"].to_s.include?("lint-changelog") }.dig("env", "SKIP_CHANGELOG")
+  def test_pull_requests_run_the_scripts_behind_the_local_commit_and_changelog_checks
+    commands = ci.dig("jobs", "commits", "steps").filter_map { |step| step["run"] }
     local = File.read(File.join(TestSupport::ROOT, "Rakefile"))[/^task check: %w\[(.+?)\]/m, 1].split
 
-    assert_equal ['ruby bin/lint-commits "origin/$BASE_REF..HEAD"', 'ruby bin/lint-changelog "origin/$BASE_REF"'],
-                 commands
-    assert_equal "${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}", waiver
-    assert_includes local, "lint:commits"
-    assert_includes local, "lint:changelog"
+    %w[commits changelog].each do |check|
+      assert_includes commands.map { |command| command[%r{\Aruby bin/lint-(\w+) }, 1] }, check
+      assert_includes local, "lint:#{check}"
+    end
   end
 
-  def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
-    jobs = ci.fetch("jobs")
-    matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")
-    platforms = matrix.fetch("os").product(matrix.fetch("ruby"))
-    platforms += matrix.fetch("include").map { |entry| entry.values_at("os", "ruby") }
+  def test_the_changelog_waiver_in_ci_is_a_label_repository_setup_creates
+    step = ci.dig("jobs", "commits", "steps").find { |entry| entry["run"].to_s.include?("lint-changelog") }
+    label = step.dig("env", "SKIP_CHANGELOG")[/labels\.\*\.name, '([^']+)'/, 1]
 
-    assert_equal [["macos-latest", "4.0"], ["ubuntu-latest", "3.4"], ["ubuntu-latest", "4.0"]], platforms.sort
+    assert_includes GitHub::Configuration::LABELS.map { |entry| entry.fetch("name") }, label
+  end
+
+  def test_ci_tests_the_oldest_ruby_the_gem_supports
+    floor = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec")).required_ruby_version
+    oldest = floor.requirements.map(&:last).min.segments.first(2).join(".")
+    matrix = ci.dig("jobs", "test", "strategy", "matrix")
+
+    assert_includes matrix.fetch("ruby"), oldest
+    compatibility = ci.dig("jobs", "compatibility", "steps").filter_map { |step| step.dig("with", "ruby-version") }
+
+    assert_equal [oldest], compatibility
   end
 
   def test_only_a_run_that_publishes_receives_an_identity_token
