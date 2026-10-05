@@ -6,16 +6,17 @@ require "command_helper"
 class CLITest < Minitest::Test
   include CommandSupport
 
+  ROLES = RichRI::Theme::ROLES.join(", ")
   MISTAKES = {
     "--unknown" => "invalid option: --unknown",
     "--color=invalid" => '--color must be one of auto, always, never, not "invalid"',
     "--width=0" => '--width must be an integer from 20 to 10000, not "0"',
     "--doc-dir=/no/such/directory" => '--doc-dir must be a directory, not "/no/such/directory"',
-    "--style=unknown=red" => %(style "unknown": unknown style role "unknown"; choose #{RichRI::Theme::ROLES.join(', ')})
+    "--style=unknown=red" => %(--style: style "unknown": unknown style role "unknown"; choose #{ROLES})
   }.freeze
   FAILURES = {
     %w[NoSuchExample123] => "Nothing known about NoSuchExample123",
-    %w[--dump=/no/such/cache.ri] => "RI cache must be a readable regular file: /no/such/cache.ri",
+    %w[--dump=/no/such/cache.ri] => '--dump must be a readable regular file, not "/no/such/cache.ri"',
     %w[--config=/no/such/config.yml RichRIExample] => "/no/such/config.yml: not a readable regular file"
   }.freeze
 
@@ -223,8 +224,7 @@ class CLITest < Minitest::Test
 
         assert_equal 1, status.exitstatus
         assert_empty out
-        assert_includes err, "RI cache must be a readable regular file"
-        refute_match(/from .*\.rb:\d+/, err)
+        assert_equal "rich-ri: --dump must be a readable regular file, not #{path.inspect}\n", err
       end
     end
   end

@@ -54,16 +54,16 @@ class ManualInstallTest < Minitest::Test
     Dir.mktmpdir do |directory|
       file = File.join(directory, "man1")
       File.write(file, "keep")
-      refusals = { "" => "--install-man=DIR must not be empty",
-                   directory => "manual destination must be a man1 directory, such as ~/.local/share/man/man1",
-                   file => "manual destination is not a directory: #{file}",
-                   File.join(directory, "\nbad/man1") => "manual destination must not contain control characters" }
-      refusals.each do |target, message|
+      man1 = "a man1 directory, such as ~/.local/share/man/man1"
+      refusals = { "" => man1, " " => man1, directory => man1, file => "a directory",
+                   File.join(directory, "\nbad/man1") => "a directory without control characters" }
+      refusals.each do |target, accepted|
         out, err, status = cli("--install-man=#{target}", docs: false)
 
         assert_equal 2, status.exitstatus
         assert_empty out
-        assert_equal "rich-ri: #{message}\nRun rich-ri --help for usage.\n", err
+        assert_equal "rich-ri: --install-man must be #{accepted}, not #{target.inspect}\n" \
+                     "Run rich-ri --help for usage.\n", err
       end
       out, err, status = cli("--install-man", "somewhere", docs: false)
 
@@ -72,6 +72,19 @@ class ManualInstallTest < Minitest::Test
       assert_equal "rich-ri: --install-man does not accept lookup names; use --install-man=DIR\n" \
                    "Run rich-ri --help for usage.\n", err
       assert_equal "keep", File.read(file)
+    end
+  end
+
+  def test_default_destination_names_the_variable_it_came_from
+    Dir.mktmpdir do |data|
+      FileUtils.mkdir_p(File.join(data, "man"))
+      File.write(File.join(data, "man/man1"), "keep")
+      out, err, status = cli("--install-man", docs: false, env: { "XDG_DATA_HOME" => data })
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
+      assert_equal "rich-ri: XDG_DATA_HOME: the manual directory must be a directory, " \
+                   "not #{File.join(data, 'man/man1').inspect}\n", err
     end
   end
 

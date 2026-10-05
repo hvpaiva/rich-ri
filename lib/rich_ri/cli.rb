@@ -83,7 +83,9 @@ module RichRI
     end
 
     def dump(path)
-      raise Error, "RI cache must be a readable regular file: #{path}" unless File.file?(path) && File.readable?(path)
+      unless File.file?(path) && File.readable?(path)
+        raise Error, "--dump must be a readable regular file, not #{path.inspect}"
+      end
 
       Driver.dump(path)
       0

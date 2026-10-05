@@ -155,8 +155,10 @@ class LocaleTest < Minitest::Test
 
   def test_failures_naming_accented_text_are_reported
     in_accented_directory do |dir|
+      # Under the C locale, Ruby quotes a value with its non-ASCII characters escaped.
+      quoted = %("#{File.dirname(dir)}/jos\\u00E9/missing.ri")
       { ["--bógus"] => [2, "invalid option: --bógus"], ["Açaí"] => [1, "Açaí"],
-        ["--style=method=gréen"] => [2, "invalid color"], ["--dump=#{dir}/missing.ri"] => [1, "#{dir}/missing.ri"],
+        ["--style=method=gréen"] => [2, "invalid color"], ["--dump=#{dir}/missing.ri"] => [1, quoted],
         ["--config=#{dir}/missing.yml", "--show-config"] => [1, "#{dir}/missing.yml"] }.each do |args, (code, text)|
         out, err, status = posix(*args)
 

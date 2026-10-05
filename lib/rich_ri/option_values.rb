@@ -28,7 +28,7 @@ module RichRI
       Theme.new(styles: { role => value })
       value
     rescue ThemeError => e
-      raise UsageError, e.message
+      raise UsageError, "--style: #{e.message}"
     end
 
     # Prefer an existing literal path, including commas, over RI's list form.

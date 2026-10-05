@@ -44,27 +44,30 @@ module RichRI
     private
 
     def install_directory(target)
-      raise UsageError, "--install-man=DIR must not be empty" if target && target.strip.empty?
+      default, origin = default_directory unless target
+      directory = RichRI.expand_path(target || default)
+      problem = destination_problem(directory)
+      return directory unless problem
+      raise UsageError, "--install-man must be #{problem}, not #{target.inspect}" if target
 
-      directory = RichRI.expand_path(target || default_directory)
-      refused = target ? UsageError : ConfigurationError
+      raise ConfigurationError, "#{origin}: the manual directory must be #{problem}, not #{directory.inspect}"
+    end
+
+    def destination_problem(directory)
       if directory.match?(/[[:cntrl:]]/) || !RichRI.printable?(directory)
-        raise refused, "manual destination must not contain control characters"
+        "a directory without control characters"
+      elsif File.basename(directory) != "man1"
+        "a man1 directory, such as ~/.local/share/man/man1"
+      elsif File.exist?(directory) && !File.directory?(directory)
+        "a directory"
       end
-      unless File.basename(directory) == "man1"
-        raise refused, "manual destination must be a man1 directory, such as ~/.local/share/man/man1"
-      end
-      if File.exist?(directory) && !File.directory?(directory)
-        raise refused, "manual destination is not a directory: #{directory}"
-      end
-
-      directory
     end
 
     def default_directory
       data = RichRI.utf8(ENV.fetch("XDG_DATA_HOME", ""))
-      data = File.join(RichRI.home!, ".local/share") unless data.start_with?("/")
-      File.join(data, "man/man1")
+      return [File.join(data, "man/man1"), "XDG_DATA_HOME"] if data.start_with?("/")
+
+      [File.join(RichRI.home!, ".local/share/man/man1"), "HOME"]
     end
 
     def pager_environment(color:, theme:)

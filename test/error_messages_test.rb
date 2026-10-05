@@ -13,7 +13,7 @@ class ErrorMessagesTest < Minitest::Test
       %w[--dump=] => "--dump requires a nonempty file path", ["--dump", ""] => "--dump requires a nonempty file path",
       %w[--bat-theme=] => "--bat-theme must be a nonempty string without control characters",
       %w[--pager-command=] => "--pager-command must be a nonempty string without control characters",
-      %w[--style=method=wat] => 'style "method": invalid color "wat"' }.each do |args, message|
+      %w[--style=method=wat] => '--style: style "method": invalid color "wat"' }.each do |args, message|
       out, err, status = cli("--no-config", *args, "--show-config", docs: false)
 
       assert_equal 2, status.exitstatus, args.inspect

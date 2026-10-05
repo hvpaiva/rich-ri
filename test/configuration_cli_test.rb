@@ -159,10 +159,11 @@ class ConfigurationCLITest < Minitest::Test
 
   TEXT = "must be a nonempty string without control characters"
   ROLES = RichRI::Theme::ROLES.join(", ")
+  COLORS = "use an ANSI name, 0..255, #RRGGBB or default"
   REFUSED_VALUES = {
     "--theme=missing" => '--theme must be one of terminal, dark, light, not "missing"',
-    "--style=unknown=red" => %(style "unknown": unknown style role "unknown"; choose #{ROLES}),
-    "--style=method=999" => 'style "method": invalid color "999"; use an ANSI name, 0..255, #RRGGBB or default',
+    "--style=unknown=red" => %(--style: style "unknown": unknown style role "unknown"; choose #{ROLES}),
+    "--style=method=999" => %(--style: style "method": invalid color "999"; #{COLORS}),
     "--color-depth=bad" => '--color-depth must be one of auto, basic, 256, truecolor, not "bad"',
     "--bat-theme=" => "--bat-theme #{TEXT}", "--shell-theme=" => "--shell-theme #{TEXT}",
     "--pager-command=" => "--pager-command #{TEXT}"
