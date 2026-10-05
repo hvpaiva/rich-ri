@@ -35,6 +35,13 @@ class ChangelogTest < Minitest::Test
     [0.1.0]: #{URL}/releases/tag/v0.1.0
   TEXT
   REFERENCES = RELEASED.lines.last(3).freeze
+  HELP = <<~TEXT
+    Usage: ruby bin/lint-changelog [BASE]
+
+    Checks the structure of CHANGELOG.md in the current repository. With BASE, a revision
+    such as origin/main, a branch that changes lib/, exe/, completions/ or man/ also needs
+    an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives that entry.
+  TEXT
 
   def test_the_project_changelog_is_well_formed
     assert_empty Changelog.problems(File.read(File.join(TestSupport::ROOT, Changelog::PATH)))
@@ -174,21 +181,52 @@ class ChangelogTest < Minitest::Test
 
   def test_the_command_reports_a_base_it_cannot_compare_with
     repository do |root|
-      _out, err, status = lint_changelog(root, "missing-base")
+      git(root, "switch", "-q", "--orphan", "unrelated")
+      unrelated = commit(root, "README.md" => "Unrelated history")
+      git(root, "switch", "-q", "main")
+      _out, err, status = lint_changelog(root, unrelated)
 
       assert_equal 1, status.exitstatus
-      assert_equal "lint-changelog: Cannot compare HEAD with missing-base\n", err
+      assert_equal "lint-changelog: Cannot compare HEAD with #{unrelated}\n", err
     end
   end
 
-  def test_the_command_honors_the_waiver
-    repository do |root|
-      base = git(root, "rev-parse", "HEAD")
-      commit(root, "lib/rich_ri.rb" => "# changed")
-      _out, err, status = lint_changelog(root, base, waiver: "true")
+  def test_the_command_honors_the_documented_waiver_values
+    %w[1 true].each do |waiver|
+      repository do |root|
+        base = git(root, "rev-parse", "HEAD")
+        commit(root, "lib/rich_ri.rb" => "# changed")
+        _out, err, status = lint_changelog(root, base, waiver: waiver)
 
-      assert_predicate status, :success?, err
+        assert_predicate status, :success?, "SKIP_CHANGELOG=#{waiver}: #{err}"
+      end
     end
+  end
+
+  def test_the_command_explains_its_base_and_waiver
+    out, err, status = lint_changelog(TestSupport::TEMP, "--help")
+
+    assert_predicate status, :success?, err
+    assert_equal HELP, out
+  end
+
+  def test_the_command_refuses_an_option_or_a_name_that_is_not_a_revision_as_its_base
+    repository do |root|
+      injected = File.join(root, "injected")
+      { "--output=#{injected}" => "invalid option: --output=#{injected}",
+        "missing-base" => "invalid argument: missing-base (use a revision such as origin/main)" }.each do |base, reason|
+        out, err, status = lint_changelog(root, base)
+
+        assert_equal [2, "", "lint-changelog: #{reason}\n#{HELP}"], [status.exitstatus, out, err]
+      end
+      assert_empty Dir.glob("#{injected}*")
+    end
+  end
+
+  def test_the_command_refuses_more_than_one_base
+    out, err, status = lint_changelog(TestSupport::TEMP, "origin/main", "HEAD")
+
+    assert_equal [2, "", "lint-changelog: needless argument: HEAD\n#{HELP}"], [status.exitstatus, out, err]
   end
 
   def test_the_command_outside_a_repository_names_the_file_it_cannot_read

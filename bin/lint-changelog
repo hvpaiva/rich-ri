@@ -1,13 +1,33 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "optparse"
 require_relative "../rakelib/changelog"
 
-# Usage: bin/lint-changelog [BASE]. SKIP_CHANGELOG=1 waives the entry that BASE requires.
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: ruby bin/lint-changelog [BASE]"
+  opts.separator ""
+  opts.separator "Checks the structure of CHANGELOG.md in the current repository. With BASE, a revision"
+  opts.separator "such as origin/main, a branch that changes lib/, exe/, completions/ or man/ also needs"
+  opts.separator 'an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives that entry.'
+end
+
 begin
-  base = ARGV.first unless %w[1 true].include?(ENV.fetch("SKIP_CHANGELOG", nil))
+  arguments = parser.parse(ARGV)
+  raise OptionParser::NeedlessArgument, arguments.drop(1).join(" ") if arguments.length > 1
+
+  base = arguments.first
+  if base && !system("git", "rev-parse", "--verify", "--quiet", "--end-of-options", "#{base}^{commit}",
+                     out: File::NULL, err: File::NULL)
+    raise OptionParser::InvalidArgument, "#{base} (use a revision such as origin/main)"
+  end
+
+  base = nil if %w[1 true].include?(ENV.fetch("SKIP_CHANGELOG", nil))
   problems = Changelog.lint(root: Dir.pwd, base: base)
   abort problems.map { |problem| "#{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
+rescue OptionParser::ParseError => e
+  warn "lint-changelog: #{e.message}\n#{parser}"
+  exit 2
 rescue Changelog::Error => e
   abort "lint-changelog: #{e.message}"
 end

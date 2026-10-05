@@ -83,7 +83,7 @@ namespace :lint do
     sh RbConfig.ruby, "bin/lint-commits", args[:range] || (default_base ? "#{default_base}..HEAD" : "HEAD")
   end
 
-  desc "Check CHANGELOG.md structure and that the branch records user-visible changes (base: origin/main)"
+  desc "Check CHANGELOG.md and the entry for user-visible changes since base (origin/main); SKIP_CHANGELOG=1 waives it"
   task :changelog, [:base] do |_task, args|
     sh RbConfig.ruby, "bin/lint-changelog", *(args[:base] || default_base)
   end

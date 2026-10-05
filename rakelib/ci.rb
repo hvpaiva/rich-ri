@@ -34,8 +34,8 @@ module CI
 
   # Git paths are bytes: the locale must not decide whether they can be split.
   def self.changed_paths(range, root)
-    output, _error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", range, "--",
-                                            chdir: root, binmode: true)
+    output, _error, status = Open3.capture3("git", "diff", "--name-only", "--no-renames", "-z", "--end-of-options",
+                                            range, "--", chdir: root, binmode: true)
     output.split("\0").map { |path| path.force_encoding(Encoding::UTF_8) } if status.success?
   end
 
