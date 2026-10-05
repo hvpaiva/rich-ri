@@ -53,6 +53,51 @@ class DriverTest < Minitest::Test
     end
   end
 
+  # A copy of the fixture store whose cache also lists the given names.
+  def with_cached_names(modules: [], methods: [])
+    Dir.mktmpdir("rich-ri-names-") do |dir|
+      path = File.join(dir, "ri")
+      FileUtils.cp_r(TestSupport::STORE, path)
+      store = RDoc::RI::Store.new(RDoc::Options.new, path: path, type: :extra)
+      store.load_cache
+      store.cache[:modules].concat(modules)
+      store.cache[:instance_methods]["RichRIExample"].concat(methods)
+      store.save_cache
+      yield ["--no-standard-docs", "--doc-dir", path]
+    end
+  end
+
+  def test_unknown_name_is_reported_by_rich_ri_without_ending_the_process
+    name = "NoSuch\e]52;c;AAAA\aName"
+    out, err, status = cli(name)
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_equal "rich-ri: Nothing known about NoSuch\\u001b]52;c;AAAA\\u0007Name\n", err
+    out, err = capture_io do
+      assert_equal 1, RichRI::CLI.run(["--no-standard-docs", "--doc-dir", TestSupport::STORE, "NoSuchExample123"])
+    end
+
+    assert_empty out
+    assert_equal "rich-ri: Nothing known about NoSuchExample123\n", err
+  end
+
+  def test_suggestions_escape_controls_in_stored_names
+    with_cached_names(modules: ["Unsafe\a"], methods: ["ma\e[31mx"]) do |sources|
+      out, err, status = cli(*sources, "Unsafee", docs: false)
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
+      assert_equal "rich-ri: Nothing known about Unsafee\nDid you mean?  Unsafe\\u0007\n", err
+      out, err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
+
+      assert_predicate status, :success?, err
+      refute_match(/[\e\a]/, out)
+      assert_includes out, "RichRIExample#ma\\u001b not found, maybe you meant:"
+      assert_includes out, "RichRIExample#ma\\u001b[31mx\n"
+    end
+  end
+
   def test_source_directory_display_escapes_controls_without_changing_lookup_paths
     Dir.mktmpdir("rich-ri-path-") do |dir|
       path = File.join(dir, "docs\e]52;c;AAAA\a")

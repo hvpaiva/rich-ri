@@ -2,14 +2,21 @@
 
 module RichRI
   class Driver < RDoc::RI::Driver
-    # RDoc's class listing writes directly to its pager, outside the formatter.
-    class ListOutput
+    # RDoc prints class lists and suggested names straight to its pager with
+    # puts, outside the formatter, and writes a formatted page with write. The
+    # names come from stores and from the command line; the page was escaped
+    # by the formatter and carries this reader's own styles.
+    class Output
       def initialize(io)
         @io = io
       end
 
       def puts(*values)
         @io.puts(*values.map { |value| RichRI.sanitize(value.to_s) })
+      end
+
+      def write(text)
+        @io.write(text)
       end
 
       def tty?
@@ -54,13 +61,24 @@ module RichRI
     end
 
     def run
-      return super unless @list_doc_dirs && !@formatter_klass
-
-      puts(@doc_dirs.map { |path| RichRI.sanitize(path) })
+      if @list_doc_dirs
+        puts(@formatter_klass ? @doc_dirs : @doc_dirs.map { |path| RichRI.sanitize(path) })
+      elsif @list
+        list_known_classes(@names)
+      elsif @server
+        start_server
+      elsif @interactive || @names.empty?
+        interactive
+      else
+        display_names(@names)
+      end
+    rescue NotFoundError => e
+      # RDoc ends the process here with Kernel#abort and the name as typed.
+      raise Error, e.message
     end
 
     def page
-      super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
+      super { |io| yield(@formatter_klass ? io : Output.new(io)) }
     end
 
     # RDoc interpolates the name into a pattern unescaped. A class name holds
