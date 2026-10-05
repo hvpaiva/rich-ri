@@ -85,12 +85,6 @@ jobs:
           version: 2026.10.2
           install_args: shellcheck typos zizmor lychee
       - run: sudo apt-get update && sudo apt-get install -y groff man-db zsh fish bash-completion bat
-      # Debian and Ubuntu install bat as batcat.
-      - name: Make the optional bat executable available
-        run: |
-          mkdir -p "$RUNNER_TEMP/rich-ri-tools"
-          ln -s /usr/bin/batcat "$RUNNER_TEMP/rich-ri-tools/bat"
-          echo "$RUNNER_TEMP/rich-ri-tools" >> "$GITHUB_PATH"
       - run: bundle exec rake check
       - name: Test shell integrations in an isolated environment
         run: bundle exec rake test:shells:container
