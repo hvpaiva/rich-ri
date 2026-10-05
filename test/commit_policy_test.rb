@@ -50,7 +50,7 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root, "HEAD", "PR_TITLE" => "An unstructured title")
 
       refute_predicate status, :success?
-      assert_includes err, "PR title: Use a Conventional Commit"
+      assert_includes err, "lint-commits: PR title: use a Conventional Commit"
     end
   end
 
@@ -67,13 +67,13 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root, "HEAD", "PR_BODY" => body)
 
       refute_predicate status, :success?
-      assert_equal "PR body: Remove generated attribution: https://claude.ai/code/session_01EXAMPLE0000000000000000\n",
+      assert_equal "lint-commits: PR body: remove generated attribution: https://claude.ai/code/session_01EXAMPLE0000000000000000\n",
                    err
       git(root, "commit", "--allow-empty", "-qm", "fix: correct rendering\n\nGenerated-with: Codex")
       _out, err, status = lint(root)
 
       refute_predicate status, :success?
-      assert_match(/\A\h{8}: Remove generated attribution: Generated-with: Codex\n\z/, err)
+      assert_match(/\Alint-commits: \h{8}: remove generated attribution: Generated-with: Codex\n\z/, err)
     end
   end
 
@@ -86,10 +86,10 @@ class CommitPolicyTest < Minitest::Test
                 "revert: restore the previous pager default", "chore(deps): bump rdoc from 8.1.0 to 8.2.0"]
 
     assert_equal(unfinished, (unfinished + accepted).select do |subject|
-      CommitPolicy.check(subject, subject: true).grep(/\AFinish this commit first/).any?
+      CommitPolicy.check(subject, subject: true).grep(/\Afinish this commit first/).any?
     end)
     assert_empty(accepted.flat_map { |subject| CommitPolicy.check(subject, subject: true) })
-    assert_match(/\AUse a Conventional Commit subject, "type\(scope\): summary" with one of feat, fix, .+: Revert it\z/,
+    assert_match(/\Ause a Conventional Commit subject, "type\(scope\): summary" with one of feat, fix, .+: Revert it\z/,
                  CommitPolicy.check('Revert "Revert it"', subject: true).first)
   end
 
@@ -110,21 +110,28 @@ class CommitPolicyTest < Minitest::Test
       _out, err, status = lint(root)
 
       refute_predicate status, :success?
-      assert_includes err, "Remove generated attribution"
+      assert_includes err, "remove generated attribution"
     end
   end
 
-  def test_invalid_subject_and_range_fail_with_actionable_messages
+  def test_an_unstructured_subject_names_the_accepted_form
     repository do |root|
       git(root, "commit", "--allow-empty", "-qm", "unstructured commit")
+      sha = git(root, "rev-parse", "--short=8", "HEAD")
       _out, err, status = lint(root)
 
-      refute_predicate status, :success?
-      assert_includes err, "Use a Conventional Commit"
+      assert_equal 1, status.exitstatus
+      assert_equal "lint-commits: #{sha}: use a Conventional Commit subject, \"type(scope): summary\" with one of " \
+                   "feat, fix, docs, test, refactor, perf, build, ci, chore, revert: unstructured commit\n", err
+    end
+  end
+
+  def test_a_range_git_cannot_read_carries_the_reason_git_gives
+    repository do |root|
       _out, err, status = lint(root, "missing..HEAD")
 
-      refute_predicate status, :success?
-      assert_includes err, "Cannot read commits"
+      assert_equal 1, status.exitstatus
+      assert_equal "lint-commits: cannot read commits: fatal: bad revision 'missing..HEAD'\n", err
     end
   end
 end

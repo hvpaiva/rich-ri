@@ -28,7 +28,7 @@ module CommitPolicy
 
   def self.git(*)
     output, error, status = Open3.capture3("git", *)
-    raise Error, "Cannot read commits: #{error.strip}" unless status.success?
+    raise Error, "cannot read commits: #{error.strip}" unless status.success?
 
     output.force_encoding(Encoding::UTF_8).scrub
   end
@@ -47,11 +47,11 @@ module CommitPolicy
     return subject_problems(reverted[:subject]) if reverted
 
     if UNFINISHED.match?(subject)
-      ["Finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{subject}"]
+      ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{subject}"]
     elsif SUBJECT.match?(subject)
       []
     else
-      [%(Use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: #{subject})]
+      [%(use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: #{subject})]
     end
   end
 
@@ -70,7 +70,7 @@ module CommitPolicy
   def self.check(message, subject:)
     errors = subject ? subject_problems(message.to_s.lines.first.to_s.strip) : []
     credited = attribution(message.to_s)
-    errors << "Remove generated attribution: #{credited}" if credited
+    errors << "remove generated attribution: #{credited}" if credited
     errors
   end
 end
