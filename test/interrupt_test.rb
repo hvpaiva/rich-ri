@@ -32,7 +32,8 @@ class InterruptTest < Minitest::Test
   end
 
   def paged_lookup(pager, input)
-    terminal_cli(*SOURCES, "RichRIExample#map", env: { "RI_PAGER" => pager }, prompt: "PROGRAM READY", input: input)
+    environment = { "RI_PAGER" => [pager].shelljoin }
+    terminal_cli(*SOURCES, "RichRIExample#map", env: environment, prompt: "PROGRAM READY", input: input)
   end
 
   def test_ctrl_c_is_left_to_a_pager_that_handles_it
