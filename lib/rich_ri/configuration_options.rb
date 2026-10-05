@@ -68,6 +68,11 @@ module RichRI
         "styles" => @styles.transform_values(&:dup) }
     end
 
+    # Whether a pager command is named here and paging not turned off beside it.
+    def pager_named?
+      @pager_enabled && !@pager_command.nil?
+    end
+
     private
 
     # Puts RI, then the file and the environment, under the command line that

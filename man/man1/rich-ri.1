@@ -217,7 +217,8 @@ Code blocks preserve their original content and indentation.
 .B pager
 true (default), false, or a trusted command such as "less -R". The command
 is split into words and run directly, without a shell.
-RI_PAGER overrides a file command; --pager-command overrides both.
+RI_PAGER overrides a file command; --pager-command overrides both, and on
+the command line it pages even when the file says false.
 PAGER is used when none of them names a pager.
 A pager named in any of these ways has to start and to end without failure,
 or the lookup fails with status 1. When none is named, pager, less and more

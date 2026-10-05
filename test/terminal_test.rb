@@ -88,6 +88,23 @@ class TerminalTest < Minitest::Test
     end
   end
 
+  def test_pager_named_on_the_command_line_is_used_although_the_file_disables_paging
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      pager, log = logging_pager(dir)
+      config = File.join(dir, "config.yml")
+      File.write(config, "pager: false\n")
+      output, status = terminal_cli(*SOURCES, "--config", config, "RichRIExample#map", env: { "RI_PAGER" => pager })
+
+      assert_equal 0, status, output
+      refute_path_exists log
+      output, status = terminal_cli(*SOURCES, "--config", config, "--pager-command=#{pager}", "RichRIExample#map")
+
+      assert_equal 0, status, output
+      assert_equal "[]\n", File.read(log)
+      assert_includes RichRI.plain(output), "Return transformed values."
+    end
+  end
+
   def test_a_pager_that_fails_is_reported_instead_of_losing_the_page_quietly
     command = [RbConfig.ruby, "-e", "exit 3"].shelljoin
     output, status = terminal_cli(*SOURCES, "RichRIExample#map", env: { "RI_PAGER" => command })

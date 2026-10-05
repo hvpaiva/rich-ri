@@ -60,11 +60,14 @@ module RichRI
     end
 
     def parse(argv, defaults: RichRI.utf8(ENV.fetch("RI", "")), configuration: true)
-      names = configured_defaults(self.class.new.command_line(argv), defaults, configuration)
+      command = self.class.new.command_line(argv)
+      names = configured_defaults(command, defaults, configuration)
       finish(names + arguments(argv))
+      # Naming a pager on the command line asks for paging, whatever the file says.
+      @pager_enabled ||= command.pager_named?
       # RDoc's own ri stops paging under --interactive but not at the prompt
       # it opens when given no name; here the two are one session.
-      @driver_options[:use_stdout] ||= !$stdout.tty?
+      @driver_options[:use_stdout] = !(@pager_enabled && $stdout.tty?)
       @theme = Theme.new(name: @theme_name, styles: @styles, depth: @color_depth)
       self
     end
@@ -144,12 +147,8 @@ module RichRI
       @parser.on("--no-color", "Plain text with the same page layout.") { @color = "never" }
       @parser.on("--[no-]pager", "Display through a pager (automatically disabled in pipes).") do |value|
         @pager_enabled = value
-        @driver_options[:use_stdout] = !value
       end
-      @parser.on("-T", "Write directly to stdout.") do
-        @pager_enabled = false
-        @driver_options[:use_stdout] = true
-      end
+      @parser.on("-T", "Write directly to stdout.") { @pager_enabled = false }
       @parser.on("-w", "--width=WIDTH", "Text width in terminal columns (20 to 10000).") do |width|
         @driver_options[:width] = integer("--width", width, Configuration::WIDTH)
       end

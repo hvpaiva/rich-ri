@@ -151,6 +151,20 @@ class ConfigurationTest < Minitest::Test
     end
   end
 
+  def test_pager_named_on_the_command_line_pages_although_the_file_disables_paging
+    in_config({ "pager" => false }) do
+      refute options.settings.fetch("pager")
+      assert_equal "cat", options("--pager-command=cat").settings.fetch("pager")
+      assert options("--pager").settings.fetch("pager")
+      [%w[--pager-command=cat --no-pager], %w[--no-pager --pager-command=cat], %w[-T --pager-command=cat]].each do |a|
+        refute options(*a).settings.fetch("pager"), a.inspect
+      end
+      # Below the file, a pager command only says which pager to use.
+      refute options(defaults: "--pager-command=more").settings.fetch("pager")
+      with_environment("RI_PAGER" => "more") { refute options.settings.fetch("pager") }
+    end
+  end
+
   def test_utility_words_used_as_values_do_not_change_parsing_or_recovery
     in_config do |path, _dir|
       %w[--help --version --config-path --completion=bash].each do |value|
