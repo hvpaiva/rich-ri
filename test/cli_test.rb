@@ -20,6 +20,18 @@ class CLITest < Minitest::Test
     assert_includes colored, "\e["
   end
 
+  def test_checkout_executable_finds_its_own_library
+    paths = $LOAD_PATH.reject { |path| File.expand_path(path) == File.join(TestSupport::ROOT, "lib") }
+    environment = TestSupport::ENVIRONMENT.merge("RUBYOPT" => nil, "RUBYLIB" => nil)
+    out, err, status = Bundler.with_unbundled_env do
+      Open3.capture3(environment, RbConfig.ruby, "--disable-gems", "-I", paths.join(File::PATH_SEPARATOR),
+                     File.join(TestSupport::ROOT, "exe/rich-ri"), "--version")
+    end
+
+    assert_predicate status, :success?, err
+    assert_equal "rich-ri #{RichRI::VERSION}\n", out
+  end
+
   def test_page_color_plain_and_stock_format
     plain, err, status = cli("RichRIExample#map")
 
