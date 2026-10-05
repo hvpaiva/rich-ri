@@ -264,7 +264,12 @@ class CommandLineCompletionTest < Minitest::Test
     assert_equal %w[markdown], values("-af", "mark")
     assert_includes values(*sources, "--pager-command", "--theme", "RichRIExample#ma"), "RichRIExample#map"
     assert_includes values(*sources, "--", "--theme", "RichRIExample#ma"), "RichRIExample#map"
-    assert_raises(RichRI::UsageError) { values(*sources, "--the", "da") }
+  end
+
+  def test_an_abbreviated_option_before_the_word_is_refused_as_the_lookup_refuses_it
+    error = assert_raises(RichRI::UsageError) { values("--no-standard-docs", "--the", "da") }
+
+    assert_equal "invalid option: --the", error.message
   end
 end
 

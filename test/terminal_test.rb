@@ -85,15 +85,22 @@ class TerminalTest < Minitest::Test
                      "Use --no-pager to write to the terminal instead.\r\n", output
         refute_path_exists log
       end
-      output, status = terminal_cli(*SOURCES, "--pager-command=cat 'unclosed", "RichRIExample#map")
-
-      assert_equal 1, status, output
-      assert_includes output, "rich-ri: the pager \"cat 'unclosed\" has an unmatched quote\r\n"
-      output, status = terminal_cli(*SOURCES, "--pager-command=missing-pager", "--no-pager", "RichRIExample#map")
-
-      assert_equal 0, status, output
-      assert_includes RichRI.plain(output), "Return transformed values."
     end
+  end
+
+  def test_a_pager_command_with_an_unmatched_quote_is_an_error
+    output, status = terminal_cli(*SOURCES, "--pager-command=cat 'unclosed", "RichRIExample#map")
+
+    assert_equal 1, status, output
+    assert_equal "rich-ri: the pager \"cat 'unclosed\" has an unmatched quote\r\n" \
+                 "Use --no-pager to write to the terminal instead.\r\n", output
+  end
+
+  def test_no_pager_writes_to_the_terminal_although_a_pager_that_cannot_run_is_named
+    output, status = terminal_cli(*SOURCES, "--pager-command=missing-pager", "--no-pager", "RichRIExample#map")
+
+    assert_equal 0, status, output
+    assert_includes RichRI.plain(output), "Return transformed values."
   end
 
   def test_pager_named_on_the_command_line_is_used_although_the_file_disables_paging
