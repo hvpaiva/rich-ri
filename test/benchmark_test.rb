@@ -39,7 +39,7 @@ class BenchmarkTest < Minitest::Test
     missing = File.join(@tree, "missing.json")
     out, err, status = benchmark("--compare", missing)
 
-    assert_equal [1, "", "benchmark: Cannot read #{missing}: No such file or directory\n"],
+    assert_equal [1, "", "benchmark: cannot read #{missing}: No such file or directory\n"],
                  [status.exitstatus, out, err]
     refute_path_exists @calls
   end
@@ -68,14 +68,14 @@ class BenchmarkTest < Minitest::Test
     baseline = report(JSON.generate("median_ms" => { "startup" => 1e9, "render" => -1000, "completion" => -1000 }))
     _out, err, status = benchmark("--iterations=1", "--compare", baseline)
 
-    assert_equal [1, "benchmark: Slower by more than 30% and 50 ms: render, completion\n"], [status.exitstatus, err]
+    assert_equal [1, "benchmark: slower by more than 30% and 50 ms: render, completion\n"], [status.exitstatus, err]
   end
 
   def test_an_unwritable_report_is_named_in_one_line
     saved = File.join(@tree, "missing/benchmark.json")
     out, err, status = benchmark("--iterations=1", "--output", saved)
 
-    assert_equal [1, "", "benchmark: Cannot write #{saved}: No such file or directory\n"],
+    assert_equal [1, "", "benchmark: cannot write #{saved}: No such file or directory\n"],
                  [status.exitstatus, out, err]
   end
 

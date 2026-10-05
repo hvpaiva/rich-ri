@@ -70,13 +70,13 @@ class BenchmarkCLI
   rescue JSON::ParserError
     raise Error, "#{@baseline} is not a benchmark report"
   rescue SystemCallError => e
-    raise Error, "Cannot read #{@baseline}: #{e.class.new.message}"
+    raise Error, "cannot read #{@baseline}: #{e.message.split(' @ ').first}"
   end
 
   def save(json)
     File.write(@output, json)
   rescue SystemCallError => e
-    raise Error, "Cannot write #{@output}: #{e.class.new.message}"
+    raise Error, "cannot write #{@output}: #{e.message.split(' @ ').first}"
   end
 
   def measure_cases
@@ -105,7 +105,7 @@ class BenchmarkCLI
       old = previous.fetch(name)
       name if value > old * 1.3 && value - old > 50
     end
-    raise Error, "Slower by more than 30% and 50 ms: #{regressions.join(', ')}" unless regressions.empty?
+    raise Error, "slower by more than 30% and 50 ms: #{regressions.join(', ')}" unless regressions.empty?
   end
 end
 
