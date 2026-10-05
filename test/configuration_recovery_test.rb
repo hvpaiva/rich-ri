@@ -71,7 +71,7 @@ class ConfigurationRecoveryTest < Minitest::Test
   def test_help_and_version_work_with_unreadable_file
     with_config({ "theme" => "dark" }) do |path|
       File.chmod(0o000, path)
-      next if File.readable?(path)
+      skip "File permissions do not apply to this user" if File.readable?(path)
 
       ["--help", "--version"].each do |action|
         out, err, status = cli("--config", path, action, docs: false)

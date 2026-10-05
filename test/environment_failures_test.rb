@@ -22,7 +22,7 @@ class EnvironmentFailuresTest < Minitest::Test
       File.chmod(0o000, config)
       locked = File.join(dir, "locked")
       Dir.mkdir(locked, 0o555)
-      next if File.readable?(config)
+      skip "File permissions do not apply to this user" if File.readable?(config)
 
       { ["--config", config, "--show-config"] => "rich-ri: #{config}: Permission denied\n",
         ["--install-man=#{locked}/man1"] => "rich-ri: #{locked}/man1: Permission denied\n" }.each do |args, message|
