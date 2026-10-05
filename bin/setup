@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Install the bundle and the lint tools mise.toml pins, then report every program
-# the full check still needs. A failed step never hides that report.
+# A failed step must not hide the report of missing programs at the end.
 cd "$(dirname "$0")/.." || exit 1
 
 bundle install || exit 1

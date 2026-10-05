@@ -22,9 +22,7 @@ Gem::Specification.new do |spec|
     "rubygems_mfa_required" => "true",
     "allowed_push_host" => "https://rubygems.org"
   }
-  # An allowlist also builds from a source archive without shipping local files. Only the
-  # guides for people who use the installed gem are named; notes on developing and releasing
-  # the project stay in the repository.
+  # An allowlist also builds from a source archive without shipping local files.
   spec.files = Dir.chdir(__dir__) do
     Dir.glob("lib/**/*.rb") +
       %w[docs/usage.md docs/configuration.md docs/shell-completion.md docs/troubleshooting.md

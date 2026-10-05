@@ -2,24 +2,21 @@
 
 require "open3"
 
-# What a commit message, a pull request title and a pull request body must look like.
 module CommitPolicy
   TYPES = %w[feat fix docs test refactor perf build ci chore revert].freeze
   SUBJECT = /\A(?:#{TYPES.join('|')})(?:\([\w.-]+\))?!?: \S/
-  # Markers git and people use for work that is not ready to be read.
   UNFINISHED = /\A(?:(?:fixup|squash|amend)!|wip\b)|\A\w+(?:\([\w.-]+\))?!?:\s*wip\b/i
-  # git revert writes this subject, and Reapply when the reverted commit was itself a revert.
+  # git revert writes Reapply when the reverted commit was itself a revert.
   REVERT = /\A(?:Revert|Reapply) "(?<subject>.+)"\z/
 
   ASSISTANTS = %w[Aider aider Amp ChatGPT Claude Codex Copilot Cursor Devin Gemini Jules opencode Windsurf].freeze
-  # Trailer keys, phrases and links that only coding assistants write. The product names keep
-  # their capitals: "generated with cursor movements" is ordinary prose in a terminal project.
   TOOL_TRAILER = /\A(?:Generated-(?:by|with)|Assisted-by|Claude-Session|Amp-Thread-ID):/i
+  # Product names stay case-sensitive: "generated with cursor movements" is ordinary prose.
   GENERATED = /\A\W*(?i:Generated (?:by|with)) \[?(?:#{ASSISTANTS.join('|')})\b/
   SESSION = %r{https://(?:claude\.ai/code/session_|chatgpt\.com/codex/tasks/|ampcode\.com/threads/|
                app\.devin\.ai/sessions/|jules\.google\.com/task/|cursor\.com/(?:agents|background-agent)\b)}ix
-  # A person can share an assistant's name, as Claude Monet does. A signature therefore counts
-  # as a tool's only by the address tools sign with, or by a name that is nothing but a product.
+  # People share assistants' names (Claude Monet), so a signature counts as a tool's only by
+  # a tool's address or by a name that is nothing but a product.
   SIGNATURE = /\A(?:Co-authored-by|Signed-off-by):\s*(?<name>[^<\n]*?)\s*<(?<address>[^>\n]+)>/i
   TOOL_ADDRESS = /\A(?:noreply@anthropic\.com|(?:codex|noreply)@openai\.com|cursoragent@cursor\.com|
                     (?:aider|noreply)@aider\.chat|copilot@github\.com|noreply@opencode\.ai|amp@ampcode\.com|
@@ -36,7 +33,6 @@ module CommitPolicy
     output.force_encoding(Encoding::UTF_8).scrub
   end
 
-  # The first line that credits a tool, or nil.
   def self.attribution(text)
     text.each_line.map(&:strip).find do |line|
       signature = SIGNATURE.match(line)

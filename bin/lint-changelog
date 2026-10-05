@@ -3,9 +3,7 @@
 
 require_relative "../rakelib/changelog"
 
-# Usage: bin/lint-changelog [BASE]
-# Checks the structure of CHANGELOG.md. With BASE, the commits HEAD adds to it must also
-# record what users will notice. SKIP_CHANGELOG=1 or true waives that second check.
+# Usage: bin/lint-changelog [BASE]. SKIP_CHANGELOG=1 waives the entry that BASE requires.
 begin
   base = ARGV.first unless %w[1 true].include?(ENV.fetch("SKIP_CHANGELOG", nil))
   problems = Changelog.lint(root: File.expand_path("..", __dir__), base: base)

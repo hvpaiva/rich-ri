@@ -67,7 +67,6 @@ module Release
       @out.puts "Release merge #{sha} is ready. Run #{command} --push to #{next_step}."
     end
 
-    # A dry run only reads: it reports where the pushed tag stands without waiting for its run.
     def report_pushed_tag(sha)
       run = release_runs.find { |candidate| candidate["headSha"] == sha }
       @out.puts "#{tag} is already on origin at #{sha}: #{run ? run_state(run) : missing_run}."

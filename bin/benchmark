@@ -13,7 +13,6 @@ class BenchmarkCLI
   ITERATIONS = 1..50
   CASES = %w[startup render completion].freeze
 
-  # A problem with the inputs or the measured program, reported without a backtrace.
   class Error < StandardError; end
 
   attr_reader :parser

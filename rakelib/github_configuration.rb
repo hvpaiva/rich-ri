@@ -64,8 +64,7 @@ module GitHub
       @out = out
     end
 
-    # With +release+, only what publication depends on is required: a missing topic or
-    # homepage is reported by github:verify but must not hold up a fix.
+    # A missing topic or homepage must not hold up a release.
     def verify!(release: false)
       pending = release ? changes.select(&:release) : changes
       unless pending.empty?

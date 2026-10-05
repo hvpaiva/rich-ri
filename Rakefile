@@ -5,12 +5,11 @@ require "rubocop/rake_task"
 require "fileutils"
 require_relative "rakelib/tools"
 
-# The branch checks compare with origin/main. A shallow CI checkout may not have it.
+# A shallow checkout may not have origin/main.
 def default_base
   "origin/main" if system("git", "rev-parse", "--verify", "--quiet", "origin/main", out: File::NULL)
 end
 
-# A missing program gets one line of advice instead of a failed command and its trace.
 def require_tool(name)
   abort Tools.missing(name) unless Tools.available?(name)
 end

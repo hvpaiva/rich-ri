@@ -2,14 +2,11 @@
 
 require "fileutils"
 
-# Runs the runtime tests with the lowest supported dependencies against an RI store written by
-# RDoc 6.14. Both bundles are installed under tmp/compatibility, never into the active Ruby:
-# there, the older rdoc gem replaces the RubyGems plugin that documents every gem installed
-# afterwards, and "gem rdoc" stops working until that gem is removed again.
+# Never install these bundles into the active Ruby: the older rdoc gem replaces the RubyGems
+# plugin that documents installed gems, and "gem rdoc" breaks until it is removed.
 module Compatibility
   ROOT = File.expand_path("..", __dir__)
   HOME = File.join(ROOT, "tmp/compatibility")
-  # Release, CI and repository tooling is tested with the development bundle only.
   MAINTENANCE = %w[benchmark changelog commit_policy compatibility project setup shell_runner test_environment
                    tools].freeze
 
@@ -41,7 +38,7 @@ module Compatibility
   end
 
   def self.execute(environment, *command)
-    # Started from bundle exec rake, the caller's bundle must not leak into these two.
+    # Under bundle exec rake, the caller's bundle must not leak into these.
     inherited = defined?(Bundler) ? Bundler.unbundled_env : ENV.to_h
     return if system(inherited.merge(environment), *command, chdir: ROOT, unsetenv_others: true)
 
