@@ -35,6 +35,15 @@ class OptionsTest < Minitest::Test
     assert_equal 65_535, parse("--server=65535").driver_options[:server]
   end
 
+  def test_help_states_the_rules_the_parser_enforces
+    help = RichRI::Options.new.parser.to_s
+
+    assert_match(/--server\[=PORT\] +Serve RDoc in a browser \(port 1 to 65535, default 8214;/, help)
+    assert_match(/-i, --\[no-\]interactive +.*; takes no names \(--no-interactive needs one\)\.$/, help)
+    assert_includes help, "\nWrite long options and their listed values in full; abbreviations are not accepted.\n"
+    assert_includes help, "\nGive at most one action, such as --list, --server or --man; --help and --version win.\n"
+  end
+
   def test_width_accepts_the_whole_documented_range
     assert_equal 20, parse("--width=20").driver_options[:width]
     assert_equal 10_000, parse("--width=10000").driver_options[:width]

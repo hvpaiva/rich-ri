@@ -36,7 +36,8 @@ module RichRI
       utility_options
       @parser.separator ""
       @parser.separator "Run without a name for interactive lookup and Tab completion."
-      @parser.separator "Write long options in full; abbreviations are not accepted."
+      @parser.separator "Write long options and their listed values in full; abbreviations are not accepted."
+      @parser.separator "Give at most one action, such as --list, --server or --man; --help and --version win."
       @parser.separator "Examples: rich-ri Array#map; rich-ri ruby:syntax/pattern_matching"
       @parser.separator "Pager keys: / search, n next match, Space next page, q quit."
       @parser.separator "Defaults: RI options < config file < environment < explicit arguments."
@@ -154,7 +155,8 @@ module RichRI
     def lookup_options
       @parser.separator ""
       @parser.separator "Lookup:"
-      @parser.on("-i", "--[no-]interactive", "Repeated lookup with Tab completion.") do |value|
+      @parser.on("-i", "--[no-]interactive",
+                 "Repeated lookup with Tab completion; takes no names (--no-interactive needs one).") do |value|
         toggle("--interactive", :interactive, value)
       end
       @parser.on("-a", "--[no-]all", "Include all methods in a class page.") do |value|
@@ -164,7 +166,8 @@ module RichRI
       @parser.on("--[no-]expand-refs", "Expand RDoc references at the end of a page.") do |value|
         @driver_options[:expand_refs] = value
       end
-      @parser.on("--server[=PORT]", "Serve RDoc in a browser (port: 8214; requires webrick).") do |port|
+      ports = "port #{PORTS.min} to #{PORTS.max}, default #{DEFAULT_PORT}"
+      @parser.on("--server[=PORT]", "Serve RDoc in a browser (#{ports}; requires webrick).") do |port|
         @actions.choose("--server", :server, port ? integer("--server", port, PORTS) : DEFAULT_PORT)
       end
     end

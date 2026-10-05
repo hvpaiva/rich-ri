@@ -55,7 +55,7 @@ module Manual
       Install these gems for the active Ruby; with bundle exec, include them in
       that bundle. Missing optional gems produce an installation hint and status 1.
       .SH OPTIONS
-      Write long options in full; abbreviations are not accepted.
+      Write long options and their listed values in full; abbreviations are not accepted.
       Options may follow names; -- ends them.
       .PP
       A command does one thing. --help answers before anything else and

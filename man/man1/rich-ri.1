@@ -45,7 +45,7 @@ prints profiling information when the command exits.
 Install these gems for the active Ruby; with bundle exec, include them in
 that bundle. Missing optional gems produce an installation hint and status 1.
 .SH OPTIONS
-Write long options in full; abbreviations are not accepted.
+Write long options and their listed values in full; abbreviations are not accepted.
 Options may follow names; \-\- ends them.
 .PP
 A command does one thing. \-\-help answers before anything else and
@@ -107,7 +107,7 @@ Select an original RDoc formatter: ansi, bs, markdown, rdoc.
 .SS Lookup
 .TP
 .B \-i, \-\-[no\-]interactive
-Repeated lookup with Tab completion.
+Repeated lookup with Tab completion; takes no names (\-\-no\-interactive needs one).
 .TP
 .B \-a, \-\-[no\-]all
 Include all methods in a class page.
@@ -119,7 +119,7 @@ List known classes and modules.
 Expand RDoc references at the end of a page.
 .TP
 .B \-\-server[=PORT]
-Serve RDoc in a browser (port: 8214; requires webrick).
+Serve RDoc in a browser (port 1 to 65535, default 8214; requires webrick).
 .SS Documentation sources
 .TP
 .B \-d, \-\-doc\-dir=DIRS
