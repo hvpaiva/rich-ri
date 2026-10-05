@@ -110,6 +110,17 @@ class ReleasePullRequestTest < Minitest::Test
     end
   end
 
+  def test_a_release_pull_request_carries_a_label_repository_setup_creates
+    repository do |root|
+      commands = []
+      workflow("0.2.0", root: root, runner: workflow_runner(commands), out: StringIO.new).run
+      created = created_pull_requests(commands).first
+
+      assert_includes GitHub::Configuration::LABELS.map { |label| label.fetch("name") },
+                      created.fetch(created.index("--label") + 1)
+    end
+  end
+
   def test_a_new_pull_request_names_the_command_that_merges_it
     repository do |root|
       output = StringIO.new
