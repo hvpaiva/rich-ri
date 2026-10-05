@@ -17,8 +17,11 @@ on:
 permissions:
   contents: read
 
+# A newer commit replaces the run of the pull request it belongs to. Every other run has a
+# group of its own: a shared group keeps one run and one waiting run and cancels the rest, so
+# a merge to main or a hotfix branch could be left without its complete result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:

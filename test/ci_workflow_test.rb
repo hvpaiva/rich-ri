@@ -16,6 +16,14 @@ class CIWorkflowTest < Minitest::Test
     assert_equal CI::JOBS.sort, gate.fetch("needs").sort
   end
 
+  def test_a_newer_commit_cancels_only_the_pull_request_run_it_replaces
+    concurrency = ci.fetch("concurrency")
+    group = "${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"
+
+    assert_equal group, concurrency.fetch("group")
+    assert_same true, concurrency.fetch("cancel-in-progress")
+  end
+
   def test_full_ci_keeps_the_supported_ruby_and_platform_matrix
     jobs = ci.fetch("jobs")
     matrix = jobs.fetch("test").fetch("strategy").fetch("matrix")
