@@ -15,7 +15,7 @@ class CLITest < Minitest::Test
     "--style=unknown=red" => %(--style: style "unknown": unknown style role "unknown"; choose #{ROLES})
   }.freeze
   FAILURES = {
-    %w[NoSuchExample123] => "Nothing known about NoSuchExample123",
+    %w[NoSuchExample123] => "NoSuchExample123 not found",
     %w[--dump=/no/such/cache.ri] => '--dump must be a readable regular file, not "/no/such/cache.ri"',
     %w[--config=/no/such/config.yml RichRIExample] => "/no/such/config.yml: not a readable regular file"
   }.freeze
@@ -147,8 +147,8 @@ class CLITest < Minitest::Test
   def test_end_of_options_preserves_names
     _out, err, status = cli("--", "--help")
 
-    refute_predicate status, :success?
-    assert_includes err, "Nothing known about"
+    assert_equal 1, status.exitstatus
+    assert_equal "rich-ri: --help not found\n", err
   end
 
   def test_pipe_no_color_and_explicit_color_precedence
@@ -209,7 +209,7 @@ class CLITest < Minitest::Test
 
     assert_predicate status, :success?, err
     assert_empty err
-    refute_includes out, "Nothing known about"
+    refute_includes out, "not found"
   end
 
   def test_dump_rejects_directories_missing_files_and_unreadable_files

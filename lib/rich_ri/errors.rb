@@ -65,6 +65,13 @@ module RichRI
     end
   end
 
+  # A name no store knows. RDoc words it "Nothing known about NAME", with any similar names below.
+  class LookupError < Error
+    def initialize(error)
+      super(["#{error.name} not found", *error.message.lines(chomp: true).drop(1)].join("\n"))
+    end
+  end
+
   # Raised without knowing where the value was written; the option parser and the
   # configuration loader report it as their own kind of failure.
   class ThemeError < Error; end

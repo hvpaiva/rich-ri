@@ -24,8 +24,7 @@ class DriverTest < Minitest::Test
 
       assert_equal 1, status.exitstatus, name
       assert_empty out
-      assert_includes err, "Nothing known about #{name}"
-      refute_match(/from .*\.rb:\d+|RegexpError|char-class|parenthes/, err)
+      assert_equal "rich-ri: #{name} not found\n", err
     end
   end
 
@@ -60,13 +59,13 @@ class DriverTest < Minitest::Test
 
     assert_equal 1, status.exitstatus
     assert_empty out
-    assert_equal "rich-ri: Nothing known about NoSuch\\u001b]52;c;AAAA\\u0007Name\n", err
+    assert_equal "rich-ri: NoSuch\\u001b]52;c;AAAA\\u0007Name not found\n", err
     out, err = capture_io do
       assert_equal 1, RichRI::CLI.run(["--no-standard-docs", "--doc-dir", TestSupport::STORE, "NoSuchExample123"])
     end
 
     assert_empty out
-    assert_equal "rich-ri: Nothing known about NoSuchExample123\n", err
+    assert_equal "rich-ri: NoSuchExample123 not found\n", err
   end
 
   def test_a_name_answered_with_suggestions_was_not_found
@@ -112,7 +111,7 @@ class DriverTest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       assert_empty out
-      assert_equal "rich-ri: Nothing known about Unsafee\nDid you mean?  Unsafe\\u0007\n", err
+      assert_equal "rich-ri: Unsafee not found\nDid you mean?  Unsafe\\u0007\n", err
       out, _err, status = cli(*sources, "RichRIExample#ma\e", docs: false)
 
       assert_equal 1, status.exitstatus
@@ -167,7 +166,7 @@ class DriverTest < Minitest::Test
 
       assert_equal 1, status.exitstatus, source
       assert_empty out
-      assert_equal "rich-ri: Nothing known about #{source}\n", err
+      assert_equal "rich-ri: #{source} not found\n", err
       assert_empty gem_candidates("#{source}:"), source
     end
   end

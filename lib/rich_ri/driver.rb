@@ -80,7 +80,7 @@ module RichRI
       0
     rescue NotFoundError => e
       # RDoc ends the process here with Kernel#abort and the name as typed.
-      raise Error, e.message
+      raise LookupError, e
     end
 
     # Looks every name up, as RDoc does, and returns those that were not found.
@@ -226,7 +226,7 @@ module RichRI
     def answer(name)
       display_name(expand_name(name))
     rescue StandardError, ScriptError => e
-      Error.report(e)
+      Error.report(e.is_a?(NotFoundError) ? LookupError.new(e) : e)
     end
 
     # webrick and profile are not dependencies of the gem. RDoc answers their

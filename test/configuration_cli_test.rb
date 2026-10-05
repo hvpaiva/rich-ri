@@ -107,7 +107,7 @@ class ConfigurationCLITest < Minitest::Test
 
     assert_equal 1, status.exitstatus
     assert_includes out, "Return transformed values."
-    assert_equal "rich-ri: Nothing known about --no-config\n", err
+    assert_equal "rich-ri: --no-config not found\n", err
   end
 
   def test_show_config_is_roundtrippable_and_has_no_lookup_or_pager_side_effects
