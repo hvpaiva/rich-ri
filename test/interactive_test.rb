@@ -80,11 +80,13 @@ class InteractiveTest < Minitest::Test
   def test_the_session_leaves_the_line_editor_settings_as_it_found_them
     observer = <<~RUBY
       require "reline"
-      settings = -> { [Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc] }
+      reline = %i[completer_word_break_characters completer_quote_characters completion_proc]
+      settings = -> { [*reline.map { |name| Reline.public_send(name) }, $stdin.external_encoding] }
       before = settings.call
       at_exit { puts(settings.call == before ? "settings restored" : "settings changed") }
     RUBY
-    output, status = with_session do |environment|
+    # The C locale has the session read its input as UTF-8 while it runs.
+    output, status = with_session("LC_ALL" => "C", "LANG" => "C") do |environment|
       with_planted(observer, env: environment) do |env|
         terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, env: env, prompt: ">> ", input: "\n")
       end
@@ -218,5 +220,25 @@ class InteractiveTest < Minitest::Test
     assert_equal 1, status, output
     assert_equal ["rich-ri: planted prompt defect\r\n"] * 3, output.lines.last(3)
     assert_equal 3, output.scan("planted prompt defect").length
+  end
+end
+
+class InteractiveLocaleTest < Minitest::Test
+  include TerminalTestSupport
+  include CommandSupport
+
+  def test_tab_completes_an_accented_source_under_the_c_locale
+    Dir.mktmpdir("rich-ri-accented-") do |root|
+      source = File.join(root, "doçs")
+      FileUtils.cp_r(TestSupport::STORE, source)
+      with_session("LC_ALL" => "C", "LANG" => "C") do |environment|
+        keys = [[">> ", "#{root}/do\t"], ["doçs:".b, "G\t"], ["GUIDE.rdoc", "\n\n"]]
+        output, status = terminal_cli("--no-standard-docs", "--doc-dir", source, env: environment, input: keys)
+
+        assert_equal 0, status, output
+        assert_includes output, "= Example guide"
+        refute_includes output, "rich-ri:"
+      end
+    end
   end
 end

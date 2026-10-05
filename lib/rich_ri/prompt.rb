@@ -25,6 +25,10 @@ module RichRI
 
     def edit
       previous = [Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc]
+      encoding = $stdin.external_encoding
+      # The editor holds the line in the encoding of its input, US-ASCII under the C locale, and
+      # fails on an accented name; this reader takes such text for UTF-8 everywhere else.
+      $stdin.set_encoding(Encoding::UTF_8) if UNRELIABLE_ENCODINGS.include?(encoding || Encoding.default_external)
       complete_whole_line
       failures = 0
       begin
@@ -40,6 +44,7 @@ module RichRI
       end
     ensure
       Reline.completer_word_break_characters, Reline.completer_quote_characters, Reline.completion_proc = previous
+      $stdin.set_encoding(encoding)
     end
 
     # Reline completes only what follows the last space, quote or one of "<>=;|&{(`", which after
