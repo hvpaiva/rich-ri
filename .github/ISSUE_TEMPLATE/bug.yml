@@ -62,7 +62,8 @@ body:
       label: Configuration
       description: >-
         The output of `rich-ri --show-config`, if the problem depends on your settings, and the
-        values of `RI`, `PAGER` and `NO_COLOR` when they are set. Remove anything private.
+        values of `RI`, `RI_PAGER`, `PAGER`, `LESS`, `NO_COLOR`, `TERM` and `COLORTERM` when they
+        are set. Remove anything private.
       render: yaml
   - type: checkboxes
     id: checks
