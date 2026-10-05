@@ -82,9 +82,9 @@ module RichRI
       words = ri_defaults(defaults)
       parse_defaults(selection.arguments, "configuration") if enabled
       words
-    rescue StandardError
-      # Any failure, not only rich-ri's own, must leave a recovery action working.
-      raise unless command.recovery?
+    rescue Error, OptionParser::ParseError, SystemCallError
+      # Which file is selected is what --config-path answers, so a refused selection is its failure.
+      raise unless command.recovery? && (selection || command.action != [:config_path])
 
       initialize
       @configuration_path = selection&.path

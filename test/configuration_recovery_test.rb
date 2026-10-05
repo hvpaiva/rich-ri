@@ -97,13 +97,13 @@ class ConfigurationRecoveryTest < Minitest::Test
     end
   end
 
-  def test_recovery_actions_survive_any_failure_to_read_the_configuration
-    defect = <<~RUBY
+  def test_recovery_actions_survive_a_failed_system_call_while_reading_the_configuration
+    failure = <<~RUBY
       require "rich_ri"
-      RichRI::ConfigurationFile.prepend(Module.new { def read = raise(NoMethodError, "planted defect") })
+      RichRI::ConfigurationFile.prepend(Module.new { def read = raise(Errno::EIO, "planted") })
     RUBY
     with_config({ "width" => 44 }) do |path|
-      run = ->(*args) { with_planted(defect) { |env| cli("--config", path, *args, docs: false, env: env) } }
+      run = ->(*args) { with_planted(failure) { |env| cli("--config", path, *args, docs: false, env: env) } }
       ["--help", "--version", "--config-path", "--completion=bash"].each do |action|
         out, err, status = run.call(action)
 
@@ -114,7 +114,29 @@ class ConfigurationRecoveryTest < Minitest::Test
 
       assert_equal 1, status.exitstatus
       assert_empty out
+      assert_equal "rich-ri: Input/output error - planted\n", err
+    end
+  end
+
+  def test_recovery_actions_do_not_hide_a_defect
+    defect = <<~RUBY
+      require "rich_ri"
+      RichRI::ConfigurationFile.prepend(Module.new { def read = raise(NoMethodError, "planted defect") })
+    RUBY
+    with_config({ "width" => 44 }) do |path|
+      out, err, status = with_planted(defect) { |env| cli("--config", path, "--help", docs: false, env: env) }
+
+      assert_equal 1, status.exitstatus
+      assert_empty out
       assert_equal "rich-ri: planted defect\n", err
     end
+  end
+
+  def test_config_path_reports_a_refused_file_selection
+    out, err, status = cli("--config-path", docs: false, env: { "RICH_RI_CONFIG" => "/tmp/a\e[31mb.yml" })
+
+    assert_equal 1, status.exitstatus
+    assert_empty out
+    assert_equal "rich-ri: RICH_RI_CONFIG must be a nonempty string without control characters\n", err
   end
 end
