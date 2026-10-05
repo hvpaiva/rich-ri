@@ -9,7 +9,7 @@ require_relative "github_configuration"
 
 module Release
   class Workflow
-    FILES = [Release::VERSION_FILE, "CHANGELOG.md", "Gemfile.lock", "man/man1/rich-ri.1"].freeze
+    FILES = [Release::VERSION_FILE, Changelog::PATH, "Gemfile.lock", "man/man1/rich-ri.1"].freeze
 
     def initialize(version, root: ROOT, runner: nil, out: $stdout, **options)
       @version = version
@@ -108,7 +108,9 @@ module Release
         end
 
         changes = Release.changes(@version, root: @root)
-        return @out.puts changes.fetch("CHANGELOG.md"), "Dry run: no working files or GitHub state changed." if @dry_run
+        if @dry_run
+          return @out.puts changes.fetch(Changelog::PATH), "Dry run: no working files or GitHub state changed."
+        end
 
         command(["git", "switch", "-c", branch])
       else
@@ -126,18 +128,18 @@ module Release
       dirty = command(%w[git status --porcelain]).lines.map { |line| line.chomp[3..] }
       raise Error, "unrelated changes on #{branch}; commit or stash them first" unless (dirty - FILES).empty?
 
-      source = [Release::VERSION_FILE, "CHANGELOG.md"].to_h { |path| [path, command(["git", "show", "HEAD:#{path}"])] }
-      if source.fetch("CHANGELOG.md").include?("## [#{@version}]")
+      source = [Release::VERSION_FILE, Changelog::PATH].to_h { |path| [path, command(["git", "show", "HEAD:#{path}"])] }
+      if Changelog.released?(source.fetch(Changelog::PATH), @version)
         require_clean
-        Release.verify(tag: tag, version: source.fetch(Release::VERSION_FILE)[/VERSION = "([^"]+)"/, 1],
-                       changelog: source.fetch("CHANGELOG.md"))
+        Release.verify(tag: tag, version: Release.version_in(source.fetch(Release::VERSION_FILE)),
+                       changelog: source.fetch(Changelog::PATH))
         command(%w[bundle exec rake check], stream: true) unless @dry_run
         return
       end
 
       # A retry may happen on another UTC day. Preserve the preparation date,
       # while still comparing every edit against exactly what we would generate.
-      changelog = File.read(File.join(@root, "CHANGELOG.md"))
+      changelog = File.read(File.join(@root, Changelog::PATH))
       changes = Release.changes(@version, root: @root, source: source, date: preparation_date(changelog))
       changes.each do |path, content|
         actual = File.read(File.join(@root, path))

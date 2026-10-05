@@ -11,7 +11,11 @@ require "rdoc/rdoc"
 class BenchmarkCLI
   ROOT = File.expand_path("..", __dir__)
   ITERATIONS = 1..50
-  CASES = %w[startup render completion].freeze
+  CASES = {
+    "startup" => ->(_sources) { %w[--no-config --version] },
+    "render" => ->(sources) { [*sources, "--no-pager", "--color=always", "RichRIExample"] },
+    "completion" => ->(sources) { ["--complete", *sources, "RichRIExample#"] }
+  }.freeze
 
   class Error < StandardError; end
 
@@ -60,7 +64,7 @@ class BenchmarkCLI
   def baseline
     report = JSON.parse(File.read(@baseline))
     medians = report["median_ms"] if report.is_a?(Hash)
-    return medians if medians.is_a?(Hash) && CASES.all? { |name| medians[name].is_a?(Numeric) }
+    return medians if medians.is_a?(Hash) && CASES.keys.all? { |name| medians[name].is_a?(Numeric) }
 
     raise Error, "#{@baseline} is not a benchmark report"
   rescue JSON::ParserError
@@ -80,10 +84,7 @@ class BenchmarkCLI
       store = File.join(directory, "ri")
       RDoc::RDoc.new.document(["--ri", "--quiet", "--op", store, "#{ROOT}/test/fixtures/example.rb"])
       sources = ["--no-config", "--no-standard-docs", "--doc-dir", store]
-      cases = { "startup" => %w[--no-config --version],
-                "render" => [*sources, "--no-pager", "--color=always", "RichRIExample"],
-                "completion" => ["--complete", *sources, "RichRIExample#"] }
-      cases.transform_values { |args| measure(args) }
+      CASES.transform_values { |arguments| measure(arguments.call(sources)) }
     end
   end
 

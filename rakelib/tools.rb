@@ -18,7 +18,9 @@ module Tools
     end
   end
 
-  def self.required(pinned = self.pinned) = (pinned.keys - ["ruby"]) + SYSTEM
+  def self.mise_tools(pinned = self.pinned) = pinned.keys - ["ruby"]
+
+  def self.required(pinned = self.pinned) = mise_tools(pinned) + SYSTEM
 
   def self.available?(tool)
     ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).any? do |directory|

@@ -53,9 +53,8 @@ module Release
     end
 
     def verify_metadata(sha)
-      source = @commands.call(["git", "show", "#{sha}:#{Release::VERSION_FILE}"])
-      version = source[/VERSION = "([^"]+)"/, 1]
-      changelog = @commands.call(["git", "show", "#{sha}:CHANGELOG.md"])
+      version = Release.version_in(@commands.call(["git", "show", "#{sha}:#{Release::VERSION_FILE}"]))
+      changelog = @commands.call(["git", "show", "#{sha}:#{Changelog::PATH}"])
       Release.verify(tag: tag, version: version, changelog: changelog)
     end
 

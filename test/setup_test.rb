@@ -38,7 +38,7 @@ class SetupTest < Minitest::Test
     program("mise", %(echo "$*" >> "#{@log}"))
     run_setup
 
-    assert_equal ["install #{(Tools.pinned.keys - ['ruby']).join(' ')}\n"], File.readlines(@log).grep(/\Ainstall /)
+    assert_equal ["install #{Tools.mise_tools.join(' ')}\n"], File.readlines(@log).grep(/\Ainstall /)
   end
 
   def test_a_complete_environment_succeeds
@@ -71,7 +71,7 @@ class SetupTest < Minitest::Test
   def program(name, body = "exit 0") = write_program(@bin, name, body)
 
   def missing_programs
-    pinned = (Tools.pinned.keys - ["ruby"]).map do |tool|
+    pinned = Tools.mise_tools.map do |tool|
       "setup: #{tool} is not installed; install the version mise.toml pins with: mise install #{tool}\n"
     end
     system = Tools::SYSTEM.map { |tool| "setup: #{tool} is not installed; install it with your package manager\n" }

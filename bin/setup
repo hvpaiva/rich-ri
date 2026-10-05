@@ -8,7 +8,7 @@ if command -v mise >/dev/null 2>&1; then
   pinned=()
   while IFS= read -r tool; do
     pinned+=("$tool")
-  done < <(ruby -r ./rakelib/tools -e 'puts Tools.pinned.keys - %w[ruby]')
+  done < <(ruby -r ./rakelib/tools -e 'puts Tools.mise_tools')
   # Without names, mise would install everything mise.toml lists, Ruby included.
   if [ "${#pinned[@]}" -gt 0 ]; then
     mise install "${pinned[@]}" || printf 'setup: mise install failed; the lines below name what is still missing.\n' >&2

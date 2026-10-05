@@ -11,9 +11,9 @@ module Release
   # A condition the maintainer can correct; anything else is a defect in this code.
   class Error < StandardError; end
 
-  def self.version(root: ROOT)
-    File.read(File.join(root, VERSION_FILE))[/VERSION = "([^"]+)"/, 1]
-  end
+  def self.version(root: ROOT) = version_in(File.read(File.join(root, VERSION_FILE)))
+
+  def self.version_in(source) = source[/VERSION = "([^"]+)"/, 1]
 
   def self.verify(tag: ENV.fetch("GITHUB_REF_NAME", nil), changelog: nil, version: self.version)
     changelog ||= File.read(File.join(ROOT, Changelog::PATH))
@@ -52,7 +52,7 @@ module Release
   def self.changes(target, root: ROOT, source: nil, date: Time.now.utc.to_date)
     validate_version(target)
     source ||= clean_source(root)
-    current_version = source.fetch(VERSION_FILE)[/VERSION = "([^"]+)"/, 1]
+    current_version = version_in(source.fetch(VERSION_FILE))
     raise Error, "version cannot go backwards" if Gem::Version.new(target) < Gem::Version.new(current_version)
 
     changelog = source.fetch(Changelog::PATH)

@@ -93,7 +93,7 @@ class CIWorkflowTest < Minitest::Test
       mise.flat_map { |step| step.dig("with", "install_args").split }
     end
 
-    assert_equal (Tools.pinned.keys - ["ruby"]).sort, installs.fetch("quality").sort
+    assert_equal Tools.mise_tools.sort, installs.fetch("quality").sort
     assert_empty installs.values.flatten - Tools.pinned.keys
   end
 
