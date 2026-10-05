@@ -29,10 +29,10 @@ class CIWorkflowTest < Minitest::Test
   end
 
   def test_the_weekly_run_starts_off_the_hour
-    minutes = triggers.fetch("schedule").map { |entry| entry.fetch("cron").split.first }
+    minutes = triggers.fetch("schedule").map { |entry| Integer(entry.fetch("cron").split.first, 10) }
 
-    refute_empty minutes
-    assert(minutes.none? { |minute| minute.match?(/\A0+\z/) })
+    assert_equal 1, minutes.length
+    refute_includes minutes, 0
   end
 
   def test_the_full_run_can_be_started_by_hand
@@ -100,14 +100,13 @@ class CIWorkflowTest < Minitest::Test
   def test_only_a_run_that_publishes_receives_an_identity_token
     jobs = release.fetch("jobs").select { |_name, job| job.dig("permissions", "id-token") == "write" }
 
-    refute_empty jobs
-    jobs.each { |name, job| assert_equal PUBLISH, job["if"], name }
+    assert_equal({ "attest" => PUBLISH, "publish" => PUBLISH }, jobs.transform_values { |job| job["if"] })
   end
 
-  def test_a_rehearsal_still_verifies_the_transferred_artifact
-    commands = rehearsals.values.flat_map { |job| job.fetch("steps").filter_map { |step| step["run"] } }
+  def test_a_rehearsal_verifies_the_transferred_artifact_as_a_publication_does
+    verification = rehearsals.keys.flat_map { |job| commands(job, release) }
 
-    assert(commands.any? { |command| command.include?("sha256sum --check SHA256SUMS") })
+    assert_equal commands("attest", release), verification
   end
 
   def test_a_rehearsal_asks_for_no_permissions

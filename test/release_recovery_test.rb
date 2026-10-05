@@ -31,7 +31,7 @@ class ReleaseRecoveryTest < Minitest::Test
 
       assert_equal changes.fetch("CHANGELOG.md"), File.read(File.join(root, "CHANGELOG.md"))
       assert_equal "0.2.0", Release.version(root: root)
-      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+      assert_equal [CREATED], created_pull_requests(commands)
     end
   end
 

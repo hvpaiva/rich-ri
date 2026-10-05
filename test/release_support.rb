@@ -2,8 +2,34 @@
 
 require_relative "git_support"
 
+# What a release of 0.2.0 is expected to say and run.
+module ReleaseExpectations
+  CREATED = ["gh", "pr", "create", "--base", "main", "--head", "release/v0.2.0", "--title", "chore: release v0.2.0",
+             "--assignee", "@me", "--label", "release", "--repo", "hvpaiva/rich-ri"].freeze
+
+  # The arguments of each gh pr create, without the temporary path of the body file.
+  def created_pull_requests(commands)
+    commands.select { |args| args.first(3) == %w[gh pr create] }.map do |args|
+      body = args.index("--body-file")
+      args[0...body] + args[(body + 2)..]
+    end
+  end
+
+  def assert_release_error(message, &)
+    error = assert_raises(Release::Error, &)
+
+    assert_equal message, error.message
+  end
+
+  def resume(command = "bin/release 0.2.0 --push")
+    "After resolving the problem, rerun #{command}. " \
+      "Existing pull requests and tags are inspected before any new action."
+  end
+end
+
 module ReleaseFixtures
   include GitSupport
+  include ReleaseExpectations
 
   def repository
     Dir.mktmpdir do |dir|
@@ -23,17 +49,6 @@ module ReleaseFixtures
       git(dir, "commit", "-qm", "chore: initialize")
       yield dir
     end
-  end
-
-  def assert_release_error(message, &)
-    error = assert_raises(Release::Error, &)
-
-    assert_equal message, error.message
-  end
-
-  def resume(command = "bin/release 0.2.0 --push")
-    "After resolving the problem, rerun #{command}. " \
-      "Existing pull requests and tags are inspected before any new action."
   end
 
   def workflow(version, **)

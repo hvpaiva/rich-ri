@@ -27,7 +27,7 @@ class GitHubTemplatesTest < Minitest::Test
   def test_every_rich_ri_option_a_form_shows_is_an_option_of_rich_ri
     shown = form_text.scan(/rich-ri((?: --?[\w=-]+)+)/).flatten.flat_map(&:split).map { |option| option[/\A[^=]+/] }
 
-    refute_empty shown
+    assert_equal %w[--no-config --show-config --theme --version], shown.uniq.sort
     assert_empty shown - rich_ri_options
   end
 

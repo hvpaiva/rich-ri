@@ -13,7 +13,7 @@ class ReleasePullRequestTest < Minitest::Test
         commands = []
         output = release(root, commands, prs: [fork_pr(state)])
 
-        assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+        assert_equal [CREATED], created_pull_requests(commands)
         assert(commands.any? { |args| args.first(3) == %w[gh pr merge] && args.include?(release_pr["url"]) })
         refute(commands.any? { |args| args.include?(fork_pr(state)["url"]) })
         assert_includes output, "Ignoring #{fork_pr(state)['url']}: it comes from a fork"
@@ -49,7 +49,7 @@ class ReleasePullRequestTest < Minitest::Test
       commands = []
       release(root, commands, prs: [release_pr("CLOSED")])
 
-      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+      assert_equal [CREATED], created_pull_requests(commands)
     end
   end
 
@@ -59,7 +59,7 @@ class ReleasePullRequestTest < Minitest::Test
       release(root, commands, prs: [release_pr("CLOSED")], local_branch: "a" * 40)
 
       assert_includes commands, %w[git switch -C release/v0.2.0]
-      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+      assert_equal [CREATED], created_pull_requests(commands)
     end
   end
 
@@ -70,7 +70,7 @@ class ReleasePullRequestTest < Minitest::Test
 
       assert_includes commands, ["git", "push", "--force-with-lease=refs/heads/release/v0.2.0:#{'c' * 40}", "-u",
                                  "origin", "release/v0.2.0"]
-      assert(commands.any? { |args| args.first(3) == %w[gh pr create] })
+      assert_equal [CREATED], created_pull_requests(commands)
     end
   end
 
