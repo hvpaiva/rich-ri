@@ -9,6 +9,7 @@ class CIResultTest < Minitest::Test
     assert_equal "full", CI.verify!(results("full"), event: "pull_request")
     assert_equal "scheduled", CI.verify!(results("scheduled", event: "schedule"), event: "schedule")
     assert_equal "full", CI.verify!(results("full", event: "push"), event: "push", force_full: true)
+    assert_equal "full", CI.verify!(results("full", event: "workflow_dispatch"), event: "workflow_dispatch")
   end
 
   def test_failures_cancellations_and_unexpected_skips_block_full_checks

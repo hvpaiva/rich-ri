@@ -33,6 +33,18 @@ class CIWorkflowTest < Minitest::Test
     assert_equal ["docs"], jobs.fetch("docs")
   end
 
+  def test_the_weekly_run_starts_off_the_hour_and_can_be_started_by_hand
+    schedules = triggers.fetch("schedule").map { |entry| entry.fetch("cron").split }
+    minute, hour, day, month, weekday = schedules.first
+
+    assert_equal 1, schedules.length
+    assert_includes 1..59, Integer(minute, 10)
+    assert_includes 0..23, Integer(hour, 10)
+    assert_equal %w[* *], [day, month]
+    assert_includes 0..6, Integer(weekday, 10)
+    assert triggers.key?("workflow_dispatch")
+  end
+
   def test_fresh_dependencies_resolve_every_gem_again
     commands = ci.dig("jobs", "fresh-dependencies", "steps").filter_map { |step| step["run"] }
 

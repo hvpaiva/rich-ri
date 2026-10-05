@@ -5,8 +5,11 @@ on:
     branches: [main, 'hotfix/*']
   pull_request:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  # Mondays, 07:23 UTC. GitHub delays or drops schedules that start on the hour, when most do.
   schedule:
-    - cron: '0 7 * * 1'
+    - cron: '23 7 * * 1'
+  # A manual run always uses the full suite, for example after a missed schedule.
+  workflow_dispatch:
   workflow_call:
     inputs:
       force_full:
