@@ -8,7 +8,7 @@ class ChangelogLintTest < Minitest::Test
   include ReleaseFixtures
 
   def test_each_change_users_can_see_needs_an_entry
-    %w[lib/rich_ri/cli.rb exe/rich-ri completions/rich-ri.zsh man/man1/rich-ri.1].each do |path|
+    %w[lib/rich_ri/cli.rb exe/rich-ri completions/rich-ri.zsh man/man1/rich-ri.1 rich-ri.gemspec].each do |path|
       assert_equal [Changelog::Lint::ENTRY_REQUIRED], lint_after(path => "changed", "test/cli_test.rb" => "test"),
                    path
     end
@@ -16,7 +16,7 @@ class ChangelogLintTest < Minitest::Test
 
   def test_maintenance_and_guides_need_no_entry
     assert_empty lint_after("rakelib/release.rb" => "#", "test/cli_test.rb" => "#", "README.md" => "Read me",
-                            "library/notes.md" => "Notes")
+                            "library/notes.md" => "Notes", "gemfiles/rich-ri.gemspec.lock" => "#")
   end
 
   def test_a_new_line_under_unreleased_is_the_entry

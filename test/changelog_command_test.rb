@@ -11,8 +11,8 @@ class ChangelogCommandTest < Minitest::Test
     Usage: ruby bin/lint-changelog [BASE]
 
     Checks the structure of CHANGELOG.md in the current repository. With BASE, a revision
-    such as origin/main, a branch that changes lib/, exe/, completions/ or man/ also needs
-    an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives that entry.
+    such as origin/main, a branch that changes lib/, exe/, completions/, man/ or
+    rich-ri.gemspec also needs an entry under "## [Unreleased]". SKIP_CHANGELOG=1 waives it.
   TEXT
 
   def test_checks_the_repository_it_runs_in

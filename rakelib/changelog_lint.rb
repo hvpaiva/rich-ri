@@ -6,10 +6,10 @@ require_relative "ci"
 
 module Changelog
   module Lint
-    USER_VISIBLE = %r{\A(?:lib|exe|completions|man)/}
-    ENTRY_REQUIRED = 'Changes under lib/, exe/, completions/ or man/ need a line under "## [Unreleased]". ' \
-                     "When users cannot see the change, set SKIP_CHANGELOG=1; a maintainer adds the " \
-                     "skip-changelog label to the pull request."
+    USER_VISIBLE = %r{\A(?:(?:lib|exe|completions|man)/|rich-ri\.gemspec\z)}
+    ENTRY_REQUIRED = "Changes to lib/, exe/, completions/, man/ or rich-ri.gemspec need a line under " \
+                     '"## [Unreleased]". When users cannot see the change, set SKIP_CHANGELOG=1; ' \
+                     "a maintainer adds the skip-changelog label to the pull request."
 
     class Error < StandardError; end
 
