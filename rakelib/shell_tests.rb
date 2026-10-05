@@ -20,7 +20,7 @@ module ShellTests
     engine = candidates.find { |name| system(name, "info", out: File::NULL, err: File::NULL) }
     return engine if engine
 
-    raise Error, "Shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, " \
+    raise Error, "shell integration checks need Bash, Zsh, Fish and bash-completion 2.x, " \
                  "or a running #{selected || 'Docker or Podman'} engine. " \
                  "Start the engine and rerun bundle exec rake test:shells."
   end
@@ -34,7 +34,7 @@ module ShellTests
     if !container && ShellSupport.available?
       puts "Shell integration checks: native Bash, Zsh and Fish."
       success = system({ "RICH_RI_REQUIRE_SHELLS" => "1" }, RbConfig.ruby, "-Ilib", "-Itest", TEST, chdir: ROOT)
-      raise Error, "Native shell integration tests failed" unless success
+      raise Error, "native shell integration tests failed" unless success
 
       return
     end
@@ -48,15 +48,15 @@ module ShellTests
       image_file = File.join(directory, "id")
       built = system(engine, "build", "--file", "test/containers/Dockerfile", "--tag", IMAGE,
                      "--iidfile", image_file, ".", chdir: ROOT)
-      raise Error, "Shell test image build failed" unless built
+      raise Error, "shell test image build failed" unless built
 
       image = File.file?(image_file) ? File.read(image_file).strip : ""
-      raise Error, "Container build did not return an image ID" unless image.match?(/\A(?:sha256:)?[0-9a-f]{64}\z/)
+      raise Error, "container build did not return an image ID" unless image.match?(/\A(?:sha256:)?[0-9a-f]{64}\z/)
 
       success = system(engine, "run", "--rm", "--network=none", "--read-only", "--cap-drop=ALL",
                        "--security-opt=no-new-privileges", "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m,mode=1777",
                        image, chdir: ROOT)
-      raise Error, "Container shell integration tests failed" unless success
+      raise Error, "container shell integration tests failed" unless success
     end
   end
 end

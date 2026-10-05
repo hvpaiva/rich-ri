@@ -11,7 +11,7 @@ if command -v mise >/dev/null 2>&1; then
   done < <(ruby -r ./rakelib/tools -e 'puts Tools.pinned.keys - %w[ruby]')
   # Without names, mise would install everything mise.toml lists, Ruby included.
   if [ "${#pinned[@]}" -gt 0 ]; then
-    mise install "${pinned[@]}" || printf 'mise install failed; the report below names what is still missing.\n'
+    mise install "${pinned[@]}" || printf 'setup: mise install failed; the lines below name what is still missing.\n' >&2
   fi
 fi
 
@@ -21,7 +21,7 @@ ruby -r ./rakelib/shell_tests -e '
   begin
     ShellTests.verify_environment!
   rescue ShellTests::Error => e
-    abort e.message
+    abort "setup: #{e.message}"
   end
 ' || status=1
 printf 'Run bundle exec rake for tests and Ruby lint; bundle exec rake check for all local CI checks.\n'

@@ -47,8 +47,9 @@ class ToolsTest < Minitest::Test
     Dir.mktmpdir("rich-ri-tools-") do |bin|
       link_ruby(bin)
       link_program(bin, "rake", Gem.bin_path("rake", "rake"))
-      { "lint:spelling" => "typos is not installed; install the version mise.toml pins with: mise install typos\n",
-        "lint:man" => "groff is not installed; install it with your package manager\n" }.each do |task, advice|
+      { "lint:spelling" => "rake: typos is not installed; install the version mise.toml pins with: " \
+                           "mise install typos\n",
+        "lint:man" => "rake: groff is not installed; install it with your package manager\n" }.each do |task, advice|
         _out, err, status = Open3.capture3({ "PATH" => bin }, File.join(bin, "bundle"), "exec", "rake", task,
                                            chdir: TestSupport::ROOT)
 

@@ -39,12 +39,12 @@ module Tools
   end
 
   def self.require!(tool)
-    abort missing(tool) unless available?(tool)
+    abort "rake: #{missing(tool)}" unless available?(tool)
   end
 
   def self.mise_holds?(tool) = system("mise", "which", tool, out: File::NULL, err: File::NULL) || false
 
-  def self.report(out = $stdout)
-    required.reject { |tool| available?(tool) }.each { |tool| out.puts "Missing: #{missing(tool)}" }
+  def self.report
+    required.reject { |tool| available?(tool) }.each { |tool| warn "setup: #{missing(tool)}" }
   end
 end

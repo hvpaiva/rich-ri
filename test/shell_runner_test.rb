@@ -82,7 +82,7 @@ class ShellRunnerTest < Minitest::Test
     _out, err, status = run_runner(env: { "SHELL_RUNNER_BUILD_STATUS" => "23" })
 
     refute_predicate status, :success?
-    assert_includes err, "Shell test image build failed"
+    assert_includes err, "shell test image build failed"
     assert_equal [%w[docker info], %w[docker build]], steps
   end
 
@@ -91,7 +91,7 @@ class ShellRunnerTest < Minitest::Test
     _out, err, status = run_runner(env: { "SHELL_RUNNER_RUN_STATUS" => "42" })
 
     refute_predicate status, :success?
-    assert_includes err, "Container shell integration tests failed"
+    assert_includes err, "container shell integration tests failed"
     assert_equal "run", steps.last.last
   end
 
@@ -100,7 +100,7 @@ class ShellRunnerTest < Minitest::Test
     _out, err, status = run_runner(env: { "SHELL_RUNNER_IMAGE_ID" => "a mutable tag" })
 
     refute_predicate status, :success?
-    assert_includes err, "Container build did not return an image ID"
+    assert_includes err, "container build did not return an image ID"
     assert_equal [%w[docker info], %w[docker build]], steps
   end
 
