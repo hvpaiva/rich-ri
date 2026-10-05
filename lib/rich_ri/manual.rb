@@ -13,8 +13,10 @@ module RichRI
     end
 
     def show(color:, theme: Theme.new)
-      result = system(pager_environment(color:, theme:), "man", path)
+      result = nil
+      interrupted = Signals.defer_interrupt { result = system(pager_environment(color:, theme:), "man", path) }
       raise Error, "man(1) not found; install it or run rich-ri --help" if result.nil?
+      raise Interrupt if interrupted && Signals.killed?
 
       result ? 0 : 1
     end

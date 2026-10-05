@@ -79,7 +79,10 @@ module RichRI
     end
 
     def page
-      super { |io| yield(@formatter_klass ? io : Output.new(io)) }
+      interrupted = Signals.defer_interrupt(method(:paging?)) do
+        super { |io| yield(@formatter_klass ? io : Output.new(io)) }
+      end
+      raise Interrupt if interrupted && Signals.killed?
     end
 
     # RDoc interpolates the name into a pattern unescaped. A class name holds

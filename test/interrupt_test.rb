@@ -9,6 +9,60 @@ class InterruptTest < Minitest::Test
   EXECUTABLE = File.join(TestSupport::ROOT, "exe/rich-ri")
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
 
+  # A program that takes over the terminal the way a pager does: it announces
+  # itself, then waits for a line. With survive it handles Ctrl-C as less does.
+  def terminal_program(path, survive:)
+    File.write(path, <<~RUBY)
+      #!#{RbConfig.ruby}
+      log = File.join(__dir__, "log")
+      trap("INT") { File.write(log, "interrupted\n", mode: "a") } if #{survive}
+      STDIN.read unless STDIN.tty?
+      File.open("/dev/tty", "r+") do |tty|
+        tty.puts "PROGRAM READY"
+        tty.gets
+      end
+      File.write(log, "finished\n", mode: "a")
+    RUBY
+    File.chmod(0o755, path)
+    path
+  end
+
+  def paged_lookup(pager, input)
+    terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, *SOURCES, "RichRIExample#map",
+             env: { "RI_PAGER" => pager, "NO_COLOR" => nil }, prompt: "PROGRAM READY", input: input)
+  end
+
+  def test_ctrl_c_is_left_to_a_pager_that_handles_it
+    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
+      pager = terminal_program(File.join(dir, "pager"), survive: true)
+      output, status = paged_lookup(pager, "\u0003q\n")
+
+      assert_equal 0, status, output
+      assert_equal "interrupted\nfinished\n", File.read(File.join(dir, "log"))
+    end
+  end
+
+  def test_ctrl_c_that_ends_the_pager_ends_the_lookup_as_an_interrupt
+    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
+      pager = terminal_program(File.join(dir, "pager"), survive: false)
+      output, status = paged_lookup(pager, "\u0003")
+
+      assert_equal 130, status, output
+      refute_path_exists File.join(dir, "log")
+    end
+  end
+
+  def test_ctrl_c_is_left_to_the_manual_viewer
+    Dir.mktmpdir("rich-ri-interrupt-") do |dir|
+      terminal_program(File.join(dir, "man"), survive: true)
+      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", EXECUTABLE, "--man",
+                                env: { "PATH" => dir }, prompt: "PROGRAM READY", input: "\u0003q\n")
+
+      assert_equal 0, status, output
+      assert_equal "interrupted\nfinished\n", File.read(File.join(dir, "log"))
+    end
+  end
+
   def test_interrupt_while_the_program_loads_ends_quietly
     Dir.mktmpdir("rich-ri-interrupt-") do |dir|
       # Stands in for the library so the signal arrives during its require.
