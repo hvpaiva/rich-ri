@@ -2,11 +2,30 @@
 
 require "open3"
 
+# What a commit message, a pull request title and a pull request body must look like.
 module CommitPolicy
-  SUBJECT = /\A(?:feat|fix|docs|test|refactor|perf|build|ci|chore|revert)(?:\([\w.-]+\))?!?: \S/
-  GENERATED = /^(?:Generated-(?:by|with)|Assisted-by|Claude-Session):|^\W*Generated with \[?(?:Claude|Codex|ChatGPT)\b/i
-  BOT_ADDRESS = /\A(?:noreply@anthropic\.com|cursoragent@cursor\.com|(?:aider|noreply)@aider\.chat|
-                    \d+\+(?:Copilot|[\w-]+\[bot\])@users\.noreply\.github\.com)\z/ix
+  TYPES = %w[feat fix docs test refactor perf build ci chore revert].freeze
+  SUBJECT = /\A(?:#{TYPES.join('|')})(?:\([\w.-]+\))?!?: \S/
+  # Markers git and people use for work that is not ready to be read.
+  UNFINISHED = /\A(?:(?:fixup|squash|amend)!|wip\b)|\A\w+(?:\([\w.-]+\))?!?:\s*wip\b/i
+  # git revert writes this subject, and Reapply when the reverted commit was itself a revert.
+  REVERT = /\A(?:Revert|Reapply) "(?<subject>.+)"\z/
+
+  ASSISTANTS = %w[Aider aider Amp ChatGPT Claude Codex Copilot Cursor Devin Gemini Jules opencode Windsurf].freeze
+  # Trailer keys, phrases and links that only coding assistants write. The product names keep
+  # their capitals: "generated with cursor movements" is ordinary prose in a terminal project.
+  TOOL_TRAILER = /\A(?:Generated-(?:by|with)|Assisted-by|Claude-Session|Amp-Thread-ID):/i
+  GENERATED = /\A\W*(?i:Generated (?:by|with)) \[?(?:#{ASSISTANTS.join('|')})\b/
+  SESSION = %r{https://(?:claude\.ai/code/session_|chatgpt\.com/codex/tasks/|ampcode\.com/threads/|
+               app\.devin\.ai/sessions/|jules\.google\.com/task/|cursor\.com/(?:agents|background-agent)\b)}ix
+  # A person can share an assistant's name, as Claude Monet does. A signature therefore counts
+  # as a tool's only by the address tools sign with, or by a name that is nothing but a product.
+  SIGNATURE = /\A(?:Co-authored-by|Signed-off-by):\s*(?<name>[^<\n]*?)\s*<(?<address>[^>\n]+)>/i
+  TOOL_ADDRESS = /\A(?:noreply@anthropic\.com|(?:codex|noreply)@openai\.com|cursoragent@cursor\.com|
+                    (?:aider|noreply)@aider\.chat|copilot@github\.com|noreply@opencode\.ai|amp@ampcode\.com|
+                    \d+\+(?:Copilot|gemini-cli|[\w-]+\[bot\])@users\.noreply\.github\.com)\z/ix
+  TOOL_NAME = /\A(?:ChatGPT|Claude\ Code|Codex|(?:GitHub\ )?Copilot|Cursor\ Agent|Gemini(?:[ -]CLI)?|opencode)
+               (?:\ \(.*\))?\z/ix
 
   class Error < StandardError; end
 
@@ -17,9 +36,26 @@ module CommitPolicy
     output.force_encoding(Encoding::UTF_8).scrub
   end
 
-  def self.attribution?(text)
-    text.match?(GENERATED) || text.scan(/^Co-Authored-By:[^<\n]*<([^>\n]+)>/i).flatten.any? do |address|
-      address.strip.match?(BOT_ADDRESS)
+  # The first line that credits a tool, or nil.
+  def self.attribution(text)
+    text.each_line.map(&:strip).find do |line|
+      signature = SIGNATURE.match(line)
+      next signature[:address].strip.match?(TOOL_ADDRESS) || signature[:name].match?(TOOL_NAME) if signature
+
+      line.match?(TOOL_TRAILER) || line.match?(GENERATED) || line.match?(SESSION)
+    end
+  end
+
+  def self.subject_problems(subject)
+    reverted = REVERT.match(subject)
+    return subject_problems(reverted[:subject]) if reverted
+
+    if UNFINISHED.match?(subject)
+      ["Finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{subject}"]
+    elsif SUBJECT.match?(subject)
+      []
+    else
+      [%(Use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: #{subject})]
     end
   end
 
@@ -36,11 +72,9 @@ module CommitPolicy
   end
 
   def self.check(message, subject:)
-    errors = []
-    if subject && !message.to_s.lines.first.to_s.match?(SUBJECT)
-      errors << "Use a Conventional Commit subject: #{message.to_s.lines.first.to_s.strip}"
-    end
-    errors << "Remove generated attribution trailers" if attribution?(message.to_s)
+    errors = subject ? subject_problems(message.to_s.lines.first.to_s.strip) : []
+    credited = attribution(message.to_s)
+    errors << "Remove generated attribution: #{credited}" if credited
     errors
   end
 end
