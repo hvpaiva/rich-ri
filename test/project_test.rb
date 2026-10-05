@@ -4,17 +4,27 @@ require "test_helper"
 require_relative "../rakelib/release"
 
 class ProjectTest < Minitest::Test
-  def test_package_manifest_contains_only_distribution_files
+  USER_GUIDES = %w[docs/compatibility.md docs/configuration.md docs/shell-completion.md docs/troubleshooting.md
+                   docs/usage.md].freeze
+  # Notes for people working on the project: read in the repository, not shipped.
+  REPOSITORY_GUIDES = %w[docs/development.md docs/images/README.md docs/maintenance.md].freeze
+  SHIPPED = (USER_GUIDES + %w[docs/config.example.yml exe/rich-ri completions/rich-ri.bash completions/rich-ri.fish
+                              completions/rich-ri.zsh man/man1/rich-ri.1 README.md CHANGELOG.md LICENSE.txt
+                              SECURITY.md]).freeze
+
+  def test_the_gem_ships_the_runtime_and_the_user_guides_and_nothing_else
     spec = Gem::Specification.load(File.join(TestSupport::ROOT, "rich-ri.gemspec"))
+    runtime = Dir.glob("lib/**/*.rb", base: TestSupport::ROOT)
 
     assert_equal ["rich-ri"], spec.executables
     assert_equal RichRI::VERSION, spec.version.to_s
-    assert_includes spec.files, "completions/rich-ri.bash"
-    assert_includes spec.files, "man/man1/rich-ri.1"
-    assert(spec.files.all? do |file|
-      file.match?(%r{\A(?:lib/|exe/|completions/|man/|docs/|README.md|CHANGELOG.md|LICENSE.txt|SECURITY.md)})
-    end)
-    refute(spec.files.any? { |file| file.include?("/home/") || file.start_with?("test/", "tmp/", ".") })
+    assert_equal (runtime + SHIPPED).sort, spec.files.sort
+  end
+
+  def test_every_guide_is_either_shipped_to_users_or_kept_for_contributors
+    guides = Dir.glob("docs/**/*.md", base: TestSupport::ROOT)
+
+    assert_equal guides.sort, (USER_GUIDES + REPOSITORY_GUIDES).sort
   end
 
   def test_the_minimum_bundle_pins_every_runtime_dependency_at_its_declared_floor
