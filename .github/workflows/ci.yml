@@ -1,24 +1,15 @@
-# The "changes" job decides how much runs (rakelib/ci.rb): documentation-only changes get the
-# documentation checks, the weekly run gets the checks that can break without a commit, and
-# everything else gets the full suite. The "ci" job at the end is the one required status
-# check: it fails unless every job the chosen scope requires succeeded, so a skipped job can
-# never count as a pass. Jobs call the rake tasks a contributor runs through
-# "bundle exec rake check"; mise installs the lint tools at the versions mise.toml pins.
 name: CI
 
 on:
   push:
     branches: [main, 'hotfix/*']
-  # edited, labeled and unlabeled rerun the commits job when the title, the body or the
-  # skip-changelog label changes.
+  # edited and (un)labeled rerun the commits job after a title, body or skip-changelog change.
   pull_request:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
-  # Mondays, 07:23 UTC. GitHub delays or drops schedules that start on the hour, when most do.
+  # Off the hour: GitHub delays or drops schedules that start on the hour.
   schedule:
     - cron: '23 7 * * 1'
-  # A manual run always uses the full suite, for example after a missed schedule.
   workflow_dispatch:
-  # Release calls this workflow first, so nothing is published that CI rejects.
   workflow_call:
     inputs:
       force_full:
@@ -26,13 +17,12 @@ on:
         type: boolean
         default: true
 
-# Every job only reads the repository; none needs a token that can write.
+# Every job only reads the repository.
 permissions:
   contents: read
 
-# A newer commit replaces the run of the pull request it belongs to. Every other run has a
-# group of its own: a shared group keeps one run and one waiting run and cancels the rest, so
-# a merge to main or a hotfix branch could be left without its complete result.
+# Only pull request runs share a group: a shared group cancels waiting runs, which would leave
+# a push to main or a hotfix branch without a complete result.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
@@ -44,7 +34,7 @@ jobs:
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
     steps:
-      # The whole history: the scope compares the base and head commits of the push or pull request.
+      # The scope compares the base and head commits.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -114,8 +104,6 @@ jobs:
           name: benchmark
           path: benchmark.json
 
-  # 3.4 is the oldest Ruby the gemspec supports. RICH_RI_REQUIRE_SHELLS turns a missing Bash,
-  # Zsh or Fish into a failure instead of a skip.
   test:
     needs: changes
     if: needs.changes.outputs.scope == 'full'
@@ -159,8 +147,6 @@ jobs:
           bundler-cache: true
       - run: bundle exec rake audit
 
-  # Resolves every gem again instead of using Gemfile.lock. The weekly run includes it, so a
-  # new RDoc or Reline release that breaks the reader shows up without waiting for a commit.
   fresh-dependencies:
     needs: changes
     if: needs.changes.outputs.scope == 'full' || needs.changes.outputs.scope == 'scheduled'
@@ -190,8 +176,6 @@ jobs:
         with:
           ruby-version: '3.4'
       - run: sudo apt-get update && sudo apt-get install -y groff man-db bash-completion zsh fish
-      # The command contributors run through bundle exec rake test:compatibility. It installs
-      # the RDoc 6.14 bundle and the minimum bundle in private directories and needs no other.
       - name: Test the minimum runtime dependencies and an older store
         env:
           RICH_RI_REQUIRE_SHELLS: '1'
@@ -202,24 +186,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # The pull request head, not the merge commit GitHub creates, so the range holds only
-      # the contributor's commits. The whole history brings the base branch as origin/BASE.
+      # The head, not GitHub's merge commit, so the range holds only the contributor's commits;
+      # the whole history brings the base branch as origin/BASE.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
-      # The title and body reach the script through the environment, never through template
-      # expansion inside the command.
+      # Untrusted title and body reach the script through the environment, never the template.
       - name: Check the commits and the pull request title and body
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: ruby bin/lint-commits "origin/$BASE_REF..HEAD"
-      # The same check as bundle exec rake lint:changelog. The skip-changelog label waives the
-      # entry for changes users cannot see; the structure of the file is always checked.
       - name: Require a changelog entry for changes users can see
         if: ${{ !cancelled() }}
         env:
@@ -227,7 +208,7 @@ jobs:
           SKIP_CHANGELOG: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
         run: ruby bin/lint-changelog "origin/$BASE_REF"
 
-  # always(): this job must report a result even when a job it needs failed or was skipped.
+  # The only required check: always() reports even when a needed job failed or was skipped.
   ci:
     if: ${{ always() }}
     needs: [changes, docs, quality, test, audit, fresh-dependencies, compatibility, commits]
