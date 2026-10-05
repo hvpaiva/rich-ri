@@ -58,10 +58,28 @@ class BashCompletionTest < Minitest::Test
   end
 
   def test_bash_leaves_paths_to_readline
-    assert_equal [[], ["-o default"]], bash_answer("rich-ri --config ~/", "--config", "~/")
-    assert_equal [[], ["-o dirnames"]], bash_answer("rich-ri --doc-dir=do", "--doc-dir", "=", "do")
-    assert_equal [[], []], bash_answer("rich-ri NoSuchExample", "NoSuchExample")
-    assert_equal [["method="], ["-o nospace"]], bash_answer("rich-ri --style met", "--style", "met")
+    assert_equal [[], ["+o filenames", "-o default"]], bash_answer("rich-ri --config ~/", "--config", "~/")
+    assert_equal [[], ["+o filenames", "-o dirnames"]], bash_answer("rich-ri --doc-dir=do", "--doc-dir", "=", "do")
+    assert_equal [[], ["+o filenames"]], bash_answer("rich-ri NoSuchExample", "NoSuchExample")
+    assert_equal [["method="], ["+o filenames", "-o nospace"]], bash_answer("rich-ri --style met", "--style", "met")
+  end
+
+  def test_bash_replaces_only_what_follows_an_equals_sign_in_a_method_name
+    assert_equal [[""], ["+o filenames"]], bash_answer("rich-ri Inkwell#name=", "Inkwell#name", "=", typed: "")
+    assert_equal ["", "="], bash_answer("rich-ri Inkwell#==", "Inkwell#", "==", typed: "").first
+    assert_equal ["\\~"], bash_answer("rich-ri Inkwell#=~", "Inkwell#", "=", "~").first
+    assert_equal [""], bash_answer("rich-ri Inkwell#\\[\\]=", "Inkwell#\\[\\]", "=", typed: "").first
+    assert_equal [""], bash_answer("rich-ri 'Inkwell#[]'=", "'Inkwell#[]'", "=", typed: "").first
+  end
+
+  def test_bash_quotes_its_replies_for_where_the_word_stands
+    assert_equal ["Inkwell#fill", "Inkwell#filled\\?"], bash_answer("rich-ri Inkwell#fi", "Inkwell#fi").first
+    assert_equal ["Inkwell#\\<\\<", "Inkwell#\\<=", "Inkwell#\\<=\\>"],
+                 bash_answer("rich-ri Inkwell#\\<", "Inkwell#\\<").first
+    assert_equal ["Inkwell#<=", "Inkwell#<=>"],
+                 bash_answer("rich-ri 'Inkwell#<=", "'Inkwell#<=", typed: "Inkwell#<=").first
+    assert_equal ["Inkwell#[]", "Inkwell#[]="],
+                 bash_answer("rich-ri \"Inkwell#[", "\"Inkwell#[", typed: "Inkwell#[").first
   end
 
   private
@@ -170,6 +188,10 @@ class ShellInsertionTest < Minitest::Test
 
   def test_fish_inserts_completed_alias_method_and_quoted_directory
     check_insertion("fish")
+  end
+
+  def test_bash_inserts_names_that_no_shell_takes_unquoted
+    check_names("bash")
   end
 
   def test_zsh_inserts_names_that_no_shell_takes_unquoted
