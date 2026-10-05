@@ -29,8 +29,8 @@ begin
   problems = Changelog::Lint.problems(root: Dir.pwd, base: base)
   abort problems.map { |problem| "lint-changelog: #{Changelog::PATH}: #{problem}" }.join("\n") unless problems.empty?
 rescue OptionParser::ParseError => e
-  warn "lint-changelog: #{e.message}\n#{parser}"
+  warn "lint-changelog: #{Untrusted.visible(e.message)}\n#{parser}"
   exit 2
 rescue Changelog::Lint::Error => e
-  abort "lint-changelog: #{e.message}"
+  abort "lint-changelog: #{Untrusted.visible(e.message)}"
 end

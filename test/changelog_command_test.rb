@@ -61,6 +61,42 @@ class ChangelogCommandTest < Minitest::Test
     end
   end
 
+  def test_control_characters_in_the_changelog_are_shown_as_text
+    repository do |root|
+      changelog = File.read(File.join(root, Changelog::PATH))
+      commit(root, Changelog::PATH => changelog.sub("### Added", "### \e]0;renamed\a\e[31mAdded")
+                                               .sub("[Unreleased]: ", "## \e[2JNews\n[Unreleased]: "))
+      out, err, status = lint_changelog(root)
+
+      assert_equal [1, "", "lint-changelog: CHANGELOG.md: heading \"## \\e[2JNews\" must be \"## [Unreleased]\" or " \
+                           "\"## [X.Y.Z] - YYYY-MM-DD\"\n" \
+                           "lint-changelog: CHANGELOG.md: section \"### \\e]0;renamed\\a\\e[31mAdded\" " \
+                           "must be one of Added, Changed, Deprecated, Removed, Fixed, Security\n"],
+                   [status.exitstatus, out, err]
+    end
+  end
+
+  def test_control_characters_in_the_base_are_shown_as_text
+    repository do |root|
+      out, err, status = lint_changelog(root, "\e[31mred")
+
+      assert_equal [2, "", "lint-changelog: invalid argument: \\e[31mred " \
+                           "(use a revision such as origin/main)\n#{HELP}"], [status.exitstatus, out, err]
+    end
+  end
+
+  def test_control_characters_in_a_base_git_cannot_compare_with_are_shown_as_text
+    repository do |root|
+      git(root, "switch", "-q", "--orphan", "unrelated")
+      git(root, "commit", "--allow-empty", "-qm", "\e]0;unrelated")
+      git(root, "switch", "-q", "main")
+      out, err, status = lint_changelog(root, "unrelated^{/\e]0}")
+
+      assert_equal [1, "", "lint-changelog: cannot compare HEAD with unrelated^{/\\e]0}: " \
+                           "fatal: unrelated^{/?]0}...HEAD: no merge base\n"], [status.exitstatus, out, err]
+    end
+  end
+
   def test_honors_the_documented_waiver_values
     %w[1 true].each do |waiver|
       repository do |root|

@@ -2,6 +2,7 @@
 
 require "date"
 require_relative "github"
+require_relative "untrusted"
 
 # Keep a Changelog: Unreleased, then releases newest first, then their link references.
 module Changelog
@@ -62,7 +63,7 @@ module Changelog
   def self.heading_problems(text)
     headings = headings(text)
     problems = headings.reject { |heading| heading == UNRELEASED || RELEASE.match?(heading) }.map do |heading|
-      %(heading "## #{heading}" must be "## #{UNRELEASED}" or "## [X.Y.Z] - YYYY-MM-DD")
+      %(heading "## #{Untrusted.visible(heading)}" must be "## #{UNRELEASED}" or "## [X.Y.Z] - YYYY-MM-DD")
     end
     return problems if headings.first == UNRELEASED && headings.one?(UNRELEASED)
 
@@ -91,7 +92,7 @@ module Changelog
 
   def self.section_problems(text)
     (text.scan(/^### (.*)$/).flatten.uniq - SECTIONS).map do |section|
-      %(section "### #{section}" must be one of #{SECTIONS.join(', ')})
+      %(section "### #{Untrusted.visible(section)}" must be one of #{SECTIONS.join(', ')})
     end
   end
 

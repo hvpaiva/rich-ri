@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "untrusted"
 
 module CommitPolicy
   TYPES = %w[feat fix docs test refactor perf build ci chore revert].freeze
@@ -35,9 +36,6 @@ module CommitPolicy
     output.force_encoding(Encoding::UTF_8).scrub
   end
 
-  # Commit text is untrusted: an escape sequence must reach the terminal as text, not act on it.
-  def self.visible(text) = text.gsub(/[[:cntrl:]]/) { |character| character.dump[1..-2] }
-
   def self.attribution(text)
     text.each_line.map(&:strip).find do |line|
       signature = SIGNATURE.match(line)
@@ -52,12 +50,13 @@ module CommitPolicy
     return subject_problems(reverted[:subject]) if reverted
 
     if UNFINISHED.match?(subject)
-      ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: #{visible(subject)}"]
+      ["finish this commit first; fixup!, squash!, amend! and WIP subjects are not accepted: " \
+       "#{Untrusted.visible(subject)}"]
     elsif SUBJECT.match?(subject)
       []
     else
       [%(use a Conventional Commit subject, "type(scope): summary" with one of #{TYPES.join(', ')}: ) +
-        visible(subject)]
+        Untrusted.visible(subject)]
     end
   end
 
@@ -76,9 +75,9 @@ module CommitPolicy
   def self.check(message, subject:)
     errors = subject ? subject_problems(message.to_s.lines.first.to_s.strip) : []
     credited = attribution(message.to_s)
-    errors << "remove generated attribution: #{visible(credited)}" if credited
+    errors << "remove generated attribution: #{Untrusted.visible(credited)}" if credited
     errors
   end
 
-  private_class_method :git, :visible, :attribution, :subject_problems
+  private_class_method :git, :attribution, :subject_problems
 end
