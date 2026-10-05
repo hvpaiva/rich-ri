@@ -67,7 +67,8 @@ namespace :generate do
   desc "Check that generated documentation is current"
   task :check do
     require_relative "rakelib/manual"
-    abort "Manual is stale. Run bundle exec rake generate." unless File.read("man/man1/rich-ri.1") == Manual.render
+    stale = File.read("man/man1/rich-ri.1") != Manual.render
+    abort "rake: the manual is stale; run bundle exec rake generate" if stale
   end
 end
 

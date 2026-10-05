@@ -97,6 +97,17 @@ class ProjectTest < Minitest::Test
     assert_equal [1, "rake: release tag must be v#{RichRI::VERSION}\n"], [status.exitstatus, err]
   end
 
+  def test_a_stale_manual_is_reported_with_the_command_that_regenerates_it
+    Dir.mktmpdir("rich-ri-manual-") do |root|
+      FileUtils.mkdir_p(File.join(root, "man/man1"))
+      File.write(File.join(root, "man/man1/rich-ri.1"), ".TH STALE 1\n")
+      _out, err, status = Open3.capture3(RbConfig.ruby, Gem.bin_path("rake", "rake"), "-f",
+                                         File.join(TestSupport::ROOT, "Rakefile"), "generate:check", chdir: root)
+
+      assert_equal [1, "rake: the manual is stale; run bundle exec rake generate\n"], [status.exitstatus, err]
+    end
+  end
+
   def test_every_rake_task_describes_itself
     out, err, status = Open3.capture3("bundle", "exec", "rake", "--all", "--tasks", chdir: TestSupport::ROOT)
     undescribed = out.lines.grep_v(/ # \S/).map { |line| line.split.fetch(1) }
