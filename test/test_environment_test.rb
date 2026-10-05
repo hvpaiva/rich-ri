@@ -112,7 +112,7 @@ class TestEnvironmentTest < Minitest::Test
   # Every test file that runs Git or loads the Git fixtures, except this one, which would run itself again.
   def git_tests
     Dir.glob("test/*_test.rb", base: TestSupport::ROOT).select do |path|
-      source = File.read(File.join(TestSupport::ROOT, path))
+      source = File.read(File.join(TestSupport::ROOT, path), encoding: Encoding::UTF_8)
       path != "test/#{File.basename(__FILE__)}" && source.match?(/\bgit\b|\b(?:git|release)_support\b/)
     end
   end
