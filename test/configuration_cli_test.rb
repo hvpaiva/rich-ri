@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "command_helper"
 
 class ConfigurationCLITest < Minitest::Test
+  include CommandSupport
+
   def test_custom_theme_reaches_ruby_rendering_without_changing_plain_text
     with_config({ "color" => "always", "styles" => { "method" => "red:bold" } }) do |path|
       colored, err, status = cli("--config", path, "RichRIExample#map")
@@ -133,13 +136,11 @@ class ConfigurationCLITest < Minitest::Test
   end
 
   def test_show_config_refuses_to_print_anything_but_plain_data
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       RichRI::Options.prepend(Module.new { def settings = super.merge("pager" => Object.new) })
-      exit RichRI::CLI.run(ARGV)
     RUBY
-    out, err, status = Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib",
-                                      "-e", source, "--", "--no-config", "--show-config")
+    out, err, status = with_planted(defect) { |env| cli("--no-config", "--show-config", docs: false, env: env) }
 
     assert_equal 1, status.exitstatus
     assert_empty out

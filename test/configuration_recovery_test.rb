@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "command_helper"
 
 class ConfigurationRecoveryTest < Minitest::Test
+  include CommandSupport
+
   def test_invalid_ri_abbreviations_fail_lookup_but_allow_recovery_actions
     environment = { "RI" => "--wid=44" }
     out, err, status = cli("--show-config", docs: false, env: environment)
@@ -83,16 +86,12 @@ class ConfigurationRecoveryTest < Minitest::Test
   end
 
   def test_recovery_actions_survive_any_failure_to_read_the_configuration
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       RichRI::ConfigurationFile.prepend(Module.new { def read = raise(NoMethodError, "planted defect") })
-      exit RichRI::CLI.run(ARGV)
     RUBY
     with_config({ "width" => 44 }) do |path|
-      run = lambda do |*args|
-        Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source,
-                       "--", "--config", path, *args)
-      end
+      run = ->(*args) { with_planted(defect) { |env| cli("--config", path, *args, docs: false, env: env) } }
       ["--help", "--version", "--config-path", "--completion=bash"].each do |action|
         out, err, status = run.call(action)
 

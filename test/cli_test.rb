@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "command_helper"
 
 class CLITest < Minitest::Test
+  include CommandSupport
+
   def test_version_and_help_are_owned_by_rich_ri
     out, err, status = cli("--version", docs: false)
 
@@ -87,13 +90,11 @@ class CLITest < Minitest::Test
   end
 
   def defective_cli(*, env: {})
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       RichRI::Formatter.prepend(Module.new { def start_accepting = raise(NoMethodError, "planted defect") })
-      exit RichRI::CLI.run(ARGV)
     RUBY
-    Open3.capture3(TestSupport::ENVIRONMENT.merge(env), RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source,
-                   "--", "--no-standard-docs", "--doc-dir", TestSupport::STORE, *)
+    with_planted(defect, env: env) { |planted| cli(*, env: planted) }
   end
 
   def test_a_defect_is_reported_in_one_line
@@ -111,7 +112,7 @@ class CLITest < Minitest::Test
 
     assert_equal 1, status.exitstatus
     assert_equal ["rich-ri: planted defect\n", "NoMethodError\n"], err.lines.first(2)
-    assert_match(/\A {4}-e:2:in /, err.lines[2])
+    assert_match(%r{\A {4}\S*/rich_ri_planted\.rb:2:in }, err.lines[2])
     assert_includes err, "rich_ri/cli.rb"
     _out, err, status = cli("--dump=#{File.join(TestSupport::ROOT, 'LICENSE.txt')}", env: { "RICH_RI_DEBUG" => "1" })
 

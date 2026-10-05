@@ -2,9 +2,11 @@
 
 require "test_helper"
 require "terminal_helper"
+require "command_helper"
 
 class InterruptTest < Minitest::Test
   include TerminalTestSupport
+  include CommandSupport
 
   EXECUTABLE = File.join(TestSupport::ROOT, "exe/rich-ri")
   SOURCES = ["--no-standard-docs", "--doc-dir", TestSupport::STORE].freeze
@@ -90,13 +92,11 @@ class InterruptTest < Minitest::Test
   end
 
   def test_interrupt_during_a_lookup_ends_quietly
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       RichRI::Formatter.prepend(Module.new { def start_accepting = raise(Interrupt) })
-      exit RichRI::CLI.run(ARGV)
     RUBY
-    out, err, status = Open3.capture3(TestSupport::ENVIRONMENT, RbConfig.ruby, "-I#{TestSupport::ROOT}/lib",
-                                      "-e", source, "--", *SOURCES, "RichRIExample#map")
+    out, err, status = with_planted(defect) { |env| cli("RichRIExample#map", env: env) }
 
     assert_equal 130, status.exitstatus, err
     assert_empty out

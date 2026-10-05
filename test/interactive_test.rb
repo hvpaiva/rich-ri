@@ -2,9 +2,11 @@
 
 require "test_helper"
 require "terminal_helper"
+require "command_helper"
 
 class InteractiveTest < Minitest::Test
   include TerminalTestSupport
+  include CommandSupport
 
   def typed_into(text, environment, *command)
     PTY.open do |terminal, keyboard|
@@ -48,17 +50,16 @@ class InteractiveTest < Minitest::Test
   # RubyGems builds its default directory from RbConfig, whose strings are
   # BINARY in every locale, and the directories of its gems inherit the label.
   def test_tab_works_over_gem_directories_labelled_binary_and_on_an_empty_line
-    source = <<~RUBY
+    binary_paths = <<~RUBY
       home = ENV.fetch("GEM_HOME").b
       Gem.paths = { "GEM_HOME" => home, "GEM_PATH" => home }
-      require "rich_ri"
-      exit RichRI::CLI.run(ARGV)
     RUBY
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
       environment = TestSupport.gem_environment.merge("HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1")
-      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
-                                "--no-system", "--no-site", "--no-home",
-                                env: environment, prompt: ">> ", input: "\tinkwell-2\t\nInkwell#filled\t\n\n")
+      output, status = with_planted(binary_paths, env: environment) do |env|
+        terminal_cli("--no-system", "--no-site", "--no-home",
+                     env: env, prompt: ">> ", input: "\tinkwell-2\t\nInkwell#filled\t\n\n")
+      end
 
       assert_equal 0, status, output
       assert_includes output, "UPGRADING.rdoc"
@@ -168,16 +169,16 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_session_continues_after_completion_fails
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       RichRI::Driver.prepend(Module.new { def complete(_name) = raise(EncodingError, "planted completion defect") })
-      exit RichRI::CLI.run(ARGV)
     RUBY
     Dir.mktmpdir("rich-ri-interactive-") do |dir|
       environment = { "HOME" => dir, "INPUTRC" => File::NULL, "NO_COLOR" => "1" }
-      output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
-                                "--no-standard-docs", "--doc-dir", TestSupport::STORE,
-                                env: environment, prompt: ">> ", input: "Rich\tRichRIExample#map\n\n")
+      output, status = with_planted(defect, env: environment) do |env|
+        terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE,
+                     env: env, prompt: ">> ", input: "Rich\tRichRIExample#map\n\n")
+      end
 
       assert_equal 0, status, output
       assert_includes output, "rich-ri: planted completion defect"
@@ -186,13 +187,13 @@ class InteractiveTest < Minitest::Test
   end
 
   def test_a_prompt_that_keeps_failing_ends_the_session_with_the_failure
-    source = <<~RUBY
+    defect = <<~RUBY
       require "rich_ri"
       Reline.singleton_class.prepend(Module.new { def readline(*) = raise(EncodingError, "planted prompt defect") })
-      exit RichRI::CLI.run(ARGV)
     RUBY
-    output, status = terminal(RbConfig.ruby, "-I#{TestSupport::ROOT}/lib", "-e", source, "--",
-                              "--no-standard-docs", "--interactive")
+    output, status = with_planted(defect) do |env|
+      terminal_cli("--no-standard-docs", "--interactive", env: env.merge("NO_COLOR" => "1"))
+    end
 
     assert_equal 1, status, output
     assert_equal ["rich-ri: planted prompt defect\r\n"] * 3, output.lines.last(3)
