@@ -20,7 +20,7 @@ module RichRI
     # when RICH_RI_DEBUG is set.
     def self.report(error, io = $stderr)
       explained = error.is_a?(Error)
-      io.puts "rich-ri: #{RichRI.sanitize(message(error))}"
+      io.puts "rich-ri: #{RichRI.sanitize(summary(error))}"
       io.puts error.hint if explained && error.hint
       trace(error, io) unless ENV.fetch(DEBUG_VARIABLE, "").empty?
       explained ? error.exit_status : 1
@@ -28,7 +28,7 @@ module RichRI
 
     # A failed system call reads as tools usually print it: what it failed on,
     # then why, without the name of the C function that noticed.
-    def self.message(error)
+    def self.summary(error)
       match = SYSTEM_CALL.match(error.message) if error.is_a?(SystemCallError)
       match ? "#{STREAMS.fetch(match[:subject], match[:subject])}: #{match[:reason]}" : error.message
     end
@@ -41,7 +41,7 @@ module RichRI
         io.puts "caused by #{error.class.name}: #{RichRI.sanitize(error.message)}" if error
       end
     end
-    private_class_method :message, :trace
+    private_class_method :summary, :trace
 
     def initialize(message = nil, hint: nil)
       super(message)

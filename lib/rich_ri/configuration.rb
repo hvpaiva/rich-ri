@@ -187,12 +187,12 @@ module RichRI
       ["--#{'no-' unless value}#{flag}"]
     end
 
-    def style(role, value, variable = nil)
-      text!(value, variable || "styles.#{role}")
+    def style(role, value, origin = nil)
+      text!(value, origin || "styles.#{role}")
       Theme.new(styles: { role => value })
       ["--style=#{role}=#{value}"]
     rescue ThemeError => e
-      raise ConfigurationError, [variable, e.message].compact.join(": ")
+      raise ConfigurationError, [origin, e.message].compact.join(": ")
     end
 
     def text!(value, name)

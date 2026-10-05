@@ -39,8 +39,8 @@ module RichRI
       end
       @parser.on("--style=ROLE=STYLE",
                  "Override a style role; repeat for several roles. Example: method=green:bold.") do |value|
-        role, style = value.split("=", 2)
-        @styles[role] = style(role, style)
+        role, description = value.split("=", 2)
+        @styles[role] = style(role, description)
       end
       @parser.on("--bat-theme=NAME", "bat theme for tagged non-Ruby, non-shell code (default: base16).") do |name|
         @bat_theme = text("--bat-theme", name)
