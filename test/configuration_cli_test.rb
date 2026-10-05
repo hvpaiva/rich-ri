@@ -116,6 +116,21 @@ class ConfigurationCLITest < Minitest::Test
     end
   end
 
+  def test_show_config_prints_terminal_controls_in_values_as_yaml_escapes
+    Dir.mktmpdir("rich-ri-config-") do |dir|
+      names = ["reversed\u202etext", "quoted\"\u2066isolate", "bell\a\e[31m", "plain"]
+      directories = names.map { |name| File.join(dir, name).tap { |path| Dir.mkdir(path) } }
+      sources = directories.flat_map { |directory| ["--doc-dir", directory] }
+      out, err, status = cli("--no-config", *sources, "--show-config", docs: false)
+
+      assert_predicate status, :success?, err
+      refute_match(RichRI::CONTROL, out)
+      assert_includes out, "reversed\\u202Etext"
+      assert_includes out, "quoted\\\"\\u2066isolate"
+      assert_equal directories, Psych.safe_load(out).fetch("doc_dirs")
+    end
+  end
+
   def test_show_config_refuses_to_print_anything_but_plain_data
     source = <<~RUBY
       require "rich_ri"

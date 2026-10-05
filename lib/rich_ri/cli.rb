@@ -51,7 +51,7 @@ module RichRI
       when :help then help(options)
       when :version then puts "rich-ri #{VERSION}"
       when :config_path then puts options.configuration_path
-      when :show_config then puts Psych.safe_dump(options.settings)
+      when :show_config then puts settings_yaml(options.settings)
       when :completion then puts File.read(File.expand_path("../../completions/rich-ri.#{value}", __dir__))
       when :man_path then puts Manual.new.path
       when :man then return Manual.new.show(color: color?(options.color), theme: options.theme)
@@ -63,6 +63,26 @@ module RichRI
         return Manual.new.install(value)
       end
       0
+    end
+
+    # The settings as YAML that shows no terminal control. Psych escapes most
+    # of them, but writes as they are the ones Unicode calls printable, such
+    # as those that reverse the direction of text. A value holding one is
+    # double-quoted, the only style in which \uXXXX is an escape and not text,
+    # so the output still loads as the same settings.
+    def settings_yaml(settings)
+      yaml = Psych.safe_dump(settings)
+      return yaml if RichRI.printable?(yaml)
+
+      document = Psych.parse_stream(yaml)
+      document.grep(Psych::Nodes::Scalar).each do |scalar|
+        next if RichRI.printable?(scalar.value)
+
+        scalar.style = Psych::Nodes::Scalar::DOUBLE_QUOTED
+        scalar.plain = false
+        scalar.quoted = true
+      end
+      document.to_yaml.gsub(CONTROL) { |char| format(char.ord > 0xFFFF ? "\\U%08X" : "\\u%04X", char.ord) }
     end
 
     def dump(path)
