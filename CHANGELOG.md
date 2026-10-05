@@ -15,6 +15,8 @@ User-visible changes are recorded here. This project follows
 - Names with pattern characters, such as `Array[`, are reported as unknown and no
   longer end interactive lookup.
 - Configuration paths outside ASCII are read under the C locale.
+- Ctrl-C is left to the pager while a page is open; it no longer leaves the pager
+  running in a terminal without echo.
 
 ## [0.1.0] - 2026-10-05
 

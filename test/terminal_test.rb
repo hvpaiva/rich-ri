@@ -42,6 +42,25 @@ class TerminalTest < Minitest::Test
     end
   end
 
+  def test_interrupt_is_left_to_the_pager_while_a_page_is_open
+    Dir.mktmpdir("rich-ri-pager-") do |dir|
+      pager = File.join(dir, "pager.rb")
+      File.write(pager, <<~RUBY)
+        trap("INT", "IGNORE")
+        STDIN.read
+        print "open"
+        File.open("/dev/tty", &:gets)
+        print "closed"
+      RUBY
+      output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",
+                                    env: { "RI_PAGER" => [RbConfig.ruby, pager].shelljoin },
+                                    prompt: "open", input: "\u0003\n")
+
+      assert_equal 0, status, output
+      assert_includes output, "closed"
+    end
+  end
+
   def test_missing_pagers_fall_back_to_terminal_output
     environment = { "PATH" => "", "RI_PAGER" => "missing-ri-pager", "PAGER" => "missing-pager" }
     output, status = terminal_cli("--no-standard-docs", "--doc-dir", TestSupport::STORE, "RichRIExample#map",

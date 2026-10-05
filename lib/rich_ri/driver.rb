@@ -47,7 +47,13 @@ module RichRI
     end
 
     def page
-      super { |io| yield(@list && !@formatter_klass ? ListOutput.new(io) : io) }
+      interrupt = nil
+      super do |io|
+        interrupt = trap("INT", "IGNORE") if paging?
+        yield(@list && !@formatter_klass ? ListOutput.new(io) : io)
+      end
+    ensure
+      trap("INT", interrupt) if interrupt
     end
 
     def expand_name(name)
