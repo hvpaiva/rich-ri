@@ -6,6 +6,8 @@ User-visible changes are recorded here. This project follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-06
+
 ### Fixed
 
 - Tab at the interactive prompt no longer ends the session when an installed gem
@@ -76,5 +78,6 @@ User-visible changes are recorded here. This project follows
 - Invalid dump paths and a missing manual viewer produce actionable errors.
 - Contributor checks handle shallow pull request merge histories.
 
-[Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hvpaiva/rich-ri/compare/v0.1.1...HEAD
 [0.1.0]: https://github.com/hvpaiva/rich-ri/releases/tag/v0.1.0
+[0.1.1]: https://github.com/hvpaiva/rich-ri/releases/tag/v0.1.1
