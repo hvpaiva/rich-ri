@@ -39,6 +39,11 @@ class RichRIExample
     index
   end
 
+  # Store one value for later lookups.
+  def value=(value)
+    @values = [value]
+  end
+
   # Report whether this example is ready.
   #
   #   re = /foo/

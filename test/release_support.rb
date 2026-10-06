@@ -18,7 +18,8 @@ module ReleaseFixtures
                                 "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
                                 "commit", "-qm", "chore: initialize"]].each do |args|
         # Detached maintenance can race with the temporary directory cleanup.
-        _out, err, status = Open3.capture3("git", "-c", "maintenance.auto=false", *args, chdir: dir)
+        _out, err, status = Open3.capture3(TestSupport::GIT_ENVIRONMENT, "git", "-c", "maintenance.auto=false", *args,
+                                           chdir: dir)
 
         assert_predicate status, :success?, err
       end

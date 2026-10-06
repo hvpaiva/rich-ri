@@ -33,22 +33,29 @@ module RichRI
     rescue Errno::EPIPE
       0
     rescue OptionParser::ParseError, ArgumentError, RDoc::Error, TypeError, LoadError, SystemCallError, RegexpError => e
-      if (dependency = optional_dependency(e))
-        warn "rich-ri: --#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
-             "Install it for your active Ruby: gem install #{dependency}"
-      elsif incompatible_cache?(e)
-        warn "rich-ri: incompatible RI cache format for this Ruby and RDoc.\n" \
-             "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
-             "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
-      else
-        warn "rich-ri: #{RichRI.sanitize(e.message)}\nRun rich-ri --help for usage."
-      end
+      report(e)
+    rescue StandardError => e
+      warn "rich-ri: #{e.class}: #{RichRI.sanitize(e.message)}"
       1
     rescue Interrupt
       130
     end
 
     private
+
+    def report(error)
+      if (dependency = optional_dependency(error))
+        warn "rich-ri: --#{dependency == 'webrick' ? 'server' : 'profile'} requires the optional #{dependency} gem.\n" \
+             "Install it for your active Ruby: gem install #{dependency}"
+      elsif incompatible_cache?(error)
+        warn "rich-ri: incompatible RI cache format for this Ruby and RDoc.\n" \
+             "Regenerate the documentation with your current Ruby and RDoc. For gems: gem rdoc GEM_NAME --ri.\n" \
+             "For Ruby core documentation, see https://github.com/hvpaiva/rich-ri/blob/main/docs/troubleshooting.md"
+      else
+        warn "rich-ri: #{RichRI.sanitize(error.message)}\nRun rich-ri --help for usage."
+      end
+      1
+    end
 
     def optional_dependency(error)
       error.path if error.is_a?(LoadError) && %w[profile webrick].include?(error.path)

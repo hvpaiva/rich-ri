@@ -17,6 +17,8 @@ module TestSupport
                           ENV.keys.grep(/\ARICH_RI_STYLE_/)
   application_variables.each { |key| ENV.delete(key) }
   ENV["XDG_CONFIG_HOME"] = File.join(TEMP, "config")
+  # A Git hook exports these for the repository it runs in.
+  GIT_ENVIRONMENT = { "GIT_DIR" => nil, "GIT_WORK_TREE" => nil, "GIT_INDEX_FILE" => nil }.freeze
   ENVIRONMENT = application_variables.to_h { |key| [key, nil] }.merge(
     "RI" => nil, "RI_PAGER" => nil, "PAGER" => "cat", "NO_COLOR" => "1", "TERM" => "xterm",
     "BAT_THEME" => nil, "XDG_CONFIG_HOME" => File.join(TEMP, "config"), "RICH_RI_CONFIG" => nil

@@ -89,7 +89,7 @@ module Manual
       bat calls have a two-second deadline, a 1 MiB input limit and an 8 MiB output limit.
       Failed or invalid output leaves the original text and disables bat for the rest of the page.
       .SH EXIT STATUS
-      0: success (including a closed output pipe); 1: lookup or usage failure;
+      0: success (including a closed output pipe); 1: any failure;
       130: interrupted.
       .SH SEE ALSO
       ri(1), ruby(1), less(1), bat(1)
