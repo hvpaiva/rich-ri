@@ -73,7 +73,7 @@ namespace :lint do
 
   desc "Check Bash scripts with ShellCheck"
   task :shell do
-    sh "shellcheck", "completions/rich-ri.bash", "bin/setup"
+    sh "shellcheck", "--rcfile=.shellcheckrc", "completions/rich-ri.bash", "bin/setup"
   end
 
   desc "Check spelling in source and documentation"
