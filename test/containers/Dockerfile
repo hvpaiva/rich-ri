@@ -1,4 +1,4 @@
-FROM docker.io/library/ruby:4.0.9-slim-trixie@sha256:88f0d8f1f2f7829c8c85c5cfee774f7ac936a7ba460e904e8c873b6a7f96c311
+FROM docker.io/library/ruby:4.0.9-slim-trixie@sha256:d8cb2c0714bdaba0f318af897a01d2dbde3cfa8e62d47e99cea55feb13c0e90d
 
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
       bash bash-completion zsh fish build-essential libyaml-dev \
